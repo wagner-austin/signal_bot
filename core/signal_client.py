@@ -30,10 +30,10 @@ def send_message(to_number, message, group_id=None):
     """Send a message using signal-cli. If group_id is provided, send to the group chat."""
     if group_id:
         args = ['send', '-g', group_id, '-m', message]
-        print(f"Sent to group {group_id}: {message}")
+        logging.info(f"Sent to group {group_id}: {message}")
     else:
         args = ['send', to_number, '-m', message]
-        print(f"Sent to {to_number}: {message}")
+        logging.info(f"Sent to {to_number}: {message}")
     run_signal_cli(args)
 
 def receive_messages():
@@ -52,7 +52,7 @@ def process_incoming():
     """
     messages = receive_messages()
     for message in messages:
-        print(f"Processing message:\n{message}\n")
+        logging.info(f"Processing message:\n{message}\n")
         
         # Use the message parser to extract details.
         parsed = parse_message(message)
