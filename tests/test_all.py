@@ -1,10 +1,8 @@
 """
 tests/test_all.py
 -----------------
-Integration tests for the Signal bot functionalities.
-This module defines tests for message parsing, volunteer assignment, state transitions,
-direct/indirect message sending, command execution, and invalid command handling.
-It provides a function to run all tests and print a summary.
+Integration tests for the Signal bot functionalities including message parsing,
+command processing for group and private chats, and verifying direct/indirect responses.
 """
 
 import asyncio
@@ -28,7 +26,7 @@ async def run_tests() -> str:
             "from: +1234567890\n"
             "Body: @bot test_all\n"
             "Timestamp: 123456789\n"
-            "Group info: SomeGroup\n"
+            "Group info: Id: SomeGroup\n"
             "Message timestamp: 123456789\n"
         )
         parsed = parse_message(sample_message)
@@ -100,7 +98,7 @@ async def run_tests() -> str:
     except Exception as e:
         results.append(f"Direct reply in group chat: FAIL ({e})")
     
-    # Test 6: Indirect reply in private message (simulate send_message)
+    # Test 6: Indirect reply in private chat (simulate send_message)
     try:
         original_async_run = sc.async_run_signal_cli
         calls = []
@@ -145,6 +143,83 @@ async def run_tests() -> str:
             results.append("Invalid command handling: FAIL")
     except Exception as e:
         results.append(f"Invalid command handling: FAIL ({e})")
+    
+    # New Tests for command parsing and response dispatch:
+
+    # Test 8: Group chat command without prefix should return empty response.
+    try:
+        sample_message = (
+            "Envelope\n"
+            "from: +1234567890\n"
+            "Body: test\n"
+            "Timestamp: 123456789\n"
+            "Group info: Id: SomeGroup\n"
+            "Message timestamp: 123456789\n"
+        )
+        parsed = parse_message(sample_message)
+        response = handle_message(parsed, parsed.sender, BotStateMachine())
+        if response == "":
+            results.append("Group chat command without prefix: PASS")
+        else:
+            results.append("Group chat command without prefix: FAIL")
+    except Exception as e:
+        results.append(f"Group chat command without prefix: FAIL ({e})")
+    
+    # Test 9: Group chat command with '@bot test' should return 'yes'.
+    try:
+        sample_message = (
+            "Envelope\n"
+            "from: +1234567890\n"
+            "Body: @bot test\n"
+            "Timestamp: 123456789\n"
+            "Group info: Id: SomeGroup\n"
+            "Message timestamp: 123456789\n"
+        )
+        parsed = parse_message(sample_message)
+        response = handle_message(parsed, parsed.sender, BotStateMachine())
+        if response.strip() == "yes":
+            results.append("Group chat command '@bot test': PASS")
+        else:
+            results.append("Group chat command '@bot test': FAIL")
+    except Exception as e:
+        results.append(f"Group chat command '@bot test': FAIL ({e})")
+    
+    # Test 10: Group chat command with '@50501OC Bot test' should return 'yes'.
+    try:
+        sample_message = (
+            "Envelope\n"
+            "from: +1234567890\n"
+            "Body: @50501OC Bot test\n"
+            "Timestamp: 123456789\n"
+            "Group info: Id: SomeGroup\n"
+            "Message timestamp: 123456789\n"
+        )
+        parsed = parse_message(sample_message)
+        response = handle_message(parsed, parsed.sender, BotStateMachine())
+        if response.strip() == "yes":
+            results.append("Group chat command '@50501OC Bot test': PASS")
+        else:
+            results.append("Group chat command '@50501OC Bot test': FAIL")
+    except Exception as e:
+        results.append(f"Group chat command '@50501OC Bot test': FAIL ({e})")
+    
+    # Test 11: Private chat command without prefix should return 'yes'.
+    try:
+        sample_message = (
+            "Envelope\n"
+            "from: +1234567890\n"
+            "Body: test\n"
+            "Timestamp: 123456789\n"
+            "Message timestamp: 123456789\n"
+        )
+        parsed = parse_message(sample_message)
+        response = handle_message(parsed, parsed.sender, BotStateMachine())
+        if response.strip() == "yes":
+            results.append("Private chat command without prefix: PASS")
+        else:
+            results.append("Private chat command without prefix: FAIL")
+    except Exception as e:
+        results.append(f"Private chat command without prefix: FAIL ({e})")
     
     summary = "\n".join(results)
     return summary
