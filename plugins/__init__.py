@@ -3,6 +3,7 @@ plugins/__init__.py
 -----------
 Plugin definitions for the Signal bot.
 Each plugin is registered via the @plugin decorator from the merged plugins manager.
+This module exports the public plugin commands for use in the bot.
 """
 
 from plugins.manager import plugin  # Updated import from merged plugins manager
@@ -41,5 +42,8 @@ def shutdown_command(args, sender, msg_timestamp=None):
     """
     state.BOT_CONTROLLER.shutdown()
     return "Bot is shutting down."
+
+# Define the public API for this module.
+__all__ = ["assign_command", "test_command", "shutdown_command"]
 
 # End of plugins/__init__.py
