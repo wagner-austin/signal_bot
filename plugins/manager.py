@@ -1,8 +1,7 @@
 """
 plugins/manager.py
 ------------------
-Provides a plugin manager and loader to register, load, and manage command plugins.
-Includes utilities for dynamic reloading of plugins.
+Unified plugin manager module that handles registration, loading, and reloading of plugins.
 """
 
 import os
@@ -16,6 +15,12 @@ plugin_registry = {}
 def plugin(command: str):
     """
     Decorator to register a function as a command plugin.
+    
+    Args:
+        command (str): The command name to register.
+        
+    Returns:
+        function: The decorator that registers the plugin.
     """
     def decorator(func):
         plugin_registry[command.lower()] = func
@@ -25,12 +30,21 @@ def plugin(command: str):
 def get_plugin(command: str):
     """
     Retrieve a plugin function by command.
+    
+    Args:
+        command (str): The command name.
+        
+    Returns:
+        function or None: The plugin function if found, else None.
     """
     return plugin_registry.get(command.lower())
 
 def get_all_plugins():
     """
     Return all registered plugins.
+    
+    Returns:
+        dict: Dictionary containing all registered plugins.
     """
     return plugin_registry
 
@@ -43,7 +57,13 @@ def clear_plugins():
 def _load_module(module_name: str, file_path: str):
     """
     Helper function to load a module given its module name and file path.
-    Returns the module object if loaded successfully, otherwise None.
+    
+    Args:
+        module_name (str): The name of the module.
+        file_path (str): The file path to the module.
+        
+    Returns:
+        module or None: The loaded module object if successful, else None.
     """
     spec = importlib.util.spec_from_file_location(module_name, file_path)
     if spec is None:
@@ -56,6 +76,9 @@ def _load_module(module_name: str, file_path: str):
 def load_plugins():
     """
     Automatically import all Python modules in the 'plugins' directory.
+    
+    This function scans the plugins directory, loads all .py files, 
+    and registers their plugin commands.
     """
     base_dir = os.path.dirname(os.path.dirname(__file__))
     plugins_dir = os.path.join(base_dir, 'plugins')
@@ -69,7 +92,8 @@ def load_plugins():
 
 def reload_plugins():
     """
-    Reload all plugins dynamically by clearing the plugin registry and re-importing all plugin modules.
+    Reload all plugins dynamically by clearing the plugin registry 
+    and re-importing all plugin modules.
     """
     clear_plugins()
     base_dir = os.path.dirname(os.path.dirname(__file__))
