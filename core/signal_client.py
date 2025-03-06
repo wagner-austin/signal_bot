@@ -1,7 +1,8 @@
 """
-signal_client.py
-----------------
+core/signal_client.py
+--------------------
 Encapsulates functions to interact with signal-cli for sending and receiving messages.
+Modified to support replying in group chats if group info is detected.
 """
 
 import subprocess
@@ -16,10 +17,15 @@ def run_signal_cli(args):
     result = subprocess.run(full_args, capture_output=True, text=True, encoding='utf-8', errors='replace')
     return result
 
-def send_message(to_number, message):
-    """Send a message using signal-cli."""
-    run_signal_cli(['send', to_number, '-m', message])
-    print(f"Sent to {to_number}: {message}")
+def send_message(to_number, message, group_id=None):
+    """Send a message using signal-cli. If group_id is provided, send to the group chat."""
+    if group_id:
+        args = ['send', '-g', group_id, '-m', message]
+        print(f"Sent to group {group_id}: {message}")
+    else:
+        args = ['send', to_number, '-m', message]
+        print(f"Sent to {to_number}: {message}")
+    run_signal_cli(args)
 
 def receive_messages():
     """Retrieve incoming messages using signal-cli."""
@@ -33,6 +39,7 @@ def process_incoming():
     """
     Process each incoming message, dispatch commands, and send responses.
     Skips system messages (e.g. typing notifications, receipts) which lack a 'Body:'.
+    Modified to support replying in group chats when group info is detected.
     """
     messages = receive_messages()
     for message in messages:
@@ -61,7 +68,14 @@ def process_incoming():
         timestamp_match = re.search(r'Timestamp:\s*(\d+)', message)
         msg_timestamp = int(timestamp_match.group(1)) if timestamp_match else None
 
+        # --- New: Extract group info if present ---
+        group_id = None
+        if "Group info:" in message:
+            group_id_match = re.search(r'Id:\s*([^\n]+)', message)
+            if group_id_match:
+                group_id = group_id_match.group(1).strip()
+
         # Pass the real message text to our message handler
         response = handle_message(body, sender, msg_timestamp=msg_timestamp)
         if response:
-            send_message(sender, response)
+            send_message(sender, response, group_id=group_id)

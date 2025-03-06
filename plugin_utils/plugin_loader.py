@@ -1,5 +1,5 @@
 """
-plugin_loader.py
+plugin_utils/plugin_loader.py
 ----------------
 Automatically loads all plugin modules from the 'plugins' directory
 (including the __init__.py so that commands can live there).

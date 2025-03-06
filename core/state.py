@@ -1,5 +1,5 @@
 """
-state.py
+core/state.py
 --------
 Holds global state for the Signal bot.
 """

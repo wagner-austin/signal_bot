@@ -1,5 +1,5 @@
 """
-volunteer_manager.py
+managers/volunteer_manager.py
 --------------------
 Handles volunteer management including assigning volunteers to roles.
 """

@@ -1,5 +1,5 @@
 """
-plugin_manager.py
+managers/plugin_manager.py
 -----------------
 Provides a plugin manager to register and manage command plugins.
 """

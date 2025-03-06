@@ -1,5 +1,5 @@
 """
-message_handler.py
+managers/message_handler.py
 ------------------
 Handles incoming messages and dispatches commands using the plugin manager.
 Now supports:

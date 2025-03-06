@@ -1,5 +1,5 @@
 """
-__init__.py
+plugins/__init__.py
 -----------
 Plugin definitions for the Signal bot.
 Each plugin is registered via the @plugin decorator from plugin_manager.

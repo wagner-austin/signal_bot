@@ -1,5 +1,5 @@
 """
-config.py
+core/config.py
 ---------
 Configuration file for the Signal bot.
 """
