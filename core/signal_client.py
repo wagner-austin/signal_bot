@@ -43,10 +43,11 @@ async def async_run_signal_cli(args: List[str]) -> str:
         )
         try:
             stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=30)
-        except asyncio.TimeoutError:
+        except asyncio.TimeoutError as te:
             proc.kill()
             await proc.communicate()
-            raise SignalCLIError(f"Signal CLI command timed out. Args: {full_args}")
+            logger.exception(f"Signal CLI command timed out. Args: {full_args}")
+            raise SignalCLIError(f"Signal CLI command timed out. Args: {full_args}") from te
         
         if proc.returncode != 0:
             error_output = stderr.decode().strip() if stderr else ""
