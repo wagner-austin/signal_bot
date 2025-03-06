@@ -1,8 +1,8 @@
 """
-manager.py
+plugins/manager.py
 ------------------
 Unified plugin manager module that handles registration, loading, and reloading of plugins.
-It skips non-plugin files and abstracts common loading logic into a helper function.
+Prevents duplicate plugin registration to avoid accidental overwrites.
 """
 
 import os
@@ -24,9 +24,18 @@ def plugin(command: str) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
         
     Returns:
         Callable: A decorator that registers the plugin function.
+        
+    Raises:
+        ValueError: If a plugin for the given command is already registered.
     """
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
-        plugin_registry[command.lower()] = func
+        key = command.lower()
+        if key in plugin_registry:
+            raise ValueError(
+                f"Duplicate plugin registration: command '{command}' is already registered "
+                f"with function '{plugin_registry[key].__name__}'."
+            )
+        plugin_registry[key] = func
         return func
     return decorator
 
