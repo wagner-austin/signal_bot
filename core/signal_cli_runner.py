@@ -2,11 +2,12 @@
 core/signal_cli_runner.py
 -------------------------
 Module for running signal-cli commands asynchronously with unified error handling.
-Introduces a helper function to consolidate subprocess execution and error logging.
+Includes input sanitization and validation to ensure that only expected, safe arguments are passed.
 """
 
 import asyncio
 import logging
+import re
 from typing import List, Tuple
 from core.config import SIGNAL_CLI_COMMAND, BOT_NUMBER
 
@@ -80,6 +81,17 @@ async def async_run_signal_cli(args: List[str]) -> str:
     Raises:
         SignalCLIError: If an error occurs while running the signal-cli command.
     """
+    # Whitelist for allowed flags.
+    allowed_flags = {"send", "-g", "--quote-author", "--quote-timestamp", "--quote-message", "-m", "receive"}
+    dangerous_pattern = re.compile(r'[;&|`]')
+    
+    # Validate that each flag is allowed and that no argument contains dangerous characters.
+    for arg in args:
+        if arg.startswith("-") and arg not in allowed_flags:
+            raise SignalCLIError(f"Disallowed flag detected: {arg}")
+        if dangerous_pattern.search(arg):
+            raise SignalCLIError(f"Potentially dangerous character detected in argument: {arg}")
+    
     full_args = [SIGNAL_CLI_COMMAND, '-u', BOT_NUMBER] + args
     stdout, stderr, returncode = await _run_subprocess(full_args, timeout=30)
     if returncode != 0:

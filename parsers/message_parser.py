@@ -2,7 +2,7 @@
 parsers/message_parser.py
 -------------------------
 Provides message parsing utilities that combine envelope parsing and command extraction.
-Refactored to use helper functions for commands with and without the @bot prefix.
+Enhances input validation by sanitizing and validating commands.
 Returns a structured ParsedMessage dataclass.
 """
 
@@ -16,6 +16,7 @@ from parsers.envelope_parser import (
     parse_reply_id,
     parse_message_timestamp
 )
+import re
 
 @dataclass
 class ParsedMessage:
@@ -27,6 +28,12 @@ class ParsedMessage:
     message_timestamp: Optional[str]
     command: Optional[str]
     args: Optional[str]
+
+def _validate_command(command: str) -> bool:
+    """
+    Validate that the command consists only of allowed characters: lowercase letters, digits, and underscores.
+    """
+    return re.match(r'^[a-z0-9_]+$', command) is not None
 
 def _parse_atbot_command(message: str) -> Tuple[Optional[str], Optional[str]]:
     """
@@ -42,6 +49,8 @@ def _parse_atbot_command(message: str) -> Tuple[Optional[str], Optional[str]]:
     if len(parts) < 2 or not parts[1].strip():
         return None, None
     command = parts[1].strip().lower()
+    if not _validate_command(command):
+        return None, None
     args = parts[2].strip() if len(parts) == 3 else ""
     return command, args
 
@@ -57,9 +66,9 @@ def _parse_default_command(message: str) -> Tuple[Optional[str], Optional[str]]:
     """
     parts = message.split(" ", 1)
     command = parts[0].strip().lower()
-    args = parts[1].strip() if len(parts) == 2 else ""
-    if not command:
+    if not _validate_command(command):
         return None, None
+    args = parts[1].strip() if len(parts) == 2 else ""
     return command, args
 
 def parse_command_from_body(body: Optional[str]) -> Tuple[Optional[str], Optional[str]]:
