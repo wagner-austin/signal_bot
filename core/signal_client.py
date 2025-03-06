@@ -10,58 +10,11 @@ import asyncio
 import re
 import logging
 from typing import List, Optional
-from core.config import BOT_NUMBER, SIGNAL_CLI_COMMAND
+from core.signal_cli_runner import async_run_signal_cli, SignalCLIError
 from managers.message_handler import handle_message
 from parsers.message_parser import parse_message
 
 logger = logging.getLogger(__name__)
-
-class SignalCLIError(Exception):
-    """
-    Custom exception for errors encountered when executing signal-cli commands.
-    """
-    pass
-
-async def async_run_signal_cli(args: List[str]) -> str:
-    """
-    Asynchronously run signal-cli with given arguments.
-    
-    Args:
-        args (List[str]): List of command-line arguments for signal-cli.
-    
-    Returns:
-        str: The standard output from the signal-cli command.
-        
-    Raises:
-        SignalCLIError: If an error occurs while running the signal-cli command.
-    """
-    full_args = [SIGNAL_CLI_COMMAND, '-u', BOT_NUMBER] + args
-    try:
-        proc = await asyncio.create_subprocess_exec(
-            *full_args,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
-        )
-        try:
-            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=30)
-        except asyncio.TimeoutError as te:
-            proc.kill()
-            await proc.communicate()
-            logger.exception(f"Signal CLI command timed out. Args: {full_args}")
-            raise SignalCLIError(f"Signal CLI command timed out. Args: {full_args}") from te
-        
-        if proc.returncode != 0:
-            error_output = stderr.decode().strip() if stderr else ""
-            logger.error(f"Signal-cli command failed: {full_args} with return code {proc.returncode}. Error: {error_output}")
-            raise SignalCLIError(f"Signal-cli command failed with return code {proc.returncode}. Args: {full_args}")
-        
-        return stdout.decode() if stdout else ""
-    except OSError as ose:
-        logger.exception(f"OS error while running async signal-cli with args {full_args}: {ose}")
-        raise SignalCLIError(f"OS error while running signal-cli: {ose}") from ose
-    except Exception as e:
-        logger.exception(f"Unexpected error while running async signal-cli with args {full_args}: {e}")
-        raise SignalCLIError(f"Unexpected error: {e}") from e
 
 async def send_message(
     to_number: str,
@@ -159,4 +112,4 @@ async def process_incoming(state_machine) -> None:
                 reply_quote_message=quote_message
             )
 
-# End of core/signal_client.py
+# End of signal_client.py
