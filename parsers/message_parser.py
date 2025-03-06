@@ -8,28 +8,27 @@ Centralizes common regex patterns for consistency in parsing incoming messages.
 import re
 from typing import Optional, Dict, Any
 
-# Matches lines starting with "from:" possibly including a quoted sender name,
-# then captures an E.164 formatted phone number (a '+' followed by 1 to 15 digits).
+# Pattern to match sender information.
 SENDER_PATTERN: str = r'\s*from:\s*(?:["“]?.+?["”]?\s+)?(\+\d{1,15})'
 
-# Matches "Body:" followed by any characters capturing the message text.
+# Pattern to match the message body.
 BODY_PATTERN: str = r'Body:\s*(.+)'
 
-# Matches "Timestamp:" followed by one or more digits (the message timestamp).
+# Pattern to match the general timestamp.
 TIMESTAMP_PATTERN: str = r'Timestamp:\s*(\d+)'
 
-# Matches "Id:" followed by any characters (non-newline) capturing the group ID.
+# Pattern to match group information.
 GROUP_INFO_PATTERN: str = r'Id:\s*([^\n]+)'
+
+# Pattern to match a quoted reply (if any).
+REPLY_PATTERN: str = r'Quote:.*?Id:\s*([^\n]+)'
+
+# New pattern to specifically capture the original command's message timestamp.
+MESSAGE_TIMESTAMP_PATTERN: str = r'Message timestamp:\s*(\d+)'
 
 def parse_sender(message: str) -> Optional[str]:
     """
     Extract and return the sender phone number from the message.
-
-    Args:
-        message (str): The incoming message string.
-        
-    Returns:
-        Optional[str]: The sender's phone number in E.164 format if found, otherwise None.
     """
     match = re.search(SENDER_PATTERN, message, re.IGNORECASE)
     return match.group(1) if match else None
@@ -37,25 +36,13 @@ def parse_sender(message: str) -> Optional[str]:
 def parse_body(message: str) -> Optional[str]:
     """
     Extract and return the message body.
-
-    Args:
-        message (str): The incoming message string.
-        
-    Returns:
-        Optional[str]: The message body if found, otherwise None.
     """
     match = re.search(BODY_PATTERN, message)
     return match.group(1).strip() if match else None
 
 def parse_timestamp(message: str) -> Optional[int]:
     """
-    Extract and return the message timestamp as an integer.
-
-    Args:
-        message (str): The incoming message string.
-        
-    Returns:
-        Optional[int]: The message timestamp if found, otherwise None.
+    Extract and return the general message timestamp as an integer.
     """
     match = re.search(TIMESTAMP_PATTERN, message)
     return int(match.group(1)) if match else None
@@ -63,37 +50,63 @@ def parse_timestamp(message: str) -> Optional[int]:
 def parse_group_info(message: str) -> Optional[str]:
     """
     Extract and return the group ID if available.
-
-    Args:
-        message (str): The incoming message string.
-        
-    Returns:
-        Optional[str]: The group ID if found, otherwise None.
     """
     if "Group info:" in message:
         match = re.search(GROUP_INFO_PATTERN, message)
         return match.group(1).strip() if match else None
     return None
 
+def parse_reply_id(message: str) -> Optional[str]:
+    """
+    Extract the reply message ID from a quoted message if present.
+    
+    Parameters:
+        message (str): The full incoming message text.
+    
+    Returns:
+        Optional[str]: The reply message ID if found, otherwise None.
+    """
+    match = re.search(REPLY_PATTERN, message, re.DOTALL)
+    return match.group(1).strip() if match else None
+
+def parse_message_timestamp(message: str) -> Optional[str]:
+    """
+    Extract the original command's message timestamp from the message if present.
+    
+    Parameters:
+        message (str): The full incoming message text.
+    
+    Returns:
+        Optional[str]: The message timestamp as a string if found, otherwise None.
+    """
+    match = re.search(MESSAGE_TIMESTAMP_PATTERN, message)
+    return match.group(1).strip() if match else None
+
 def parse_message(message: str) -> Dict[str, Optional[Any]]:
     """
     Parse the incoming message and return a dictionary with details.
-
-    Args:
+    
+    The returned dictionary contains:
+      - 'sender': The sender's phone number.
+      - 'body': The text body of the message.
+      - 'timestamp': The general timestamp of the message.
+      - 'group_id': The group ID if available.
+      - 'reply_to': The reply message ID if available from a quoted block.
+      - 'message_timestamp': The original command's message timestamp.
+    
+    Parameters:
         message (str): The full incoming message text.
-        
+    
     Returns:
-        Dict[str, Optional[Any]]: A dictionary containing:
-            - 'sender': The sender's phone number (str) or None.
-            - 'body': The text body of the message (str) or None.
-            - 'timestamp': The message timestamp (int) or None.
-            - 'group_id': The group ID (str) if the message is from a group, else None.
+        Dict[str, Optional[Any]]: A dictionary containing message details.
     """
     return {
         'sender': parse_sender(message),
         'body': parse_body(message),
         'timestamp': parse_timestamp(message),
-        'group_id': parse_group_info(message)
+        'group_id': parse_group_info(message),
+        'reply_to': parse_reply_id(message),
+        'message_timestamp': parse_message_timestamp(message)
     }
 
 # End of parsers/message_parser.py

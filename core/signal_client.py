@@ -3,6 +3,7 @@ core/signal_client.py
 --------------------
 Encapsulates functions to interact with signal-cli for sending and receiving messages.
 Improved asynchronous handling with asyncio subprocess and robust message delimiter parsing.
+Now supports sending direct replies by quoting the original command message.
 """
 
 import asyncio
@@ -11,7 +12,7 @@ import logging
 from typing import List, Optional
 from core.config import BOT_NUMBER, SIGNAL_CLI_COMMAND
 from managers.message_handler import handle_message
-from parsers.message_parser import parse_message  # Updated import from dedicated parsers package
+from parsers.message_parser import parse_message
 
 logger = logging.getLogger(__name__)
 
@@ -62,21 +63,47 @@ async def async_run_signal_cli(args: List[str]) -> str:
         logger.exception(f"Unexpected error while running async signal-cli with args {full_args}: {e}")
         raise SignalCLIError(f"Unexpected error: {e}") from e
 
-async def send_message(to_number: str, message: str, group_id: Optional[str] = None) -> None:
+async def send_message(
+    to_number: str,
+    message: str,
+    group_id: Optional[str] = None,
+    reply_quote_author: Optional[str] = None,
+    reply_quote_timestamp: Optional[str] = None,
+    reply_quote_message: Optional[str] = None
+) -> None:
     """
-    Asynchronously send a message using signal-cli. If group_id is provided, send to the group chat.
+    Asynchronously send a message using signal-cli.
+    
+    If quote details are provided, the message will be sent as a direct reply
+    to the original command message using the quoting flags.
     
     Args:
         to_number (str): The recipient's phone number.
         message (str): The message to send.
         group_id (Optional[str]): The group ID if sending to a group chat.
+        reply_quote_author (Optional[str]): The author of the original message to quote.
+        reply_quote_timestamp (Optional[str]): The timestamp of the original message.
+        reply_quote_message (Optional[str]): The text of the original message.
     """
     if group_id:
-        args = ['send', '-g', group_id, '-m', message]
-        logger.info(f"Sent to group {group_id}: {message}")
+        args = ['send', '-g', group_id]
     else:
-        args = ['send', to_number, '-m', message]
-        logger.info(f"Sent to {to_number}: {message}")
+        args = ['send', to_number]
+    
+    if reply_quote_author and reply_quote_timestamp and reply_quote_message:
+        # Use explicit quoting flags to form a direct reply.
+        args.extend([
+            '--quote-author', reply_quote_author,
+            '--quote-timestamp', reply_quote_timestamp,
+            '--quote-message', reply_quote_message
+        ])
+    
+    args.extend(['-m', message])
+    
+    if group_id:
+        logger.info(f"Sent to group {group_id}: {message} (replying to message by {reply_quote_author})")
+    else:
+        logger.info(f"Sent to {to_number}: {message} (replying to message by {reply_quote_author})")
     await async_run_signal_cli(args)
 
 async def receive_messages() -> List[str]:
@@ -96,26 +123,37 @@ async def receive_messages() -> List[str]:
 async def process_incoming() -> None:
     """
     Asynchronously process each incoming message, dispatch commands, and send responses.
+    
     Skips system messages (e.g. typing notifications, receipts) which lack a 'Body:'.
+    Sends the response as a direct reply using the original command message's details.
     """
     messages = await receive_messages()
     for message in messages:
         logger.info(f"Processing message:\n{message}\n")
         
-        # Use the message parser to extract details.
         parsed = parse_message(message)
         sender = parsed.get('sender')
         body = parsed.get('body')
         msg_timestamp = parsed.get('timestamp')
         group_id = parsed.get('group_id')
-
-        # Skip if required fields are missing.
+        # For direct reply, use the original command's message details:
+        # Use the message timestamp (from the "Message timestamp:" field if available; otherwise, fallback to general timestamp)
+        quote_timestamp = str(parsed.get('message_timestamp') or msg_timestamp) if msg_timestamp else None
+        quote_author = sender  # The command's sender becomes the quoted author.
+        quote_message = body  # The body of the command message.
+        
         if not sender or not body:
             continue
-
-        # Process the message using the existing handler.
+        
         response = handle_message(body, sender, msg_timestamp=msg_timestamp)
         if response:
-            await send_message(sender, response, group_id=group_id)
+            await send_message(
+                sender,
+                response,
+                group_id=group_id,
+                reply_quote_author=quote_author,
+                reply_quote_timestamp=quote_timestamp,
+                reply_quote_message=quote_message
+            )
 
 # End of core/signal_client.py
