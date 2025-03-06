@@ -20,13 +20,19 @@ def handle_message(parsed: Dict[str, Any], sender: str, state_machine: BotStateM
     retrieves the appropriate plugin function, and executes it.
     
     Args:
-        parsed (Dict[str, Any]): The parsed message details, including 'command' and 'args'.
+        parsed (Dict[str, Any]): The parsed message details. Expected keys include:
+            - 'command': Optional[str] - The extracted command in lowercase.
+            - 'args': Optional[str] - The command arguments.
         sender (str): The identifier of the sender (e.g., phone number).
-        state_machine (BotStateMachine): The state machine instance for dependency injection.
+        state_machine (BotStateMachine): The bot's state machine instance.
         msg_timestamp (Optional[int]): The timestamp of the message, if available.
         
     Returns:
-        str: The response from the executed plugin command, or an error message.
+        str: The response from the executed plugin command, an error message if execution fails,
+             or an empty string if no valid command is identified.
+             
+    Raises:
+        Exception: Any exception raised by the plugin function is caught and logged.
     """
     command = parsed.get('command')
     args = parsed.get('args')

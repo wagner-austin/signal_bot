@@ -29,7 +29,15 @@ class SignalBotService:
     async def run(self) -> None:
         """
         Runs the main asynchronous loop to process incoming messages.
+        
         Logs available commands and gracefully handles shutdown.
+        
+        Returns:
+            None
+        
+        Raises:
+            KeyboardInterrupt: If the bot is manually stopped via keyboard interrupt.
+            Exception: Any unexpected exceptions during the processing loop.
         """
         logger.info("Signal bot is running. Available commands:")
         for cmd in get_all_plugins().keys():

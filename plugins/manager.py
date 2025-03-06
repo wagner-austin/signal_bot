@@ -23,7 +23,7 @@ def plugin(command: str) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
         command (str): The command name to register.
         
     Returns:
-        Callable: The decorator that registers the plugin.
+        Callable: A decorator that registers the plugin function.
     """
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         plugin_registry[command.lower()] = func
@@ -67,6 +67,9 @@ def _load_module(module_name: str, file_path: str) -> Optional[ModuleType]:
         
     Returns:
         Optional[ModuleType]: The loaded module object if successful, else None.
+        
+    Raises:
+        Exception: If the module fails to load.
     """
     spec = importlib.util.spec_from_file_location(module_name, file_path)
     if spec is None:
@@ -103,6 +106,9 @@ def load_plugins() -> None:
     """
     Automatically import all plugin modules in the 'plugins' directory,
     skipping non-plugin files.
+    
+    Returns:
+        None
     """
     _load_plugins_from_dir(reload=False)
 
@@ -110,6 +116,9 @@ def reload_plugins() -> None:
     """
     Reload all plugin modules dynamically by clearing the plugin registry
     and re-importing all plugin modules, skipping non-plugin files.
+    
+    Returns:
+        None
     """
     clear_plugins()
     _load_plugins_from_dir(reload=True)

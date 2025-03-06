@@ -20,11 +20,14 @@ def assign_command(args: str, sender: str, state_machine: BotStateMachine, msg_t
     Args:
         args (str): The arguments provided by the user.
         sender (str): The sender's phone number.
-        state_machine (BotStateMachine): The bot's state machine.
+        state_machine (BotStateMachine): The bot's state machine instance.
         msg_timestamp (Optional[int]): The timestamp of the message.
         
     Returns:
-        str: The result of the volunteer assignment.
+        str: A message indicating the result of the volunteer assignment.
+        
+    Raises:
+        Exception: Any exception raised during volunteer assignment is propagated.
     """
     skill = args.strip()
     if not skill:
@@ -43,13 +46,13 @@ def test_command(args: str, sender: str, state_machine: BotStateMachine, msg_tim
     Responds with "yes".
     
     Args:
-        args (str): The arguments provided by the user.
+        args (str): The arguments provided by the user (ignored).
         sender (str): The sender's phone number.
-        state_machine (BotStateMachine): The bot's state machine.
+        state_machine (BotStateMachine): The bot's state machine instance.
         msg_timestamp (Optional[int]): The timestamp of the message.
         
     Returns:
-        str: A confirmation response.
+        str: The string "yes".
     """
     return "yes"
 
@@ -60,13 +63,15 @@ def shutdown_command(args: str, sender: str, state_machine: BotStateMachine, msg
     Expected format: "@bot shutdown"
     
     Args:
-        args (str): The arguments provided by the user.
+        args (str): The arguments provided by the user (ignored).
         sender (str): The sender's phone number.
-        state_machine (BotStateMachine): The bot's state machine.
+        state_machine (BotStateMachine): The bot's state machine instance.
         msg_timestamp (Optional[int]): The timestamp of the message.
         
     Returns:
-        str: A shutdown confirmation message.
+        str: A message confirming that the bot is shutting down.
     """
     state_machine.shutdown()
     return "Bot is shutting down."
+
+# End of plugins/__init__.py
