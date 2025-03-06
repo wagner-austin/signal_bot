@@ -8,8 +8,8 @@ Uses asynchronous processing for improved scalability and responsiveness.
 import asyncio
 import logging
 from core.signal_client import process_incoming
-from managers.plugin_manager import get_all_plugins
-from plugin_utils.plugin_loader import load_plugins  # Automatically load plugins
+from plugins.manager import get_all_plugins  # Updated import from merged plugins manager
+from plugins.manager import load_plugins     # Plugins are loaded from the merged manager
 from core.config import POLLING_INTERVAL
 import core.state as state
 

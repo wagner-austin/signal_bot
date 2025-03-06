@@ -1,8 +1,8 @@
 """
-core/message_parser.py
-----------------------
-Module for parsing incoming messages using regex extraction.
-Centralizes common regex patterns for consistency.
+parsers/message_parser.py
+-------------------------
+Provides message parsing utilities using regex extraction.
+Centralizes common regex patterns for consistency in parsing incoming messages.
 """
 
 import re
@@ -96,4 +96,4 @@ def parse_message(message: str) -> Dict[str, Optional[Any]]:
         'group_id': parse_group_info(message)
     }
 
-# End of core/message_parser.py
+# End of parsers/message_parser.py

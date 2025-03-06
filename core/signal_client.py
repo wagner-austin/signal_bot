@@ -3,7 +3,6 @@ core/signal_client.py
 --------------------
 Encapsulates functions to interact with signal-cli for sending and receiving messages.
 Improved asynchronous handling with asyncio subprocess and robust message delimiter parsing.
-Also uses a centralized logger for consistent logging.
 """
 
 import asyncio
@@ -12,7 +11,7 @@ import logging
 from typing import List, Optional
 from core.config import BOT_NUMBER, SIGNAL_CLI_COMMAND
 from managers.message_handler import handle_message
-from core.message_parser import parse_message
+from parsers.message_parser import parse_message  # Updated import from dedicated parsers package
 
 logger = logging.getLogger(__name__)
 
@@ -94,7 +93,6 @@ async def process_incoming() -> None:
     """
     Asynchronously process each incoming message, dispatch commands, and send responses.
     Skips system messages (e.g. typing notifications, receipts) which lack a 'Body:'.
-    Modified to use the dedicated message parser.
     """
     messages = await receive_messages()
     for message in messages:

@@ -6,13 +6,12 @@ Supports:
   1) "@bot <command> <arguments>"
   2) "<command> <arguments>"
 Handles extra whitespace and ambiguous input robustly.
-Uses a module-level logger for consistent logging.
 """
 
 import re
 import logging
 from typing import Tuple, Optional
-from managers.plugin_manager import get_plugin
+from plugins.manager import get_plugin  # Updated import from merged plugins manager
 
 logger = logging.getLogger(__name__)
 
