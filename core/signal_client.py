@@ -1,6 +1,6 @@
 """
-signal_client.py
---------------------
+core/signal_client.py
+---------------------
 Encapsulates functions to interact with signal-cli for sending and receiving messages.
 Improved asynchronous handling with asyncio subprocess and robust message delimiter parsing.
 Now supports sending direct replies by quoting the original command message in group chats only.
@@ -29,14 +29,6 @@ async def send_message(
     
     For group chats, the message will include the original command text as a direct reply.
     For individual chats, the message will be sent without the original command text.
-    
-    Args:
-        to_number (str): The recipient's phone number.
-        message (str): The message to send.
-        group_id (Optional[str]): The group ID if sending to a group chat.
-        reply_quote_author (Optional[str]): The author of the original message to quote.
-        reply_quote_timestamp (Optional[str]): The timestamp of the original message.
-        reply_quote_message (Optional[str]): The text of the original message.
     """
     if group_id:
         args = ['send', '-g', group_id]
@@ -89,19 +81,19 @@ async def process_incoming(state_machine) -> None:
         logger.info(f"Processing message:\n{message}\n")
         
         parsed = parse_message(message)
-        sender = parsed.get('sender')
-        body = parsed.get('body')
-        msg_timestamp = parsed.get('timestamp')
-        group_id = parsed.get('group_id')
+        sender = parsed.sender
+        body = parsed.body
+        msg_timestamp = parsed.timestamp
+        group_id = parsed.group_id
         # For direct reply, use the original command's message details if available.
-        quote_timestamp = str(parsed.get('message_timestamp') or msg_timestamp) if msg_timestamp else None
+        quote_timestamp = str(parsed.message_timestamp or msg_timestamp) if msg_timestamp else None
         quote_author = sender  # The command's sender becomes the quoted author.
         quote_message = body  # The body of the command message.
         
         if not sender or not body:
             continue
         
-        # Pass the entire parsed dictionary to handle_message for unified parsing.
+        # Pass the structured ParsedMessage to handle_message.
         response = handle_message(parsed, sender, state_machine, msg_timestamp=msg_timestamp)
         if response:
             await send_message(

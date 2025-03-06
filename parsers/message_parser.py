@@ -1,11 +1,12 @@
 """
-message_parser.py
+parsers/message_parser.py
 -------------------------
 Provides message parsing utilities that combine envelope parsing and command extraction.
-Utilizes functions from envelope_parser.py for extracting envelope details and also extracts command and arguments.
+Returns a structured ParsedMessage dataclass instead of a plain dictionary.
 """
 
-from typing import Optional, Dict, Any, Tuple
+from typing import Optional, Tuple
+from dataclasses import dataclass
 from parsers.envelope_parser import (
     parse_sender,
     parse_body,
@@ -16,13 +17,24 @@ from parsers.envelope_parser import (
 )
 import re
 
+@dataclass
+class ParsedMessage:
+    sender: Optional[str]
+    body: Optional[str]
+    timestamp: Optional[int]
+    group_id: Optional[str]
+    reply_to: Optional[str]
+    message_timestamp: Optional[str]
+    command: Optional[str]
+    args: Optional[str]
+
 def parse_command_from_body(body: Optional[str]) -> Tuple[Optional[str], Optional[str]]:
     """
     Extract the command and its arguments from the message body.
-    
+
     Parameters:
         body (Optional[str]): The text body of the message.
-        
+
     Returns:
         Tuple[Optional[str], Optional[str]]: A tuple containing the command in lowercase and its arguments,
                                                or (None, None) if parsing fails.
@@ -50,25 +62,25 @@ def parse_command_from_body(body: Optional[str]) -> Tuple[Optional[str], Optiona
         return None, None
     return command, args
 
-def parse_message(message: str) -> Dict[str, Optional[Any]]:
+def parse_message(message: str) -> ParsedMessage:
     """
-    Parse the incoming message and return a dictionary with details.
-    
-    The returned dictionary contains:
-      - 'sender': The sender's phone number.
-      - 'body': The text body of the message.
-      - 'timestamp': The general timestamp of the message.
-      - 'group_id': The group ID if available.
-      - 'reply_to': The reply message ID if available from a quoted block.
-      - 'message_timestamp': The original command's message timestamp.
-      - 'command': The extracted command from the message body.
-      - 'args': The arguments for the command, if any.
-    
+    Parse the incoming message and return a ParsedMessage dataclass with details.
+
+    Returns a ParsedMessage instance containing:
+      - sender: The sender's phone number.
+      - body: The text body of the message.
+      - timestamp: The general timestamp of the message.
+      - group_id: The group ID if available.
+      - reply_to: The reply message ID if available from a quoted block.
+      - message_timestamp: The original command's message timestamp.
+      - command: The extracted command from the message body.
+      - args: The arguments for the command, if any.
+
     Parameters:
         message (str): The full incoming message text.
-    
+
     Returns:
-        Dict[str, Optional[Any]]: A dictionary containing message details.
+        ParsedMessage: A dataclass instance with parsed message attributes.
     """
     sender = parse_sender(message)
     body = parse_body(message)
@@ -77,15 +89,16 @@ def parse_message(message: str) -> Dict[str, Optional[Any]]:
     reply_to = parse_reply_id(message)
     message_timestamp = parse_message_timestamp(message)
     command, args = parse_command_from_body(body)
-    return {
-        'sender': sender,
-        'body': body,
-        'timestamp': timestamp,
-        'group_id': group_id,
-        'reply_to': reply_to,
-        'message_timestamp': message_timestamp,
-        'command': command,
-        'args': args
-    }
+    
+    return ParsedMessage(
+        sender=sender,
+        body=body,
+        timestamp=timestamp,
+        group_id=group_id,
+        reply_to=reply_to,
+        message_timestamp=message_timestamp,
+        command=command,
+        args=args
+    )
 
 # End of parsers/message_parser.py
