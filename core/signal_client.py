@@ -54,8 +54,11 @@ async def async_run_signal_cli(args: List[str]) -> str:
             raise SignalCLIError(f"Signal-cli command failed with return code {proc.returncode}. Args: {full_args}")
         
         return stdout.decode() if stdout else ""
+    except OSError as ose:
+        logger.exception(f"OS error while running async signal-cli with args {full_args}: {ose}")
+        raise SignalCLIError(f"OS error while running signal-cli: {ose}") from ose
     except Exception as e:
-        logger.error(f"Unexpected error while running async signal-cli with args {full_args}: {e}")
+        logger.exception(f"Unexpected error while running async signal-cli with args {full_args}: {e}")
         raise SignalCLIError(f"Unexpected error: {e}") from e
 
 async def send_message(to_number: str, message: str, group_id: Optional[str] = None) -> None:
