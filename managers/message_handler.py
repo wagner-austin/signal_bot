@@ -9,7 +9,7 @@ for every plugin command.
 """
 
 import re
-from plugin_manager import get_plugin
+from managers.plugin_manager import get_plugin
 
 def parse_command(message: str):
     """

@@ -5,13 +5,13 @@ Main entry point for the Signal bot. Continuously listens for messages and proce
 """
 
 import time
-from signal_client import process_incoming
-from plugin_manager import get_all_plugins
-import plugin_loader  # Automatically load plugins
-import state  # Import global state
+from core.signal_client import process_incoming
+from managers.plugin_manager import get_all_plugins
+from plugin_utils.plugin_loader import load_plugins  # Automatically load plugins
+import core.state as state
 
 # Automatically load all plugins from the 'plugins' folder.
-plugin_loader.load_plugins()
+load_plugins()
 
 if __name__ == "__main__":
     print("Signal bot is running. Available commands:")

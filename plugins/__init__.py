@@ -5,9 +5,9 @@ Plugin definitions for the Signal bot.
 Each plugin is registered via the @plugin decorator from plugin_manager.
 """
 
-from plugin_manager import plugin
-from volunteer_manager import assign_volunteer
-import state  # For graceful shutdown
+from managers.plugin_manager import plugin
+from managers.volunteer_manager import assign_volunteer
+import core.state as state  # For graceful shutdown
 
 @plugin('assign')
 def assign_command(args, sender, msg_timestamp=None):

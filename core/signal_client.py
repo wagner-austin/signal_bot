@@ -1,4 +1,3 @@
-# signal_client.py
 """
 signal_client.py
 ----------------
@@ -8,8 +7,8 @@ Encapsulates functions to interact with signal-cli for sending and receiving mes
 import subprocess
 import re
 import time
-from config import BOT_NUMBER
-from message_handler import handle_message
+from core.config import BOT_NUMBER
+from managers.message_handler import handle_message
 
 def run_signal_cli(args):
     """Run signal-cli with given arguments."""
