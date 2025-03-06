@@ -1,0 +1,6 @@
+# .gitignore
+# Ignore Python bytecode cache directories
+__pycache__/
+
+# Ignore temporary file
+temp.txt

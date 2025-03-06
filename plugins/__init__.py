@@ -1,0 +1,43 @@
+"""
+__init__.py
+-----------
+Plugin definitions for the Signal bot.
+Each plugin is registered via the @plugin decorator from plugin_manager.
+"""
+
+from plugin_manager import plugin
+from volunteer_manager import assign_volunteer
+import state  # For graceful shutdown
+
+@plugin('assign')
+def assign_command(args, sender, msg_timestamp=None):
+    """
+    Plugin command to assign a volunteer based on a skill.
+    Expected format: "@bot assign <Skill Name>"
+    """
+    skill = args.strip()
+    if not skill:
+        return "Usage: @bot assign <Skill Name>"
+    volunteer = assign_volunteer(skill, skill)
+    if volunteer:
+        return f"{skill} assigned to {volunteer}."
+    else:
+        return f"No available volunteer for {skill}."
+
+@plugin('test')
+def test_command(args, sender, msg_timestamp=None):
+    """
+    Plugin command for testing.
+    Expected format: "test" or "@bot test"
+    Responds with "yes".
+    """
+    return "yes"
+
+@plugin('shutdown')
+def shutdown_command(args, sender, msg_timestamp=None):
+    """
+    Plugin command to shut down the bot gracefully.
+    Expected format: "@bot shutdown"
+    """
+    state.RUNNING = False
+    return "Bot is shutting down."
