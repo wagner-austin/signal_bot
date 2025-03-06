@@ -2,21 +2,29 @@
 core/signal_client.py
 --------------------
 Encapsulates functions to interact with signal-cli for sending and receiving messages.
-Modified to use a dedicated message parser module for regex extraction.
+Improved error handling in subprocess calls.
 """
 
 import subprocess
 import re
 import time
+import logging
 from core.config import BOT_NUMBER
 from managers.message_handler import handle_message
-from core.message_parser import parse_message  # Newly added import
+from core.message_parser import parse_message
 
 def run_signal_cli(args):
-    """Run signal-cli with given arguments."""
+    """Run signal-cli with given arguments, catching and logging any errors."""
     full_args = ['signal-cli.bat', '-u', BOT_NUMBER] + args
-    result = subprocess.run(full_args, capture_output=True, text=True, encoding='utf-8', errors='replace')
-    return result
+    try:
+        result = subprocess.run(full_args, capture_output=True, text=True, encoding='utf-8', errors='replace', check=True)
+        return result
+    except subprocess.CalledProcessError as e:
+        logging.error(f"Signal-cli command failed: {e.cmd} with return code {e.returncode}. Output: {e.output}")
+        return e
+    except Exception as e:
+        logging.error(f"Unexpected error while running signal-cli: {e}")
+        return None
 
 def send_message(to_number, message, group_id=None):
     """Send a message using signal-cli. If group_id is provided, send to the group chat."""
@@ -31,7 +39,7 @@ def send_message(to_number, message, group_id=None):
 def receive_messages():
     """Retrieve incoming messages using signal-cli."""
     result = run_signal_cli(['receive'])
-    if result.stdout:
+    if result and result.stdout:
         messages = result.stdout.strip().split('\nEnvelope')
         return messages
     return []
@@ -46,7 +54,7 @@ def process_incoming():
     for message in messages:
         print(f"Processing message:\n{message}\n")
         
-        # Use the new message parser to extract details.
+        # Use the message parser to extract details.
         parsed = parse_message(message)
         sender = parsed.get('sender')
         body = parsed.get('body')
@@ -61,3 +69,5 @@ def process_incoming():
         response = handle_message(body, sender, msg_timestamp=msg_timestamp)
         if response:
             send_message(sender, response, group_id=group_id)
+
+# End of core/signal_client.py
