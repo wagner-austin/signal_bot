@@ -10,6 +10,7 @@ from core.signal_client import process_incoming
 from managers.plugin_manager import get_all_plugins
 from plugin_utils.plugin_loader import load_plugins  # Automatically load plugins
 import core.state as state
+from core.config import POLLING_INTERVAL  # Import polling interval configuration
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -24,7 +25,7 @@ if __name__ == "__main__":
     try:
         while state.STATE.running:
             process_incoming()
-            time.sleep(2)  # Polling interval reduced for faster response.
+            time.sleep(POLLING_INTERVAL)  # Use configurable polling interval
     except KeyboardInterrupt:
         logging.info("Signal bot has been manually stopped.")
     finally:
