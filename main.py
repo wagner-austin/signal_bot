@@ -6,15 +6,13 @@ Uses asynchronous processing for improved scalability and responsiveness.
 """
 
 import asyncio
+import core.logging_config  # Import to initialize the logging configuration
 import logging
 from core.signal_client import process_incoming
-from plugins.manager import get_all_plugins  # Updated import from merged plugins manager
-from plugins.manager import load_plugins     # Plugins are loaded from the merged manager
+from plugins.manager import get_all_plugins, load_plugins  # Updated import from merged plugins manager
 from core.config import POLLING_INTERVAL
 import core.state as state
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
 # Automatically load all plugins from the 'plugins' folder.
