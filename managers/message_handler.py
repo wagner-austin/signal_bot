@@ -9,6 +9,7 @@ Handles extra whitespace and ambiguous input robustly.
 """
 
 import re
+import logging
 from typing import Tuple, Optional
 from managers.plugin_manager import get_plugin
 
@@ -70,9 +71,13 @@ def handle_message(message: str, sender: str, msg_timestamp: Optional[int] = Non
     if command:
         plugin_func = get_plugin(command)
         if plugin_func:
-            # Run the plugin function
-            response = plugin_func(args, sender, msg_timestamp=msg_timestamp)
-            return response
+            try:
+                # Run the plugin function
+                response = plugin_func(args, sender, msg_timestamp=msg_timestamp)
+                return response
+            except Exception as e:
+                logging.exception(f"Error executing plugin for command '{command}': {e}")
+                return f"An error occurred while processing the command '{command}'."
         else:
             return f"Command '{command}' not recognized."
     return ""

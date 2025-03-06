@@ -6,7 +6,7 @@ Each plugin is registered via the @plugin decorator from plugin_manager.
 """
 
 from managers.plugin_manager import plugin
-from managers.volunteer_manager import assign_volunteer
+from managers.volunteer_manager import VOLUNTEER_MANAGER
 import core.state as state  # For graceful shutdown
 
 @plugin('assign')
@@ -18,7 +18,7 @@ def assign_command(args, sender, msg_timestamp=None):
     skill = args.strip()
     if not skill:
         return "Usage: @bot assign <Skill Name>"
-    volunteer = assign_volunteer(skill, skill)
+    volunteer = VOLUNTEER_MANAGER.assign_volunteer(skill, skill)
     if volunteer:
         return f"{skill} assigned to {volunteer}."
     else:
@@ -41,3 +41,5 @@ def shutdown_command(args, sender, msg_timestamp=None):
     """
     state.BOT_CONTROLLER.shutdown()
     return "Bot is shutting down."
+
+# End of plugins/__init__.py

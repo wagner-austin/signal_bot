@@ -22,17 +22,15 @@ load_plugins()
 async def main() -> None:
     """
     Asynchronous main loop for processing incoming messages.
-    
-    Uses asyncio.to_thread() to run blocking operations (process_incoming)
-    in a separate thread and asyncio.sleep() for non-blocking delays.
+
+    Uses asynchronous subprocess calls to run blocking operations and asyncio.sleep() for non-blocking delays.
     """
     logging.info("Signal bot is running. Available commands:")
     for cmd in get_all_plugins().keys():
         logging.info(f" - {cmd}")
     try:
         while state.BOT_CONTROLLER.running:
-            # Run process_incoming in a separate thread to prevent blocking the event loop.
-            await asyncio.to_thread(process_incoming)
+            await process_incoming()
             await asyncio.sleep(POLLING_INTERVAL)  # Use non-blocking sleep
     except KeyboardInterrupt:
         logging.info("Signal bot has been manually stopped.")
