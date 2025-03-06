@@ -22,8 +22,9 @@ load_plugins()
 async def main() -> None:
     """
     Asynchronous main loop for processing incoming messages.
-
-    Uses asynchronous subprocess calls to run blocking operations and asyncio.sleep() for non-blocking delays.
+    
+    Uses asyncio.create_subprocess_exec for non-blocking subprocess calls
+    and asyncio.sleep() for non-blocking delays.
     """
     logging.info("Signal bot is running. Available commands:")
     for cmd in get_all_plugins().keys():
