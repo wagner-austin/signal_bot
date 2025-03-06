@@ -101,7 +101,8 @@ async def process_incoming(state_machine) -> None:
         if not sender or not body:
             continue
         
-        response = handle_message(body, sender, state_machine, msg_timestamp=msg_timestamp)
+        # Pass the entire parsed dictionary to handle_message for unified parsing.
+        response = handle_message(parsed, sender, state_machine, msg_timestamp=msg_timestamp)
         if response:
             await send_message(
                 sender,
@@ -112,4 +113,4 @@ async def process_incoming(state_machine) -> None:
                 reply_quote_message=quote_message
             )
 
-# End of signal_client.py
+# End of core/signal_client.py
