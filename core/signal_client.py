@@ -101,16 +101,21 @@ async def _dispatch_message(response: str, parsed: ParsedMessage, quote_details:
         reply_quote_message=quote_details[2]
     )
 
-async def process_incoming(state_machine) -> None:
+async def process_incoming(state_machine) -> int:
     """
     Asynchronously process each incoming message, dispatch commands, and send responses.
     
     This function uses helper functions to handle quoting and message dispatching, improving readability.
+    Returns the count of processed messages to help adjust the polling interval.
     
     Args:
         state_machine: Instance of BotStateMachine for dependency injection.
+    
+    Returns:
+        int: Number of processed messages.
     """
     messages = await receive_messages()
+    processed_count = 0
     for message in messages:
         logger.info(f"Processing message:\n{message}\n")
         
@@ -118,9 +123,11 @@ async def process_incoming(state_machine) -> None:
         if not parsed.sender or not parsed.body:
             continue
         
+        processed_count += 1
         quote_details = _get_quote_details(parsed)
         response = handle_message(parsed, parsed.sender, state_machine, msg_timestamp=parsed.timestamp)
         if response:
             await _dispatch_message(response, parsed, quote_details)
+    return processed_count
 
 # End of core/signal_client.py

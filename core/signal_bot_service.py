@@ -1,8 +1,9 @@
 """
-signal_bot_service.py
-----------------------
+core/signal_bot_service.py
+--------------------------
 Provides the SignalBotService class that encapsulates the main asynchronous loop.
 Handles processing of incoming messages while respecting the bot's state machine.
+Optimized for improved responsiveness by dynamically adjusting sleep intervals.
 """
 
 import asyncio
@@ -31,6 +32,7 @@ class SignalBotService:
         Runs the main asynchronous loop to process incoming messages.
         
         Logs available commands and gracefully handles shutdown.
+        Dynamically adjusts sleep intervals based on message activity for faster response.
         
         Returns:
             None
@@ -44,8 +46,13 @@ class SignalBotService:
             logger.info(f" - {cmd}")
         try:
             while self.state_machine.should_continue():
-                await process_incoming(self.state_machine)
-                await asyncio.sleep(POLLING_INTERVAL)
+                processed = await process_incoming(self.state_machine)
+                # If messages were processed, sleep briefly; otherwise, use configured interval.
+                if processed > 0:
+                    await asyncio.sleep(0.1)
+                else:
+                    await asyncio.sleep(POLLING_INTERVAL)
+                # Future improvement: Replace polling with an event-driven model if signal-cli supports events.
         except KeyboardInterrupt:
             logger.info("Signal bot has been manually stopped.")
         finally:
