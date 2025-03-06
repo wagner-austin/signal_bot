@@ -17,6 +17,7 @@ from parsers.envelope_parser import (
     parse_message_timestamp
 )
 import re
+from core.config import ENABLE_BOT_PREFIX
 
 @dataclass
 class ParsedMessage:
@@ -88,9 +89,16 @@ def parse_command_from_body(body: Optional[str]) -> Tuple[Optional[str], Optiona
     # Normalize whitespace.
     message = " ".join(body.strip().split())
     
-    if message.lower().startswith("@bot"):
-        return _parse_atbot_command(message)
+    if ENABLE_BOT_PREFIX:
+        # When the prefix is required, only parse if the message starts with @bot.
+        if message.lower().startswith("@bot"):
+            return _parse_atbot_command(message)
+        else:
+            return None, None
     else:
+        # When the prefix is disabled, remove @bot if present and always parse.
+        if message.lower().startswith("@bot"):
+            message = message[4:].strip()  # Remove the "@bot" prefix.
         return _parse_default_command(message)
 
 def parse_message(message: str) -> ParsedMessage:
