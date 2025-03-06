@@ -3,10 +3,13 @@ managers/volunteer_manager.py
 --------------------
 Encapsulates volunteer management by wrapping volunteer data in a VolunteerManager class.
 Provides logging for volunteer assignments and for cases where no volunteer is found.
+Uses a module-level logger for consistent logging.
 """
 
 import logging
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 class VolunteerManager:
     def __init__(self) -> None:
@@ -33,9 +36,9 @@ class VolunteerManager:
         """
         for name, data in self.volunteers.items():
             if skill in data['skills'] and data['available'] and data['current_role'] is None:
-                logging.info(f"Volunteer '{name}' found with skill '{skill}'.")
+                logger.info(f"Volunteer '{name}' found with skill '{skill}'.")
                 return name
-        logging.warning(f"No available volunteer found with skill '{skill}'.")
+        logger.warning(f"No available volunteer found with skill '{skill}'.")
         return None
 
     def assign_volunteer(self, skill: str, role: str) -> Optional[str]:
@@ -52,9 +55,9 @@ class VolunteerManager:
         volunteer = self.find_available_volunteer(skill)
         if volunteer:
             self.volunteers[volunteer]['current_role'] = role
-            logging.info(f"Volunteer '{volunteer}' assigned to role '{role}'.")
+            logger.info(f"Volunteer '{volunteer}' assigned to role '{role}'.")
             return volunteer
-        logging.warning(f"Failed to assign volunteer for skill '{skill}' to role '{role}'.")
+        logger.warning(f"Failed to assign volunteer for skill '{skill}' to role '{role}'.")
         return None
 
 # Expose a single instance for volunteer management.

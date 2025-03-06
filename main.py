@@ -15,6 +15,7 @@ import core.state as state
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logger = logging.getLogger(__name__)
 
 # Automatically load all plugins from the 'plugins' folder.
 load_plugins()
@@ -26,17 +27,17 @@ async def main() -> None:
     Uses asyncio.create_subprocess_exec for non-blocking subprocess calls
     and asyncio.sleep() for non-blocking delays.
     """
-    logging.info("Signal bot is running. Available commands:")
+    logger.info("Signal bot is running. Available commands:")
     for cmd in get_all_plugins().keys():
-        logging.info(f" - {cmd}")
+        logger.info(f" - {cmd}")
     try:
         while state.BOT_CONTROLLER.running:
             await process_incoming()
             await asyncio.sleep(POLLING_INTERVAL)  # Use non-blocking sleep
     except KeyboardInterrupt:
-        logging.info("Signal bot has been manually stopped.")
+        logger.info("Signal bot has been manually stopped.")
     finally:
-        logging.info("Signal bot has been stopped gracefully.")
+        logger.info("Signal bot has been stopped gracefully.")
 
 if __name__ == "__main__":
     asyncio.run(main())

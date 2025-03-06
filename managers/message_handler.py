@@ -6,12 +6,15 @@ Supports:
   1) "@bot <command> <arguments>"
   2) "<command> <arguments>"
 Handles extra whitespace and ambiguous input robustly.
+Uses a module-level logger for consistent logging.
 """
 
 import re
 import logging
 from typing import Tuple, Optional
 from managers.plugin_manager import get_plugin
+
+logger = logging.getLogger(__name__)
 
 def parse_command(message: str) -> Tuple[Optional[str], Optional[str]]:
     """
@@ -76,7 +79,7 @@ def handle_message(message: str, sender: str, msg_timestamp: Optional[int] = Non
                 response = plugin_func(args, sender, msg_timestamp=msg_timestamp)
                 return response
             except Exception as e:
-                logging.exception(f"Error executing plugin for command '{command}': {e}")
+                logger.exception(f"Error executing plugin for command '{command}' with args '{args}' from sender '{sender}' and message '{message}': {e}")
                 return f"An error occurred while processing the command '{command}'."
         else:
             return f"Command '{command}' not recognized."

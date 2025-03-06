@@ -3,6 +3,7 @@ core/signal_client.py
 --------------------
 Encapsulates functions to interact with signal-cli for sending and receiving messages.
 Improved asynchronous handling with asyncio subprocess and robust message delimiter parsing.
+Also uses a centralized logger for consistent logging.
 """
 
 import asyncio
@@ -12,6 +13,8 @@ from typing import List, Optional
 from core.config import BOT_NUMBER, SIGNAL_CLI_COMMAND
 from managers.message_handler import handle_message
 from core.message_parser import parse_message
+
+logger = logging.getLogger(__name__)
 
 class SignalCLIError(Exception):
     """
@@ -44,16 +47,16 @@ async def async_run_signal_cli(args: List[str]) -> str:
         except asyncio.TimeoutError:
             proc.kill()
             await proc.communicate()
-            raise SignalCLIError("Signal CLI command timed out.")
+            raise SignalCLIError(f"Signal CLI command timed out. Args: {full_args}")
         
         if proc.returncode != 0:
             error_output = stderr.decode().strip() if stderr else ""
-            logging.error(f"Signal-cli command failed: {full_args} with return code {proc.returncode}. Error: {error_output}")
-            raise SignalCLIError(f"Signal-cli command failed with return code {proc.returncode}.")
+            logger.error(f"Signal-cli command failed: {full_args} with return code {proc.returncode}. Error: {error_output}")
+            raise SignalCLIError(f"Signal-cli command failed with return code {proc.returncode}. Args: {full_args}")
         
         return stdout.decode() if stdout else ""
     except Exception as e:
-        logging.error(f"Unexpected error while running async signal-cli: {e}")
+        logger.error(f"Unexpected error while running async signal-cli with args {full_args}: {e}")
         raise SignalCLIError(f"Unexpected error: {e}") from e
 
 async def send_message(to_number: str, message: str, group_id: Optional[str] = None) -> None:
@@ -67,10 +70,10 @@ async def send_message(to_number: str, message: str, group_id: Optional[str] = N
     """
     if group_id:
         args = ['send', '-g', group_id, '-m', message]
-        logging.info(f"Sent to group {group_id}: {message}")
+        logger.info(f"Sent to group {group_id}: {message}")
     else:
         args = ['send', to_number, '-m', message]
-        logging.info(f"Sent to {to_number}: {message}")
+        logger.info(f"Sent to {to_number}: {message}")
     await async_run_signal_cli(args)
 
 async def receive_messages() -> List[str]:
@@ -95,7 +98,7 @@ async def process_incoming() -> None:
     """
     messages = await receive_messages()
     for message in messages:
-        logging.info(f"Processing message:\n{message}\n")
+        logger.info(f"Processing message:\n{message}\n")
         
         # Use the message parser to extract details.
         parsed = parse_message(message)
