@@ -43,10 +43,7 @@ def handle_message(parsed: Dict[str, Any], sender: str, state_machine: BotStateM
                 response = plugin_func(args, sender, state_machine, msg_timestamp=msg_timestamp)
                 return response
             except Exception as e:
-                logger.exception(
-                    f"Error executing plugin for command '{command}' with args '{args}' "
-                    f"from sender '{sender}': {e}"
-                )
+                logger.exception(f"[handle_message] Error executing plugin for command '{command}' with args '{args}' from sender '{sender}': {e}")
                 return f"An error occurred while processing the command '{command}'."
         else:
             return f"Command '{command}' not recognized."

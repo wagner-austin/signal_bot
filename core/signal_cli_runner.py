@@ -17,16 +17,20 @@ class SignalCLIError(Exception):
     """
     pass
 
-def _log_and_raise(error_msg: str, exception: Exception, full_args: List[str]) -> None:
+def _log_and_raise(func_name: str, error_msg: str, exception: Exception, full_args: List[str]) -> None:
     """
-    Helper function to log an error message and raise a SignalCLIError.
+    Helper function to log an error message with context and raise a SignalCLIError.
     
     Args:
+        func_name (str): The name of the function where the error occurred.
         error_msg (str): The error message to log.
         exception (Exception): The caught exception.
         full_args (List[str]): The full list of command-line arguments used.
+    
+    Raises:
+        SignalCLIError: Always raised with the full contextual error message.
     """
-    full_msg = f"{error_msg} Args: {full_args}. Exception: {exception}"
+    full_msg = f"[{func_name}] {error_msg} | Args: {full_args} | Exception: {exception}"
     logger.exception(full_msg)
     raise SignalCLIError(full_msg) from exception
 
@@ -55,16 +59,16 @@ async def async_run_signal_cli(args: List[str]) -> str:
         except asyncio.TimeoutError as te:
             proc.kill()
             await proc.communicate()
-            _log_and_raise("Signal CLI command timed out.", te, full_args)
+            _log_and_raise("async_run_signal_cli", "Timed out waiting for process", te, full_args)
         
         if proc.returncode != 0:
             error_output = stderr.decode().strip() if stderr else ""
-            _log_and_raise(f"Signal-cli command failed with return code {proc.returncode}. Error: {error_output}", Exception("Nonzero return code"), full_args)
+            _log_and_raise("async_run_signal_cli", f"Nonzero return code {proc.returncode}. Error output: {error_output}", Exception("Nonzero return code"), full_args)
         
         return stdout.decode() if stdout else ""
     except OSError as ose:
-        _log_and_raise("OS error while running async signal-cli", ose, full_args)
+        _log_and_raise("async_run_signal_cli", "OS error encountered", ose, full_args)
     except Exception as e:
-        _log_and_raise("Unexpected error while running async signal-cli", e, full_args)
+        _log_and_raise("async_run_signal_cli", "Unexpected error encountered", e, full_args)
 
 # End of core/signal_cli_runner.py
