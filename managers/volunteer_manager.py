@@ -1,28 +1,24 @@
 """
-managers/volunteer_manager.py
+volunteer_manager.py
 --------------------
 Encapsulates volunteer management by wrapping volunteer data in a VolunteerManager class.
+Loads volunteer data from a separate configuration file.
 Provides logging for volunteer assignments and for cases where no volunteer is found.
-Uses a module-level logger for consistent logging.
 """
 
 import logging
-from typing import Optional
+from typing import Optional, Dict, Any
+from core.volunteer_config import VOLUNTEER_DATA
 
 logger = logging.getLogger(__name__)
 
 class VolunteerManager:
     def __init__(self) -> None:
-        self.volunteers = {
-            'Jen': {'skills': ['Event Coordination', 'Volunteer Management', 'Logistics Oversight'], 'available': True, 'current_role': None},
-            'Daniel': {'skills': ['Public Speaking', 'Press Communication'], 'available': True, 'current_role': None},
-            'Julie': {'skills': ['Volunteer Recruitment', 'Event Coordination'], 'available': True, 'current_role': None},
-            'Dawn': {'skills': ['Crowd Management', 'Peacekeeping'], 'available': True, 'current_role': None},
-            'Austin': {'skills': ['Crowd Management', 'Volunteer Assistance'], 'available': True, 'current_role': None},
-            'Raquel': {'skills': ['Greeter'], 'available': True, 'current_role': None},
-            'Spence': {'skills': ['Chant Leading'], 'available': True, 'current_role': None},
-            'Lynda Young': {'skills': ['General Event Support'], 'available': True, 'current_role': None}
-        }
+        """
+        Initializes the VolunteerManager with volunteer data loaded from the configuration file.
+        """
+        # Use a copy of the data to avoid modifying the original configuration.
+        self.volunteers: Dict[str, Dict[str, Any]] = {k: v.copy() for k, v in VOLUNTEER_DATA.items()}
 
     def find_available_volunteer(self, skill: str) -> Optional[str]:
         """
@@ -36,9 +32,9 @@ class VolunteerManager:
         """
         for name, data in self.volunteers.items():
             if skill in data['skills'] and data['available'] and data['current_role'] is None:
-                logger.info(f"Volunteer '{name}' found with skill '{skill}'.")
+                logger.info(f"[find_available_volunteer] Volunteer '{name}' found with skill '{skill}'.")
                 return name
-        logger.warning(f"No available volunteer found with skill '{skill}'.")
+        logger.warning(f"[find_available_volunteer] No available volunteer found with skill '{skill}'.")
         return None
 
     def assign_volunteer(self, skill: str, role: str) -> Optional[str]:
@@ -55,9 +51,9 @@ class VolunteerManager:
         volunteer = self.find_available_volunteer(skill)
         if volunteer:
             self.volunteers[volunteer]['current_role'] = role
-            logger.info(f"Volunteer '{volunteer}' assigned to role '{role}'.")
+            logger.info(f"[assign_volunteer] Volunteer '{volunteer}' assigned to role '{role}'.")
             return volunteer
-        logger.warning(f"Failed to assign volunteer for skill '{skill}' to role '{role}'.")
+        logger.warning(f"[assign_volunteer] Failed to assign volunteer for skill '{skill}' to role '{role}'.")
         return None
 
 # Expose a single instance for volunteer management.
