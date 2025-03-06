@@ -2,7 +2,7 @@
 core/signal_client.py
 --------------------
 Encapsulates functions to interact with signal-cli for sending and receiving messages.
-Improved error handling in subprocess calls.
+Improved error handling in subprocess calls by raising custom exceptions.
 """
 
 import subprocess
@@ -14,7 +14,13 @@ from core.config import BOT_NUMBER, SIGNAL_CLI_COMMAND
 from managers.message_handler import handle_message
 from core.message_parser import parse_message
 
-def run_signal_cli(args: List[str]) -> Union[subprocess.CompletedProcess, subprocess.CalledProcessError, None]:
+class SignalCLIError(Exception):
+    """
+    Custom exception for errors encountered when executing signal-cli commands.
+    """
+    pass
+
+def run_signal_cli(args: List[str]) -> Union[subprocess.CompletedProcess, None]:
     """
     Run signal-cli with given arguments, catching and logging any errors.
     
@@ -22,8 +28,10 @@ def run_signal_cli(args: List[str]) -> Union[subprocess.CompletedProcess, subpro
         args (List[str]): List of command-line arguments for signal-cli.
         
     Returns:
-        Union[subprocess.CompletedProcess, subprocess.CalledProcessError, None]: The result of the subprocess call,
-        or an error/None if an exception occurs.
+        subprocess.CompletedProcess: The result of the subprocess call.
+        
+    Raises:
+        SignalCLIError: If an error occurs while running the signal-cli command.
     """
     full_args = [SIGNAL_CLI_COMMAND, '-u', BOT_NUMBER] + args
     try:
@@ -31,10 +39,10 @@ def run_signal_cli(args: List[str]) -> Union[subprocess.CompletedProcess, subpro
         return result
     except subprocess.CalledProcessError as e:
         logging.error(f"Signal-cli command failed: {e.cmd} with return code {e.returncode}. Output: {e.output}")
-        return e
+        raise SignalCLIError(f"CalledProcessError: Command {e.cmd} failed with return code {e.returncode}. Output: {e.output}") from e
     except Exception as e:
         logging.error(f"Unexpected error while running signal-cli: {e}")
-        return None
+        raise SignalCLIError(f"Unexpected error: {e}") from e
 
 def send_message(to_number: str, message: str, group_id: Optional[str] = None) -> None:
     """
