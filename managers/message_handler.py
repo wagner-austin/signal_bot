@@ -2,10 +2,10 @@
 managers/message_handler.py
 ------------------
 Handles incoming messages and dispatches commands using the plugin manager.
-Now supports:
+Supports:
   1) "@bot <command> <arguments>"
   2) "<command> <arguments>"
-for every plugin command.
+Handles extra whitespace and ambiguous input robustly.
 """
 
 import re
@@ -16,33 +16,41 @@ def parse_command(message: str) -> Tuple[Optional[str], Optional[str]]:
     """
     Determine the intended command and arguments from the message.
     
+    This function supports two formats:
+      1) "@bot <command> <args>"
+      2) "<command> <args>"
+    
+    It normalizes whitespace, validates that a command is present, and
+    returns a tuple of (command, args) or (None, None) if parsing fails.
+    
     Args:
         message (str): The incoming message text.
         
     Returns:
         Tuple[Optional[str], Optional[str]]: A tuple containing the command and its arguments.
-        Returns (None, None) if the message is empty or command cannot be parsed.
+        Returns (None, None) if the message is empty or the command cannot be parsed.
     """
-    message = message.strip()
-
-    # If message starts with "@bot ", parse the next token as the command
-    if re.match(r'^@bot\s', message, re.IGNORECASE):
-        parts = message.split(None, 2)  # split on whitespace
-        # parts[0] = '@bot', parts[1] = command, parts[2] = the rest (if any)
-        if len(parts) >= 2:
-            command = parts[1].lower()
-            args = parts[2] if len(parts) > 2 else ""
-            return command, args
-        else:
-            return None, None
-
-    # Otherwise, parse the first word as the command
-    parts = message.split(None, 1)
-    if not parts:
+    # Remove leading/trailing whitespace and collapse multiple spaces into one.
+    message = " ".join(message.strip().split())
+    if not message:
         return None, None
 
-    command = parts[0].lower()
-    args = parts[1] if len(parts) > 1 else ""
+    # Check if the message starts with the '@bot' prefix.
+    if message.lower().startswith("@bot"):
+        parts = message.split(" ", 2)
+        # Validate that there is a command after '@bot'
+        if len(parts) < 2 or not parts[1].strip():
+            return None, None
+        command = parts[1].strip().lower()
+        args = parts[2].strip() if len(parts) == 3 else ""
+        return command, args
+
+    # Otherwise, assume the first word is the command.
+    parts = message.split(" ", 1)
+    command = parts[0].strip().lower()
+    args = parts[1].strip() if len(parts) == 2 else ""
+    if not command:
+        return None, None
     return command, args
 
 def handle_message(message: str, sender: str, msg_timestamp: Optional[int] = None) -> str:
