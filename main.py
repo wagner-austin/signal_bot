@@ -9,8 +9,8 @@ import logging
 from core.signal_client import process_incoming
 from managers.plugin_manager import get_all_plugins
 from plugin_utils.plugin_loader import load_plugins  # Automatically load plugins
+from core.config import POLLING_INTERVAL
 import core.state as state
-from core.config import POLLING_INTERVAL  # Import polling interval configuration
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -23,7 +23,7 @@ if __name__ == "__main__":
     for cmd in get_all_plugins().keys():
         logging.info(f" - {cmd}")
     try:
-        while state.STATE.running:
+        while state.BOT_CONTROLLER.running:
             process_incoming()
             time.sleep(POLLING_INTERVAL)  # Use configurable polling interval
     except KeyboardInterrupt:
