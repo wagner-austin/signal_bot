@@ -11,4 +11,4 @@ class StateManager:
 # Module-level instance of StateManager
 STATE = StateManager()
 
-# End of state.py
+# End of core/state.py

@@ -50,4 +50,4 @@ def parse_message(message: str) -> dict:
         'group_id': parse_group_info(message)
     }
 
-# End of message_parser.py
+# End of core/message_parser.py
