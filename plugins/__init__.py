@@ -2,11 +2,11 @@
 plugins/__init__.py
 -----------
 Plugin definitions for the Signal bot.
-Each plugin is registered via the @plugin decorator from the merged plugins manager.
+Each plugin is registered via the @plugin decorator from the unified plugins/manager.
 This module exports the public plugin commands for use in the bot.
 """
 
-from plugins.manager import plugin  # Updated import from merged plugins manager
+from plugins.manager import plugin  # Updated import from unified plugins/manager
 from managers.volunteer_manager import VOLUNTEER_MANAGER
 import core.state as state  # For graceful shutdown
 

@@ -1,7 +1,7 @@
 """
 managers/message_handler.py
 ------------------
-Handles incoming messages and dispatches commands using the plugin manager.
+Handles incoming messages and dispatches commands using the unified plugins/manager.
 Supports:
   1) "@bot <command> <arguments>"
   2) "<command> <arguments>"
@@ -11,7 +11,7 @@ Handles extra whitespace and ambiguous input robustly.
 import re
 import logging
 from typing import Tuple, Optional
-from plugins.manager import get_plugin  # Updated import from merged plugins manager
+from plugins.manager import get_plugin  # Updated import from unified plugins/manager
 
 logger = logging.getLogger(__name__)
 
