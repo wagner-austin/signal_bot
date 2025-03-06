@@ -11,6 +11,19 @@ import sys
 import importlib
 from managers import plugin_manager
 
+def _load_module(module_name: str, file_path: str):
+    """
+    Helper function to load a module given its module name and file path.
+    Returns the module object if loaded successfully, otherwise None.
+    """
+    spec = importlib.util.spec_from_file_location(module_name, file_path)
+    if spec is None:
+        return None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    spec.loader.exec_module(module)
+    return module
+
 def load_plugins():
     """
     Automatically import all Python modules in the 'plugins' directory.
@@ -23,12 +36,7 @@ def load_plugins():
         if filename.endswith('.py'):
             module_name = "plugins." + filename[:-3]
             file_path = os.path.join(plugins_dir, filename)
-            spec = importlib.util.spec_from_file_location(module_name, file_path)
-            if spec is None:
-                continue
-            module = importlib.util.module_from_spec(spec)
-            sys.modules[module_name] = module
-            spec.loader.exec_module(module)
+            _load_module(module_name, file_path)
 
 def reload_plugins():
     """
@@ -46,11 +54,6 @@ def reload_plugins():
             if module_name in sys.modules:
                 importlib.reload(sys.modules[module_name])
             else:
-                spec = importlib.util.spec_from_file_location(module_name, file_path)
-                if spec is None:
-                    continue
-                module = importlib.util.module_from_spec(spec)
-                sys.modules[module_name] = module
-                spec.loader.exec_module(module)
+                _load_module(module_name, file_path)
 
 # End of plugin_utils/plugin_loader.py
