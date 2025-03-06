@@ -2,7 +2,7 @@
 core/signal_client.py
 --------------------
 Encapsulates functions to interact with signal-cli for sending and receiving messages.
-Modified to support replying in group chats if group info is detected.
+Modified to use a dedicated message parser module for regex extraction.
 """
 
 import subprocess
@@ -10,6 +10,7 @@ import re
 import time
 from core.config import BOT_NUMBER
 from managers.message_handler import handle_message
+from core.message_parser import parse_message  # Newly added import
 
 def run_signal_cli(args):
     """Run signal-cli with given arguments."""
@@ -39,43 +40,24 @@ def process_incoming():
     """
     Process each incoming message, dispatch commands, and send responses.
     Skips system messages (e.g. typing notifications, receipts) which lack a 'Body:'.
-    Modified to support replying in group chats when group info is detected.
+    Modified to use the dedicated message parser.
     """
     messages = receive_messages()
     for message in messages:
         print(f"Processing message:\n{message}\n")
+        
+        # Use the new message parser to extract details.
+        parsed = parse_message(message)
+        sender = parsed.get('sender')
+        body = parsed.get('body')
+        msg_timestamp = parsed.get('timestamp')
+        group_id = parsed.get('group_id')
 
-        # Extract sender phone number
-        sender_match = re.search(
-            r'\s*from:\s*(?:["“]?.+?["”]?\s+)?(\+\d+)',
-            message,
-            re.IGNORECASE
-        )
-        sender = sender_match.group(1) if sender_match else None
-
-        # Extract only actual user text (Body:) and skip system/typing messages
-        body_match = re.search(r'Body:\s*(.+)', message)
-        if not body_match:
-            # No 'Body:', so this is likely a system or typing message—skip it
-            continue
-        body = body_match.group(1).strip()
-
-        # If no recognized sender, skip
-        if not sender:
+        # Skip if required fields are missing.
+        if not sender or not body:
             continue
 
-        # Extract timestamp (in ms)
-        timestamp_match = re.search(r'Timestamp:\s*(\d+)', message)
-        msg_timestamp = int(timestamp_match.group(1)) if timestamp_match else None
-
-        # --- New: Extract group info if present ---
-        group_id = None
-        if "Group info:" in message:
-            group_id_match = re.search(r'Id:\s*([^\n]+)', message)
-            if group_id_match:
-                group_id = group_id_match.group(1).strip()
-
-        # Pass the real message text to our message handler
+        # Process the message using the existing handler.
         response = handle_message(body, sender, msg_timestamp=msg_timestamp)
         if response:
             send_message(sender, response, group_id=group_id)

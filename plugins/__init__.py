@@ -39,5 +39,5 @@ def shutdown_command(args, sender, msg_timestamp=None):
     Plugin command to shut down the bot gracefully.
     Expected format: "@bot shutdown"
     """
-    state.RUNNING = False
+    state.STATE.running = False
     return "Bot is shutting down."

@@ -53,3 +53,5 @@ def handle_message(message: str, sender: str, msg_timestamp: int = None) -> str:
         else:
             return f"Command '{command}' not recognized."
     return ""
+
+# End of managers/message_handler.py

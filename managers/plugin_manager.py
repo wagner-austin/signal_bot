@@ -21,3 +21,5 @@ def get_plugin(command: str):
 def get_all_plugins():
     """Return all registered plugins."""
     return plugin_registry
+
+# End of managers/plugin_manager.py

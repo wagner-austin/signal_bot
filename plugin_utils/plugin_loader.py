@@ -28,3 +28,5 @@ def load_plugins():
             module = importlib.util.module_from_spec(spec)
             sys.modules[module_name] = module
             spec.loader.exec_module(module)
+
+# End of plugin_utils/plugin_loader.py

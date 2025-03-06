@@ -18,10 +18,12 @@ if __name__ == "__main__":
     for cmd in get_all_plugins().keys():
         print(f" - {cmd}")
     try:
-        while state.RUNNING:
+        while state.STATE.running:
             process_incoming()
             time.sleep(2)  # Polling interval reduced for faster response.
     except KeyboardInterrupt:
         print("Signal bot has been manually stopped.")
     finally:
         print("Signal bot has been stopped gracefully.")
+
+# End of main.py
