@@ -2,7 +2,7 @@
 manager.py
 ------------------
 Unified plugin manager module that handles registration, loading, and reloading of plugins.
-Now explicitly skips non-plugin files (e.g., __init__.py) during the loading process.
+It skips non-plugin files and abstracts common loading logic into a helper function.
 """
 
 import os
@@ -74,40 +74,42 @@ def _load_module(module_name: str, file_path: str):
     spec.loader.exec_module(module)
     return module
 
-def load_plugins():
+def _load_plugins_from_dir(reload: bool = False) -> None:
     """
-    Automatically import all Python modules in the 'plugins' directory, excluding non-plugin files such as __init__.py.
+    Helper function to load or reload all plugin modules from the plugins directory,
+    skipping non-plugin files such as __init__.py.
     
-    This function scans the plugins directory, loads all .py files (except __init__.py), 
-    and registers their plugin commands.
+    Args:
+        reload (bool): If True, reloads modules already imported; otherwise, imports modules.
     """
     base_dir = os.path.dirname(os.path.dirname(__file__))
     plugins_dir = os.path.join(base_dir, 'plugins')
     if not os.path.isdir(plugins_dir):
         return
     for filename in os.listdir(plugins_dir):
-        if filename.endswith('.py') and filename != "__init__.py":
-            module_name = "plugins." + filename[:-3]
-            file_path = os.path.join(plugins_dir, filename)
+        # Skip non-plugin files
+        if not filename.endswith('.py') or filename == '__init__.py':
+            continue
+        module_name = "plugins." + filename[:-3]
+        file_path = os.path.join(plugins_dir, filename)
+        if reload and module_name in sys.modules:
+            importlib.reload(sys.modules[module_name])
+        else:
             _load_module(module_name, file_path)
+
+def load_plugins():
+    """
+    Automatically import all plugin modules in the 'plugins' directory,
+    skipping non-plugin files.
+    """
+    _load_plugins_from_dir(reload=False)
 
 def reload_plugins():
     """
-    Reload all plugins dynamically by clearing the plugin registry 
-    and re-importing all plugin modules, excluding non-plugin files such as __init__.py.
+    Reload all plugin modules dynamically by clearing the plugin registry
+    and re-importing all plugin modules, skipping non-plugin files.
     """
     clear_plugins()
-    base_dir = os.path.dirname(os.path.dirname(__file__))
-    plugins_dir = os.path.join(base_dir, 'plugins')
-    if not os.path.isdir(plugins_dir):
-        return
-    for filename in os.listdir(plugins_dir):
-        if filename.endswith('.py') and filename != "__init__.py":
-            module_name = "plugins." + filename[:-3]
-            file_path = os.path.join(plugins_dir, filename)
-            if module_name in sys.modules:
-                importlib.reload(sys.modules[module_name])
-            else:
-                _load_module(module_name, file_path)
+    _load_plugins_from_dir(reload=True)
 
 # End of plugins/manager.py
