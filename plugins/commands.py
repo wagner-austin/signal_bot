@@ -70,4 +70,24 @@ def shutdown_command(args: str, sender: str, state_machine: BotStateMachine, msg
     state_machine.shutdown()
     return "Bot is shutting down."
 
+@plugin('test_all')
+async def test_all_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
+    """
+    Plugin command to run all integration tests.
+    Invokes tests for message parsing, volunteer assignment, state transitions,
+    and simulated message sending. Returns a summary of test results.
+    
+    Args:
+        args (str): The arguments provided by the user (ignored).
+        sender (str): The sender's phone number.
+        state_machine (BotStateMachine): The bot's state machine instance.
+        msg_timestamp (Optional[int]): The timestamp of the message.
+    
+    Returns:
+        str: Summary of integration test results.
+    """
+    from tests.test_all import run_tests
+    summary = await run_tests()
+    return summary
+
 # End of plugins/commands.py

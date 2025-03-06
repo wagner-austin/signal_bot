@@ -126,6 +126,8 @@ async def process_incoming(state_machine) -> int:
         processed_count += 1
         quote_details = _get_quote_details(parsed)
         response = handle_message(parsed, parsed.sender, state_machine, msg_timestamp=parsed.timestamp)
+        if asyncio.iscoroutine(response):
+            response = await response
         if response:
             await _dispatch_message(response, parsed, quote_details)
     return processed_count
