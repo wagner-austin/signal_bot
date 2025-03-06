@@ -1,9 +1,9 @@
 """
-core/signal_client.py
+signal_client.py
 --------------------
 Encapsulates functions to interact with signal-cli for sending and receiving messages.
 Improved asynchronous handling with asyncio subprocess and robust message delimiter parsing.
-Now supports sending direct replies by quoting the original command message.
+Now supports sending direct replies by quoting the original command message in group chats only.
 """
 
 import asyncio
@@ -74,8 +74,8 @@ async def send_message(
     """
     Asynchronously send a message using signal-cli.
     
-    If quote details are provided, the message will be sent as a direct reply
-    to the original command message using the quoting flags.
+    For group chats, the message will include the original command text as a direct reply.
+    For individual chats, the message will be sent without the original command text.
     
     Args:
         to_number (str): The recipient's phone number.
@@ -90,8 +90,8 @@ async def send_message(
     else:
         args = ['send', to_number]
     
-    if reply_quote_author and reply_quote_timestamp and reply_quote_message:
-        # Use explicit quoting flags to form a direct reply.
+    # For group chats, include direct reply quoting flags if available.
+    if group_id and reply_quote_author and reply_quote_timestamp and reply_quote_message:
         args.extend([
             '--quote-author', reply_quote_author,
             '--quote-timestamp', reply_quote_timestamp,
@@ -103,7 +103,7 @@ async def send_message(
     if group_id:
         logger.info(f"Sent to group {group_id}: {message} (replying to message by {reply_quote_author})")
     else:
-        logger.info(f"Sent to {to_number}: {message} (replying to message by {reply_quote_author})")
+        logger.info(f"Sent to {to_number}: {message} (no direct reply quoting for individual chat)")
     await async_run_signal_cli(args)
 
 async def receive_messages() -> List[str]:
@@ -125,7 +125,8 @@ async def process_incoming() -> None:
     Asynchronously process each incoming message, dispatch commands, and send responses.
     
     Skips system messages (e.g. typing notifications, receipts) which lack a 'Body:'.
-    Sends the response as a direct reply using the original command message's details.
+    For group chats, sends the response as a direct reply using the original command message's details.
+    For individual chats, sends the response without direct reply quoting.
     """
     messages = await receive_messages()
     for message in messages:
@@ -136,8 +137,7 @@ async def process_incoming() -> None:
         body = parsed.get('body')
         msg_timestamp = parsed.get('timestamp')
         group_id = parsed.get('group_id')
-        # For direct reply, use the original command's message details:
-        # Use the message timestamp (from the "Message timestamp:" field if available; otherwise, fallback to general timestamp)
+        # For direct reply, use the original command's message details if available.
         quote_timestamp = str(parsed.get('message_timestamp') or msg_timestamp) if msg_timestamp else None
         quote_author = sender  # The command's sender becomes the quoted author.
         quote_message = body  # The body of the command message.

@@ -1,5 +1,5 @@
 """
-core/config.py
+config.py
 --------------
 Configuration file for the Signal bot.
 Loads configuration settings from environment variables with default values.
@@ -16,4 +16,6 @@ POLLING_INTERVAL: int = int(os.environ.get("POLLING_INTERVAL", "2"))
 # Signal CLI command to use (e.g., 'signal-cli.bat' for Windows).
 SIGNAL_CLI_COMMAND: str = os.environ.get("SIGNAL_CLI_COMMAND", "signal-cli.bat")
 
-# End of core/config.py
+# Enable or disable direct reply quoting feature.
+# Accepts values like "true", "1", or "yes" (case-insensitive) as True.
+DIRECT_REPLY_ENABLED: bool = os.environ.get("DIRECT_REPLY_ENABLED", "True").lower() in ("true", "1", "yes")
