@@ -2,17 +2,16 @@
 core/signal_client.py
 ---------------------
 Encapsulates functions to interact with signal-cli for sending and receiving messages.
-Improved asynchronous handling with asyncio subprocess and robust message delimiter parsing.
-Now supports sending direct replies by quoting the original command message in group chats only.
+Improved asynchronous handling by refactoring message processing into smaller helper functions.
 """
 
 import asyncio
 import re
 import logging
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from core.signal_cli_runner import async_run_signal_cli, SignalCLIError
 from managers.message_handler import handle_message
-from parsers.message_parser import parse_message
+from parsers.message_parser import parse_message, ParsedMessage
 
 logger = logging.getLogger(__name__)
 
@@ -65,13 +64,48 @@ async def receive_messages() -> List[str]:
         return messages
     return []
 
+def _get_quote_details(parsed: ParsedMessage) -> Tuple[Optional[str], str, str]:
+    """
+    Extract quoting details from a parsed message.
+    
+    Args:
+        parsed (ParsedMessage): The parsed message.
+    
+    Returns:
+        Tuple containing:
+         - quote_timestamp: Original command's timestamp (as string), if available.
+         - quote_author: The sender's identifier.
+         - quote_message: The message body.
+    """
+    msg_timestamp = parsed.timestamp
+    quote_timestamp = str(parsed.message_timestamp or msg_timestamp) if msg_timestamp else None
+    quote_author = parsed.sender
+    quote_message = parsed.body
+    return quote_timestamp, quote_author, quote_message
+
+async def _dispatch_message(response: str, parsed: ParsedMessage, quote_details: Tuple[Optional[str], str, str]) -> None:
+    """
+    Dispatch the response message by calling send_message with appropriate quoting details.
+    
+    Args:
+        response (str): The response message to send.
+        parsed (ParsedMessage): The parsed incoming message.
+        quote_details (Tuple): A tuple containing quote_timestamp, quote_author, and quote_message.
+    """
+    await send_message(
+        parsed.sender,
+        response,
+        group_id=parsed.group_id,
+        reply_quote_author=quote_details[1],
+        reply_quote_timestamp=quote_details[0],
+        reply_quote_message=quote_details[2]
+    )
+
 async def process_incoming(state_machine) -> None:
     """
     Asynchronously process each incoming message, dispatch commands, and send responses.
     
-    Skips system messages (e.g. typing notifications, receipts) which lack a 'Body:'.
-    For group chats, sends the response as a direct reply using the original command message's details.
-    For individual chats, sends the response without direct reply quoting.
+    This function uses helper functions to handle quoting and message dispatching, improving readability.
     
     Args:
         state_machine: Instance of BotStateMachine for dependency injection.
@@ -81,28 +115,12 @@ async def process_incoming(state_machine) -> None:
         logger.info(f"Processing message:\n{message}\n")
         
         parsed = parse_message(message)
-        sender = parsed.sender
-        body = parsed.body
-        msg_timestamp = parsed.timestamp
-        group_id = parsed.group_id
-        # For direct reply, use the original command's message details if available.
-        quote_timestamp = str(parsed.message_timestamp or msg_timestamp) if msg_timestamp else None
-        quote_author = sender  # The command's sender becomes the quoted author.
-        quote_message = body  # The body of the command message.
-        
-        if not sender or not body:
+        if not parsed.sender or not parsed.body:
             continue
         
-        # Pass the structured ParsedMessage to handle_message.
-        response = handle_message(parsed, sender, state_machine, msg_timestamp=msg_timestamp)
+        quote_details = _get_quote_details(parsed)
+        response = handle_message(parsed, parsed.sender, state_machine, msg_timestamp=parsed.timestamp)
         if response:
-            await send_message(
-                sender,
-                response,
-                group_id=group_id,
-                reply_quote_author=quote_author,
-                reply_quote_timestamp=quote_timestamp,
-                reply_quote_message=quote_message
-            )
+            await _dispatch_message(response, parsed, quote_details)
 
 # End of core/signal_client.py
