@@ -1,24 +1,28 @@
 """
-core/state.py
+state.py
 ------------
-Encapsulates the bot's global state in a BotController class.
+State management for the Signal bot using a state machine.
+Defines the BotStateMachine for managing bot lifecycle states.
 """
 
-class BotController:
+class BotStateMachine:
     def __init__(self) -> None:
-        # Indicates if the bot is running.
-        self.running: bool = True
+        # Initial state is RUNNING.
+        self.current_state: str = "RUNNING"
 
     def shutdown(self) -> None:
         """
-        Shut down the bot gracefully by setting the running flag to False.
+        Transition the state to shutting down.
+        """
+        self.current_state = "SHUTTING_DOWN"
+
+    def should_continue(self) -> bool:
+        """
+        Check if the bot should continue running.
         
         Returns:
-            None
+            bool: True if state is RUNNING, else False.
         """
-        self.running = False
-
-# Global instance of BotController
-BOT_CONTROLLER = BotController()
+        return self.current_state == "RUNNING"
 
 # End of core/state.py

@@ -1,5 +1,5 @@
 """
-plugins/__init__.py
+__init__.py
 -----------
 Plugin definitions for the Signal bot.
 Each plugin is registered via the @plugin decorator from the unified plugins/manager.
@@ -8,10 +8,9 @@ This module exports the public plugin commands for use in the bot.
 
 from plugins.manager import plugin  # Updated import from unified plugins/manager
 from managers.volunteer_manager import VOLUNTEER_MANAGER
-import core.state as state  # For graceful shutdown
 
 @plugin('assign')
-def assign_command(args, sender, msg_timestamp=None):
+def assign_command(args, sender, state_machine, msg_timestamp=None):
     """
     Plugin command to assign a volunteer based on a skill.
     Expected format: "@bot assign <Skill Name>"
@@ -26,7 +25,7 @@ def assign_command(args, sender, msg_timestamp=None):
         return f"No available volunteer for {skill}."
 
 @plugin('test')
-def test_command(args, sender, msg_timestamp=None):
+def test_command(args, sender, state_machine, msg_timestamp=None):
     """
     Plugin command for testing.
     Expected format: "test" or "@bot test"
@@ -35,15 +34,10 @@ def test_command(args, sender, msg_timestamp=None):
     return "yes"
 
 @plugin('shutdown')
-def shutdown_command(args, sender, msg_timestamp=None):
+def shutdown_command(args, sender, state_machine, msg_timestamp=None):
     """
     Plugin command to shut down the bot gracefully.
     Expected format: "@bot shutdown"
     """
-    state.BOT_CONTROLLER.shutdown()
+    state_machine.shutdown()
     return "Bot is shutting down."
-
-# Define the public API for this module.
-__all__ = ["assign_command", "test_command", "shutdown_command"]
-
-# End of plugins/__init__.py

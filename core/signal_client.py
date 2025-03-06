@@ -120,13 +120,16 @@ async def receive_messages() -> List[str]:
         return messages
     return []
 
-async def process_incoming() -> None:
+async def process_incoming(state_machine) -> None:
     """
     Asynchronously process each incoming message, dispatch commands, and send responses.
     
     Skips system messages (e.g. typing notifications, receipts) which lack a 'Body:'.
     For group chats, sends the response as a direct reply using the original command message's details.
     For individual chats, sends the response without direct reply quoting.
+    
+    Args:
+        state_machine: Instance of BotStateMachine for dependency injection.
     """
     messages = await receive_messages()
     for message in messages:
@@ -145,7 +148,7 @@ async def process_incoming() -> None:
         if not sender or not body:
             continue
         
-        response = handle_message(body, sender, msg_timestamp=msg_timestamp)
+        response = handle_message(body, sender, state_machine, msg_timestamp=msg_timestamp)
         if response:
             await send_message(
                 sender,

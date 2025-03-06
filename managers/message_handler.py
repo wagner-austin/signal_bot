@@ -1,5 +1,5 @@
 """
-managers/message_handler.py
+message_handler.py
 ---------------------------
 Handles incoming messages and dispatches commands using the unified plugins/manager.
 Supports two command formats:
@@ -56,7 +56,7 @@ def parse_command(message: str) -> Tuple[Optional[str], Optional[str]]:
         return None, None
     return command, args
 
-def handle_message(message: str, sender: str, msg_timestamp: Optional[int] = None) -> str:
+def handle_message(message: str, sender: str, state_machine, msg_timestamp: Optional[int] = None) -> str:
     """
     Process an incoming message and execute the corresponding plugin command if available.
 
@@ -68,6 +68,7 @@ def handle_message(message: str, sender: str, msg_timestamp: Optional[int] = Non
     Parameters:
         message (str): The incoming message text.
         sender (str): The identifier of the sender (e.g., phone number).
+        state_machine: The BotStateMachine instance for dependency injection.
         msg_timestamp (Optional[int]): The timestamp of the message, if available.
         
     Returns:
@@ -81,7 +82,7 @@ def handle_message(message: str, sender: str, msg_timestamp: Optional[int] = Non
         plugin_func = get_plugin(command)
         if plugin_func:
             try:
-                response = plugin_func(args, sender, msg_timestamp=msg_timestamp)
+                response = plugin_func(args, sender, state_machine, msg_timestamp=msg_timestamp)
                 return response
             except Exception as e:
                 logger.exception(
