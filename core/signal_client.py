@@ -9,13 +9,13 @@ import subprocess
 import re
 import time
 import logging
-from core.config import BOT_NUMBER
+from core.config import BOT_NUMBER, SIGNAL_CLI_COMMAND
 from managers.message_handler import handle_message
 from core.message_parser import parse_message
 
 def run_signal_cli(args):
     """Run signal-cli with given arguments, catching and logging any errors."""
-    full_args = ['signal-cli.bat', '-u', BOT_NUMBER] + args
+    full_args = [SIGNAL_CLI_COMMAND, '-u', BOT_NUMBER] + args
     try:
         result = subprocess.run(full_args, capture_output=True, text=True, encoding='utf-8', errors='replace', check=True)
         return result
