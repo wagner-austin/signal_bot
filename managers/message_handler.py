@@ -9,12 +9,19 @@ for every plugin command.
 """
 
 import re
+from typing import Tuple, Optional
 from managers.plugin_manager import get_plugin
 
-def parse_command(message: str):
+def parse_command(message: str) -> Tuple[Optional[str], Optional[str]]:
     """
     Determine the intended command and arguments from the message.
-    Allows either "@bot <command> <args>" or "<command> <args>".
+    
+    Args:
+        message (str): The incoming message text.
+        
+    Returns:
+        Tuple[Optional[str], Optional[str]]: A tuple containing the command and its arguments.
+        Returns (None, None) if the message is empty or command cannot be parsed.
     """
     message = message.strip()
 
@@ -38,10 +45,18 @@ def parse_command(message: str):
     args = parts[1] if len(parts) > 1 else ""
     return command, args
 
-def handle_message(message: str, sender: str, msg_timestamp: int = None) -> str:
+def handle_message(message: str, sender: str, msg_timestamp: Optional[int] = None) -> str:
     """
     Process a message, execute the corresponding plugin command (if it exists),
     and return the plugin's response.
+    
+    Args:
+        message (str): The incoming message text.
+        sender (str): The sender's identifier (e.g., phone number).
+        msg_timestamp (Optional[int]): The timestamp of the message.
+        
+    Returns:
+        str: The response from the executed plugin command, or an error message if the command is not recognized.
     """
     command, args = parse_command(message)
     if command:

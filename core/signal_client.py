@@ -9,12 +9,22 @@ import subprocess
 import re
 import time
 import logging
+from typing import List, Union, Optional
 from core.config import BOT_NUMBER, SIGNAL_CLI_COMMAND
 from managers.message_handler import handle_message
 from core.message_parser import parse_message
 
-def run_signal_cli(args):
-    """Run signal-cli with given arguments, catching and logging any errors."""
+def run_signal_cli(args: List[str]) -> Union[subprocess.CompletedProcess, subprocess.CalledProcessError, None]:
+    """
+    Run signal-cli with given arguments, catching and logging any errors.
+    
+    Args:
+        args (List[str]): List of command-line arguments for signal-cli.
+        
+    Returns:
+        Union[subprocess.CompletedProcess, subprocess.CalledProcessError, None]: The result of the subprocess call,
+        or an error/None if an exception occurs.
+    """
     full_args = [SIGNAL_CLI_COMMAND, '-u', BOT_NUMBER] + args
     try:
         result = subprocess.run(full_args, capture_output=True, text=True, encoding='utf-8', errors='replace', check=True)
@@ -26,8 +36,15 @@ def run_signal_cli(args):
         logging.error(f"Unexpected error while running signal-cli: {e}")
         return None
 
-def send_message(to_number, message, group_id=None):
-    """Send a message using signal-cli. If group_id is provided, send to the group chat."""
+def send_message(to_number: str, message: str, group_id: Optional[str] = None) -> None:
+    """
+    Send a message using signal-cli. If group_id is provided, send to the group chat.
+    
+    Args:
+        to_number (str): The recipient's phone number.
+        message (str): The message to send.
+        group_id (Optional[str]): The group ID if sending to a group chat.
+    """
     if group_id:
         args = ['send', '-g', group_id, '-m', message]
         logging.info(f"Sent to group {group_id}: {message}")
@@ -36,15 +53,20 @@ def send_message(to_number, message, group_id=None):
         logging.info(f"Sent to {to_number}: {message}")
     run_signal_cli(args)
 
-def receive_messages():
-    """Retrieve incoming messages using signal-cli."""
+def receive_messages() -> List[str]:
+    """
+    Retrieve incoming messages using signal-cli.
+    
+    Returns:
+        List[str]: A list of raw message strings.
+    """
     result = run_signal_cli(['receive'])
     if result and result.stdout:
         messages = result.stdout.strip().split('\nEnvelope')
         return messages
     return []
 
-def process_incoming():
+def process_incoming() -> None:
     """
     Process each incoming message, dispatch commands, and send responses.
     Skips system messages (e.g. typing notifications, receipts) which lack a 'Body:'.
