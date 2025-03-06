@@ -1,13 +1,11 @@
 """
-volunteer_manager.py
---------------------
-Encapsulates volunteer management by wrapping volunteer data in a VolunteerManager class.
-Loads volunteer data from a separate configuration file.
-Provides logging for volunteer assignments and for cases where no volunteer is found.
+volunteer_manager.py - Encapsulates volunteer management by wrapping volunteer data in a VolunteerManager class.
+Loads volunteer data from a separate configuration file and provides logging for volunteer assignments.
+Also includes functions to check volunteer status, check in, and sign up new volunteers.
 """
 
 import logging
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from core.volunteer_config import VOLUNTEER_DATA
 
 logger = logging.getLogger(__name__)
@@ -55,6 +53,67 @@ class VolunteerManager:
             return volunteer
         logger.warning(f"[assign_volunteer] Failed to assign volunteer for skill '{skill}' to role '{role}'.")
         return None
+
+    def volunteer_status(self) -> str:
+        """
+        Get the status of all volunteers.
+        
+        Returns:
+            str: A formatted string listing each volunteer's name, availability, and current role.
+        """
+        status_lines = []
+        for name, data in self.volunteers.items():
+            availability = "Available" if data.get("available") else "Not Available"
+            role = data.get("current_role") if data.get("current_role") else "None"
+            status_lines.append(f"{name}: {availability}, Current Role: {role}")
+        return "\n".join(status_lines)
+
+    def check_in(self, name: str) -> str:
+        """
+        Check in a volunteer, marking them as available.
+        
+        Args:
+            name (str): The name of the volunteer.
+            
+        Returns:
+            str: A confirmation message or error message if the volunteer is not found.
+        """
+        if name in self.volunteers:
+            self.volunteers[name]["available"] = True
+            logger.info(f"[check_in] Volunteer '{name}' checked in and marked as available.")
+            return f"Volunteer '{name}' has been checked in and is now available."
+        else:
+            logger.warning(f"[check_in] Volunteer '{name}' not found.")
+            return f"Volunteer '{name}' not found."
+
+    def sign_up(self, name: str, skills: List[str]) -> str:
+        """
+        Sign up a new volunteer or update an existing volunteer's skills.
+        
+        Args:
+            name (str): The name of the volunteer.
+            skills (List[str]): A list of skills for the volunteer.
+            
+        Returns:
+            str: A confirmation message indicating the sign-up status.
+        """
+        if name in self.volunteers:
+            # Update existing volunteer's skills by adding new ones (if not already present)
+            current_skills = set(self.volunteers[name].get("skills", []))
+            updated_skills = current_skills.union(skills)
+            self.volunteers[name]["skills"] = list(updated_skills)
+            self.volunteers[name]["available"] = True
+            logger.info(f"[sign_up] Volunteer '{name}' updated with skills {updated_skills}.")
+            return f"Volunteer '{name}' updated with skills: {', '.join(updated_skills)}."
+        else:
+            # Add new volunteer
+            self.volunteers[name] = {
+                "skills": skills,
+                "available": True,
+                "current_role": None
+            }
+            logger.info(f"[sign_up] New volunteer '{name}' signed up with skills {skills}.")
+            return f"New volunteer '{name}' signed up with skills: {', '.join(skills)}."
 
 # Expose a single instance for volunteer management.
 VOLUNTEER_MANAGER = VolunteerManager()
