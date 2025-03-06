@@ -9,11 +9,13 @@ import os
 import sys
 import importlib.util
 import importlib
+from typing import Callable, Any, Optional, Dict
+from types import ModuleType
 
 # Registry to hold command plugins.
-plugin_registry = {}
+plugin_registry: Dict[str, Callable[..., Any]] = {}
 
-def plugin(command: str):
+def plugin(command: str) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """
     Decorator to register a function as a command plugin.
     
@@ -21,14 +23,14 @@ def plugin(command: str):
         command (str): The command name to register.
         
     Returns:
-        function: The decorator that registers the plugin.
+        Callable: The decorator that registers the plugin.
     """
-    def decorator(func):
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         plugin_registry[command.lower()] = func
         return func
     return decorator
 
-def get_plugin(command: str):
+def get_plugin(command: str) -> Optional[Callable[..., Any]]:
     """
     Retrieve a plugin function by command.
     
@@ -36,26 +38,26 @@ def get_plugin(command: str):
         command (str): The command name.
         
     Returns:
-        function or None: The plugin function if found, else None.
+        Optional[Callable]: The plugin function if found, else None.
     """
     return plugin_registry.get(command.lower())
 
-def get_all_plugins():
+def get_all_plugins() -> Dict[str, Callable[..., Any]]:
     """
     Return all registered plugins.
     
     Returns:
-        dict: Dictionary containing all registered plugins.
+        Dict[str, Callable]: Dictionary containing all registered plugins.
     """
     return plugin_registry
 
-def clear_plugins():
+def clear_plugins() -> None:
     """
     Clear all registered plugins to facilitate dynamic reloading.
     """
     plugin_registry.clear()
 
-def _load_module(module_name: str, file_path: str):
+def _load_module(module_name: str, file_path: str) -> Optional[ModuleType]:
     """
     Helper function to load a module given its module name and file path.
     
@@ -64,7 +66,7 @@ def _load_module(module_name: str, file_path: str):
         file_path (str): The file path to the module.
         
     Returns:
-        module or None: The loaded module object if successful, else None.
+        Optional[ModuleType]: The loaded module object if successful, else None.
     """
     spec = importlib.util.spec_from_file_location(module_name, file_path)
     if spec is None:
@@ -97,14 +99,14 @@ def _load_plugins_from_dir(reload: bool = False) -> None:
         else:
             _load_module(module_name, file_path)
 
-def load_plugins():
+def load_plugins() -> None:
     """
     Automatically import all plugin modules in the 'plugins' directory,
     skipping non-plugin files.
     """
     _load_plugins_from_dir(reload=False)
 
-def reload_plugins():
+def reload_plugins() -> None:
     """
     Reload all plugin modules dynamically by clearing the plugin registry
     and re-importing all plugin modules, skipping non-plugin files.

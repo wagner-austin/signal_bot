@@ -7,6 +7,7 @@ Handles processing of incoming messages while respecting the bot's state machine
 
 import asyncio
 import logging
+from typing import Optional
 from core.config import POLLING_INTERVAL
 from core.signal_client import process_incoming
 from core.state import BotStateMachine
@@ -15,8 +16,15 @@ from plugins.manager import get_all_plugins
 logger = logging.getLogger(__name__)
 
 class SignalBotService:
-    def __init__(self, state_machine: BotStateMachine = None):
-        self.state_machine = state_machine or BotStateMachine()
+    def __init__(self, state_machine: Optional[BotStateMachine] = None) -> None:
+        """
+        Initializes the SignalBotService.
+        
+        Args:
+            state_machine (Optional[BotStateMachine]): An instance of the bot's state machine.
+                If not provided, a new BotStateMachine is instantiated.
+        """
+        self.state_machine: BotStateMachine = state_machine or BotStateMachine()
 
     async def run(self) -> None:
         """
