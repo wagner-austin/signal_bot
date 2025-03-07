@@ -1,10 +1,8 @@
 """
-managers/__init__.py
---------------------
-Managers package for the Signal bot. Contains modules for handling messages,
-volunteer management, and other auxiliary services.
+managers/__init__.py - Managers package initialization.
+Exports modules for handling messages, volunteer data, and pending actions.
 """
 
-__all__ = ["message_handler", "volunteer_manager"]
+__all__ = ["message_handler", "volunteer", "pending_actions"]
 
 # End of managers/__init__.py
