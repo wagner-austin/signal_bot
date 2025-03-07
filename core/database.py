@@ -1,7 +1,7 @@
 """
 core/database.py - SQLite database integration for persistent storage.
 Contains functions to store volunteer assignments, event details, and command logs.
-Also includes helper functions for parsing volunteer skills.
+Also includes helper functions for parsing volunteer skills and trash management.
 """
 
 import sqlite3
@@ -51,6 +51,17 @@ def init_db() -> None:
         command TEXT,
         args TEXT,
         timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+    # Create table for deleted volunteers (trash area)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS DeletedVolunteers (
+        phone TEXT PRIMARY KEY,
+        name TEXT,
+        skills TEXT,
+        available INTEGER,
+        current_role TEXT,
+        deleted_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
     """)
     conn.commit()
@@ -158,6 +169,51 @@ def log_command(sender: str, command: str, args: str) -> None:
     INSERT INTO CommandLogs (sender, command, args)
     VALUES (?, ?, ?)
     """, (sender, command, args))
+    conn.commit()
+    conn.close()
+
+def delete_volunteer_record(phone: str) -> None:
+    """
+    Delete a volunteer record from the Volunteers table.
+    
+    Args:
+        phone (str): The volunteer's phone number.
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM Volunteers WHERE phone = ?", (phone,))
+    conn.commit()
+    conn.close()
+
+def add_deleted_volunteer_record(phone: str, name: str, skills: list, available: bool, current_role: Optional[str]) -> None:
+    """
+    Add a volunteer record to the DeletedVolunteers (trash) table.
+    
+    Args:
+        phone (str): The volunteer's phone number.
+        name (str): The volunteer's name.
+        skills (list): List of skills.
+        available (bool): Availability status.
+        current_role (Optional[str]): Current assigned role.
+    """
+    skills_str = ",".join(skills)
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("INSERT OR REPLACE INTO DeletedVolunteers (phone, name, skills, available, current_role) VALUES (?, ?, ?, ?, ?)",
+                   (phone, name, skills_str, int(available), current_role))
+    conn.commit()
+    conn.close()
+
+def remove_deleted_volunteer_record(phone: str) -> None:
+    """
+    Remove a volunteer record from the DeletedVolunteers table.
+    
+    Args:
+        phone (str): The volunteer's phone number.
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM DeletedVolunteers WHERE phone = ?", (phone,))
     conn.commit()
     conn.close()
 

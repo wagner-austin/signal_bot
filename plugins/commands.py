@@ -1,12 +1,12 @@
 """
 plugins/commands.py - Command plugins for the Signal bot.
-Implements various command plugins including event summary, detailed event info, registration, and name editing.
+Implements various command plugins including event summary, detailed event info, registration, name editing, and deletion.
 """
 
 from typing import Optional
 import difflib
 from plugins.manager import plugin, get_all_plugins
-from managers.volunteer_manager import VOLUNTEER_MANAGER, PENDING_REGISTRATIONS
+from managers.volunteer_manager import VOLUNTEER_MANAGER, PENDING_REGISTRATIONS, PENDING_DELETIONS
 from core.state import BotStateMachine
 from core.database import get_volunteer_record  # Needed in register_command
 
@@ -129,9 +129,9 @@ def register_command(args: str, sender: str, state_machine: BotStateMachine, msg
     Handles registration in two steps:
       1. If invoked as "@bot register" without arguments:
          - If the sender is not registered, prompt:
-           "Welcome! Please respond with your first and last name to get registered. Or "skip" to remain anonymous."
+           "Welcome! Please respond with your first and last name to get registered. Or \"skip\" to remain anonymous."
          - If the sender is already registered, reply:
-           "You are registered as "<Existing Name>". Use command "@bot edit" to edit your name."
+           "You are registered as \"<Existing Name>\". Use command \"@bot edit\" to edit your name."
       2. If invoked with arguments, registers the volunteer,
          returning "New volunteer '<Name>' registered".
     """
@@ -175,6 +175,29 @@ def edit_command(args: str, sender: str, state_machine: BotStateMachine, msg_tim
         return f"You are registered as \"{record['name']}\". Type a new name or type \"skip\" to cancel editing."
     # If arguments provided, update immediately.
     return VOLUNTEER_MANAGER.sign_up(sender, args.strip(), [])
+
+@plugin('delete')
+@plugin('del')
+def delete_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
+    """
+    delete/del - Delete your registration.
+    Usage:
+      - When invoked as "@bot delete" or "@bot del" without arguments, the bot asks:
+          "Would you like to delete your registration? Yes or No"
+      - Subsequent responses are processed interactively:
+          If affirmative, the bot then prompts: "Please respond with 'DELETE' to delete your account."
+          If the user responds with "DELETE", the registration is deleted (and stored in trash).
+          Otherwise, deletion is cancelled and the current registration is maintained.
+    """
+    from managers.volunteer_manager import PENDING_DELETIONS, VOLUNTEER_MANAGER
+    from core.database import get_volunteer_record
+    # Start the deletion process if no arguments are provided.
+    if not args.strip():
+        PENDING_DELETIONS[sender] = "initial"
+        return "Would you like to delete your registration? Yes or No"
+    # If arguments are provided, ignore them and start deletion interactively.
+    PENDING_DELETIONS[sender] = "initial"
+    return "Would you like to delete your registration? Yes or No"
 
 @plugin('help')
 def help_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:

@@ -1,6 +1,6 @@
 """
 managers/message_handler.py - Handles incoming messages and dispatches commands.
-Also processes interactive registration or edit responses using a dedicated function.
+Also processes interactive registration, edit, and deletion responses using dedicated functions.
 """
 
 import logging
@@ -11,6 +11,48 @@ from core.state import BotStateMachine
 from parsers.message_parser import ParsedMessage
 
 logger = logging.getLogger(__name__)
+
+def process_deletion_response(parsed: ParsedMessage, sender: str) -> Optional[str]:
+    """
+    Process a deletion response for a pending deletion.
+    
+    The deletion process has two stages:
+      - "initial": expecting a response "Yes" or "No" to the prompt.
+      - "confirm": expecting the exact text "DELETE" to finalize deletion.
+    
+    Args:
+        parsed (ParsedMessage): The parsed message.
+        sender (str): The sender's identifier.
+        
+    Returns:
+        Optional[str]: The deletion confirmation or cancellation message if processed, otherwise None.
+    """
+    from managers.volunteer_manager import PENDING_DELETIONS, VOLUNTEER_MANAGER
+    from core.database import get_volunteer_record
+    if sender not in PENDING_DELETIONS:
+        return None
+    state = PENDING_DELETIONS[sender]  # "initial" or "confirm"
+    user_input = parsed.body.strip().lower() if parsed.body else ""
+    if state == "initial":
+        if user_input in {"yes", "y", "yea", "sure"}:
+            PENDING_DELETIONS[sender] = "confirm"
+            return 'Please respond with "DELETE" to delete your account.'
+        else:
+            record = get_volunteer_record(sender)
+            confirmation = f"Thank you. You are registered as \"{record['name']}\"." if record else "Deletion cancelled."
+            del PENDING_DELETIONS[sender]
+            return confirmation
+    elif state == "confirm":
+        if parsed.body.strip() == "DELETE":
+            confirmation = VOLUNTEER_MANAGER.delete_volunteer(sender)
+            del PENDING_DELETIONS[sender]
+            return confirmation
+        else:
+            record = get_volunteer_record(sender)
+            confirmation = f"Thank you. You are registered as \"{record['name']}\"." if record else "Deletion cancelled."
+            del PENDING_DELETIONS[sender]
+            return confirmation
+    return None
 
 def process_registration_response(parsed: ParsedMessage, sender: str) -> Optional[str]:
     """
@@ -55,8 +97,8 @@ def process_registration_response(parsed: ParsedMessage, sender: str) -> Optiona
 def handle_message(parsed: ParsedMessage, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
     Process an incoming message and execute the corresponding plugin command if available.
-    Additionally, if a sender is in a pending registration state (private message), the registration
-    or edit response is handled in a dedicated function.
+    Additionally, if a sender is in a pending deletion or registration/edit state (private message),
+    the respective response is handled in a dedicated function.
     
     Args:
         parsed (ParsedMessage): The parsed message details.
@@ -65,11 +107,15 @@ def handle_message(parsed: ParsedMessage, sender: str, state_machine: BotStateMa
         msg_timestamp (Optional[int]): The message timestamp.
         
     Returns:
-        str: The response from the executed plugin command, registration/edit confirmation,
+        str: The response from the executed plugin command, deletion or registration/edit confirmation,
              an error message if execution fails, or an empty string if no recognized command is found.
     """
-    # Process pending registration/edit responses for private messages
+    # Process pending deletion responses first for private messages.
     if parsed.group_id is None:
+        del_response = process_deletion_response(parsed, sender)
+        if del_response is not None:
+            return del_response
+        # Process pending registration/edit responses.
         reg_response = process_registration_response(parsed, sender)
         if reg_response is not None:
             return reg_response

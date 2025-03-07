@@ -1,12 +1,16 @@
 """
 volunteer_manager.py - Manages volunteer data and registration.
 Uses the SQLite database as the single source of truth for all volunteer data.
-Provides functions for volunteer status, check-in, sign-up, assignment, and skill tracking.
+Provides functions for volunteer status, check-in, sign-up, assignment, deletion, and skill tracking.
 """
 
 import logging
 from typing import Optional, Dict, Any, List
-from core.database import get_all_volunteers, get_volunteer_record, add_volunteer_record, update_volunteer_record
+from core.database import (
+    get_all_volunteers, get_volunteer_record, add_volunteer_record,
+    update_volunteer_record, delete_volunteer_record, add_deleted_volunteer_record,
+    remove_deleted_volunteer_record
+)
 
 logger = logging.getLogger(__name__)
 
@@ -116,6 +120,7 @@ class VolunteerManager:
         """
         Register a new volunteer or update an existing one.
         Writes changes directly to the database.
+        If a deleted record exists for the phone, it is removed.
         
         Args:
             phone (str): The volunteer's phone number.
@@ -133,14 +138,36 @@ class VolunteerManager:
             update_volunteer_record(phone, updated_name, updated_skills, True, record.get("current_role"))
             return f"Volunteer '{updated_name}' updated"
         else:
+            # If the user exists in the trash, remove that record.
+            remove_deleted_volunteer_record(phone)
             final_name = "Anonymous" if name.lower() == "skip" or name.strip() == "" else name
             final_name = normalize_name(final_name, phone)
             add_volunteer_record(phone, final_name, skills, True, None)
             return f"New volunteer '{final_name}' registered"
 
+    def delete_volunteer(self, phone: str) -> str:
+        """
+        Delete the volunteer registration.
+        Stores the deleted record in the trash area and removes it from active registrations.
+        
+        Args:
+            phone (str): The volunteer's phone number.
+        Returns:
+            str: Confirmation message.
+        """
+        record = get_volunteer_record(phone)
+        if not record:
+            return "You are not registered."
+        # Store record in trash
+        add_deleted_volunteer_record(phone, record["name"], record.get("skills", []), record["available"], record.get("current_role"))
+        # Remove from active registrations
+        delete_volunteer_record(phone)
+        return "Your registration has been deleted. Thank you."
+
 # Expose a single instance for volunteer management.
 VOLUNTEER_MANAGER = VolunteerManager()
-# Global dictionary to track pending registrations (or updates) by sender's phone.
-PENDING_REGISTRATIONS: Dict[str, bool] = {}
+# Global dictionaries to track pending registration/edit and deletion by sender's phone.
+PENDING_REGISTRATIONS: Dict[str, str] = {}
+PENDING_DELETIONS: Dict[str, str] = {}
 
 # End of managers/volunteer_manager.py
