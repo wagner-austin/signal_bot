@@ -1,8 +1,6 @@
 """
-core/signal_client.py
----------------------
-Encapsulates functions to interact with signal-cli for sending and receiving messages.
-Improved asynchronous handling by refactoring message processing into smaller helper functions.
+core/signal_client.py - Encapsulates functions to interact with signal-cli for sending and receiving messages.
+Now uses the --message-from-stdin flag to send multi-line messages via STDIN.
 """
 
 import asyncio
@@ -26,15 +24,16 @@ async def send_message(
     """
     Asynchronously send a message using signal-cli.
     
-    For group chats, the message will include the original command text as a direct reply.
-    For individual chats, the message will be sent without the original command text.
+    For group chats, includes direct reply quoting if available.
+    For individual chats, sends without quoting.
+    Uses the new --message-from-stdin flag to pass multi-line message content via STDIN.
     """
     if group_id:
         args = ['send', '-g', group_id]
     else:
         args = ['send', to_number]
     
-    # For group chats, include direct reply quoting flags if available.
+    # For group chats, include quoting flags if available.
     if group_id and reply_quote_author and reply_quote_timestamp and reply_quote_message:
         args.extend([
             '--quote-author', reply_quote_author,
@@ -42,13 +41,14 @@ async def send_message(
             '--quote-message', reply_quote_message
         ])
     
-    args.extend(['-m', message])
+    # Use the new flag to pass message content via STDIN.
+    args.append('--message-from-stdin')
     
     if group_id:
         logger.info(f"Sent to group {group_id}: {message} (replying to message by {reply_quote_author})")
     else:
-        logger.info(f"Sent to {to_number}: {message} (no direct reply quoting for individual chat)")
-    await async_run_signal_cli(args)
+        logger.info(f"Sent to {to_number}: {message} (individual chat)")
+    await async_run_signal_cli(args, stdin_input=message)
 
 async def receive_messages() -> List[str]:
     """
@@ -59,7 +59,6 @@ async def receive_messages() -> List[str]:
     """
     output = await async_run_signal_cli(['receive'])
     if output:
-        # Use regex splitting with a lookahead to capture each envelope robustly.
         messages = re.split(r'\n(?=Envelope)', output.strip())
         return messages
     return []
@@ -67,15 +66,6 @@ async def receive_messages() -> List[str]:
 def _get_quote_details(parsed: ParsedMessage) -> Tuple[Optional[str], str, str]:
     """
     Extract quoting details from a parsed message.
-    
-    Args:
-        parsed (ParsedMessage): The parsed message.
-    
-    Returns:
-        Tuple containing:
-         - quote_timestamp: Original command's timestamp (as string), if available.
-         - quote_author: The sender's identifier.
-         - quote_message: The message body.
     """
     msg_timestamp = parsed.timestamp
     quote_timestamp = str(parsed.message_timestamp or msg_timestamp) if msg_timestamp else None
@@ -85,12 +75,7 @@ def _get_quote_details(parsed: ParsedMessage) -> Tuple[Optional[str], str, str]:
 
 async def _dispatch_message(response: str, parsed: ParsedMessage, quote_details: Tuple[Optional[str], str, str]) -> None:
     """
-    Dispatch the response message by calling send_message with appropriate quoting details.
-    
-    Args:
-        response (str): The response message to send.
-        parsed (ParsedMessage): The parsed incoming message.
-        quote_details (Tuple): A tuple containing quote_timestamp, quote_author, and quote_message.
+    Dispatch the response message using send_message with quoting details.
     """
     await send_message(
         parsed.sender,
@@ -103,16 +88,10 @@ async def _dispatch_message(response: str, parsed: ParsedMessage, quote_details:
 
 async def process_incoming(state_machine) -> int:
     """
-    Asynchronously process each incoming message, dispatch commands, and send responses.
-    
-    This function uses helper functions to handle quoting and message dispatching, improving readability.
-    Returns the count of processed messages to help adjust the polling interval.
-    
-    Args:
-        state_machine: Instance of BotStateMachine for dependency injection.
+    Process incoming messages, dispatch commands, and send responses.
     
     Returns:
-        int: Number of processed messages.
+        int: The count of processed messages.
     """
     messages = await receive_messages()
     processed_count = 0
