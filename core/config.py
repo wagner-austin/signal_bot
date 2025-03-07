@@ -1,7 +1,5 @@
 """
-core/config.py
---------------
-Configuration file for the Signal bot.
+core/config.py - Centralized configuration for the Signal bot.
 Loads configuration settings from environment variables with default values.
 """
 
@@ -21,5 +19,8 @@ DIRECT_REPLY_ENABLED: bool = os.environ.get("DIRECT_REPLY_ENABLED", "True").lowe
 
 # Toggle requirement of the @bot command prefix.
 ENABLE_BOT_PREFIX: bool = os.environ.get("ENABLE_BOT_PREFIX", "true").lower() in ("true", "1", "yes")
+
+# Database name for SQLite, defaulting to "bot_data.db" if not set.
+DB_NAME: str = os.environ.get("DB_NAME", "bot_data.db")
 
 # End of core/config.py

@@ -1,16 +1,10 @@
 """
-core/database.py - SQLite database integration for persistent storage.
-Contains functions to store volunteer assignments, event details, and command logs.
-Also includes helper functions for parsing volunteer skills and trash management.
+core/database/volunteers.py - Volunteer-related database operations.
+Provides functions to manage volunteer records, including adding, updating, retrieving, and deleting volunteers.
 """
 
-import os
-import sqlite3
-from sqlite3 import Connection
 from typing import Dict, Any, Optional, List
-
-# Use environment variable DB_NAME if set, otherwise default to "bot_data.db"
-DB_NAME = os.environ.get("DB_NAME", "bot_data.db")
+from .connection import get_connection
 
 def parse_skills(skills_str: Optional[str]) -> List[str]:
     """
@@ -25,49 +19,6 @@ def parse_skills(skills_str: Optional[str]) -> List[str]:
     if not skills_str:
         return []
     return [skill.strip() for skill in skills_str.split(",") if skill.strip()]
-
-def get_connection() -> Connection:
-    conn = sqlite3.connect(DB_NAME)
-    conn.row_factory = sqlite3.Row
-    return conn
-
-def init_db() -> None:
-    """
-    Initialize the database, creating tables if they do not exist.
-    """
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS Volunteers (
-        phone TEXT PRIMARY KEY,
-        name TEXT,
-        skills TEXT,
-        available INTEGER,
-        current_role TEXT
-    )
-    """)
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS CommandLogs (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        sender TEXT,
-        command TEXT,
-        args TEXT,
-        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-    """)
-    # Create table for deleted volunteers (trash area)
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS DeletedVolunteers (
-        phone TEXT PRIMARY KEY,
-        name TEXT,
-        skills TEXT,
-        available INTEGER,
-        current_role TEXT,
-        deleted_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-    """)
-    conn.commit()
-    conn.close()
 
 def get_all_volunteers() -> Dict[str, Dict[str, Any]]:
     """
@@ -156,24 +107,6 @@ def update_volunteer_record(phone: str, display_name: str, skills: list, availab
     conn.commit()
     conn.close()
 
-def log_command(sender: str, command: str, args: str) -> None:
-    """
-    Log a command execution to the database.
-    
-    Args:
-        sender (str): The sender's identifier.
-        command (str): The command executed.
-        args (str): The arguments passed.
-    """
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("""
-    INSERT INTO CommandLogs (sender, command, args)
-    VALUES (?, ?, ?)
-    """, (sender, command, args))
-    conn.commit()
-    conn.close()
-
 def delete_volunteer_record(phone: str) -> None:
     """
     Delete a volunteer record from the Volunteers table.
@@ -219,4 +152,4 @@ def remove_deleted_volunteer_record(phone: str) -> None:
     conn.commit()
     conn.close()
 
-# End of core/database.py
+# End of core/database/volunteers.py
