@@ -1,17 +1,20 @@
 """
-plugins/commands.py - Implements command plugins for the Signal bot.
-This module uses the VolunteerManager, which now directly interfaces with the database.
+plugins/commands.py - Command plugins for the Signal bot, including help, more help, and info commands.
+This module implements various command plugins, including volunteer management, test commands,
+event info, help commands, and more.
 """
 
 from typing import Optional
-from plugins.manager import plugin
+import difflib
+from plugins.manager import plugin, get_all_plugins
 from managers.volunteer_manager import VOLUNTEER_MANAGER, PENDING_REGISTRATIONS
 from core.state import BotStateMachine
+from core.database import get_volunteer_record  # Needed in register_command
 
 @plugin('assign')
 def assign_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
-    Assign a volunteer based on a required skill.
+    assign - Assign a volunteer based on a required skill.
     Expected format: "@bot assign <Skill Name>"
     """
     skill = args.strip()
@@ -25,7 +28,7 @@ def assign_command(args: str, sender: str, state_machine: BotStateMachine, msg_t
 @plugin('test')
 def test_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
-    Test command for verifying bot response.
+    test - Test command for verifying bot response.
     Expected format: "test" or "@bot test"
     """
     return "yes"
@@ -33,7 +36,7 @@ def test_command(args: str, sender: str, state_machine: BotStateMachine, msg_tim
 @plugin('shutdown')
 def shutdown_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
-    Shut down the bot gracefully.
+    shutdown - Shut down the bot gracefully.
     Expected format: "@bot shutdown"
     """
     state_machine.shutdown()
@@ -42,7 +45,7 @@ def shutdown_command(args: str, sender: str, state_machine: BotStateMachine, msg
 @plugin('test_all')
 async def test_all_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
-    Run integration tests.
+    test_all - Run integration tests.
     """
     from tests.test_all import run_tests
     summary = await run_tests()
@@ -51,7 +54,7 @@ async def test_all_command(args: str, sender: str, state_machine: BotStateMachin
 @plugin('event_info')
 def event_info_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
-    Display details about the upcoming event.
+    event_info - Display details about the upcoming event.
     """
     from core.event_config import EVENT_DETAILS
     event = EVENT_DETAILS.get("upcoming_event", {})
@@ -72,14 +75,14 @@ def event_info_command(args: str, sender: str, state_machine: BotStateMachine, m
 @plugin('volunteer_status')
 def volunteer_status_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
-    Display the current status of all volunteers.
+    volunteer_status - Display the current status of all volunteers.
     """
     return VOLUNTEER_MANAGER.volunteer_status()
 
 @plugin('check_in')
 def check_in_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
-    Check in a volunteer.
+    check_in - Check in a volunteer.
     Expected format: "@bot check_in" (the sender is assumed to be the volunteer).
     """
     return VOLUNTEER_MANAGER.check_in(sender)
@@ -87,7 +90,7 @@ def check_in_command(args: str, sender: str, state_machine: BotStateMachine, msg
 @plugin('feedback')
 def feedback_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
-    Submit feedback or report issues.
+    feedback - Submit feedback or report issues.
     Expected format: "@bot feedback <Your feedback or report>"
     """
     feedback_text = args.strip()
@@ -124,5 +127,47 @@ def register_command(args: str, sender: str, state_machine: BotStateMachine, msg
         else:
             PENDING_REGISTRATIONS[sender] = True
             return "Please provide your first and last name or skip if you wish"
+
+# --- New Commands ---
+
+@plugin('help')
+def help_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
+    """
+    help - Provides a concise list of available commands.
+    Automatically updates as new commands are added.
+    Usage: "@bot help"
+    """
+    commands = get_all_plugins()
+    lines = []
+    for cmd, func in sorted(commands.items()):
+        doc_line = func.__doc__.strip().splitlines()[0] if func.__doc__ else "No description"
+        lines.append(f"@bot {cmd} - {doc_line}")
+    return "\n".join(lines)
+
+@plugin('more help')
+def more_help_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
+    """
+    more help - Provides detailed information for all available commands.
+    Usage: "@bot more help"
+    This includes full descriptions and usage details extracted from each command's documentation.
+    """
+    commands = get_all_plugins()
+    lines = []
+    for cmd, func in sorted(commands.items()):
+        doc = func.__doc__.strip() if func.__doc__ else "No detailed help available."
+        lines.append(f"@bot {cmd}\n{doc}\n")
+    return "\n".join(lines)
+
+@plugin('info')
+def info_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
+    """
+    info - Provides a brief overview of the 50501 OC Grassroots Movement.
+    Usage: "@bot info"
+    """
+    return (
+        "50501 OC Grassroots Movement is dedicated to upholding the Constitution and ending executive overreach. "
+        "Our objective is to foster peaceful, visible, and sustained community engagement through nonviolent protest. "
+        "We empower citizens to reclaim democracy and hold power accountable, inspiring change through unity and active resistance."
+    )
 
 # End of plugins/commands.py
