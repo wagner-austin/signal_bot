@@ -1,6 +1,6 @@
 """
 plugins/commands/volunteer.py - Volunteer-related command plugins.
-Includes commands for volunteer status, check in, feedback, register, edit, delete, and skills.
+Includes commands such as volunteer status, check in, register, edit, delete, and skills.
 Utilizes PendingActions for interactive flows.
 """
 
@@ -30,20 +30,6 @@ def check_in_command(args: str, sender: str, state_machine: BotStateMachine, msg
     """
     return VOLUNTEER_MANAGER.check_in(sender)
 
-@plugin(commands=['feedback'], canonical='feedback')
-def feedback_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
-    """
-    feedback - Submit feedback or report issues.
-    Expected format: "@bot feedback <Your feedback or report>"
-    """
-    feedback_text = args.strip()
-    if not feedback_text:
-        return "Usage: @bot feedback <Your feedback or report>"
-    import logging
-    logger = logging.getLogger(__name__)
-    logger.info(f"Feedback from {sender}: {feedback_text}")
-    return "Thank you for your feedback. It has been logged for review."
-
 @plugin(commands=['register'], canonical='register')
 def register_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
@@ -68,7 +54,7 @@ def register_command(args: str, sender: str, state_machine: BotStateMachine, msg
 @plugin(commands=['edit', 'change my name please', 'change my name to', 'change my name', 'change name',
                   'can you change my name please', 'can you change my name to', 'can you change my name',
                   'can i change my name to', 'can i change my name', 'not my name', "that's not my name",
-                  'wrong name', 'i mispelled'], canonical='edit')
+                  'wrong name', 'i mispelled'], canonical='edit', help_visible=False)
 def edit_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
     edit - Edit your registered name.
@@ -83,7 +69,7 @@ def edit_command(args: str, sender: str, state_machine: BotStateMachine, msg_tim
         return EDIT_PROMPT.format(name=record['name'])
     return VOLUNTEER_MANAGER.sign_up(sender, args.strip(), [])
 
-@plugin(commands=['delete', 'del', 'stop', 'unsubscribe', 'remove', 'opt out'], canonical='delete')
+@plugin(commands=['delete', 'del', 'stop', 'unsubscribe', 'remove', 'opt out'], canonical='delete', help_visible=False)
 def delete_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
     delete - Delete your registration.

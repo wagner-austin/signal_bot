@@ -1,11 +1,20 @@
 """
 plugins/commands/help.py - Help command plugins.
-Provides a concise help listing for available commands without showing aliases.
+Provides a concise help listing for a select set of available commands.
 """
 
 from typing import Optional
 from plugins.manager import plugin, get_all_plugins
 from core.state import BotStateMachine
+
+# Whitelist of canonical commands to display in help.
+ALLOWED_HELP_COMMANDS = {
+    "help",
+    "register",
+    "volunteer status",
+    "info",
+    "event"
+}
 
 @plugin(commands=['help'], canonical='help')
 def help_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
@@ -16,7 +25,7 @@ def help_command(args: str, sender: str, state_machine: BotStateMachine, msg_tim
     plugins_info = get_all_plugins()
     lines = []
     for canonical, info in sorted(plugins_info.items()):
-        if not info.get("help_visible", True):
+        if canonical not in ALLOWED_HELP_COMMANDS:
             continue
         func = info["function"]
         # Use only the first line of the docstring as a summary.
