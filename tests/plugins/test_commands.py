@@ -54,11 +54,9 @@ def test_event_command():
     assert "Volunteer Roles:" in result_info
 
 def test_help_commands():
-    from plugins.commands.help import help_command, more_help_command
+    from plugins.commands.help import help_command
     state_machine = BotStateMachine()
     result_help = help_command("", "+dummy", state_machine, msg_timestamp=123)
     assert "@bot" in result_help
-    result_more_help = more_help_command("", "+dummy", state_machine, msg_timestamp=123)
-    assert "@bot" in result_more_help
 
 # End of tests/plugins/test_commands.py
