@@ -1,7 +1,8 @@
 """
 managers/message_handler.py - Handles incoming messages and dispatches commands.
-Also processes interactive registration, edit, and deletion responses using a consolidated pending state handler.
-This module reduces redundancy by encapsulating similar patterns for pending actions in the PendingStateHandler class.
+Processes interactive registration, edit, and deletion responses using a consolidated pending state handler.
+This module depends on global state (from the database and in-memory pending actions) and modifies that state
+as part of processing user interactions.
 """
 
 import logging
@@ -17,7 +18,10 @@ class PendingStateHandler:
     """
     PendingStateHandler - Consolidates common logic for handling pending registration and deletion states.
     
-    Uses a pending actions manager and a volunteer manager to process responses.
+    Uses the pending actions manager and volunteer manager to process responses.
+    Side Effects:
+        The methods in this class modify the pending actions global state (e.g. clearing pending states)
+        and invoke volunteer manager functions that update the database.
     """
     def __init__(self, pending_actions, volunteer_manager) -> None:
         self.pending_actions = pending_actions
@@ -26,6 +30,14 @@ class PendingStateHandler:
     def process_deletion_response(self, parsed: ParsedMessage, sender: str) -> Optional[str]:
         """
         Process a deletion response using the pending deletion state.
+        
+        Args:
+            parsed (ParsedMessage): The parsed message.
+            sender (str): The sender's identifier.
+        Returns:
+            Optional[str]: The deletion confirmation or cancellation message if processed.
+        Side Effects:
+            May update or clear the pending deletion state and invoke deletion on the database.
         """
         from core.database import get_volunteer_record
         if not self.pending_actions.has_deletion(sender):
@@ -56,11 +68,19 @@ class PendingStateHandler:
     def process_registration_response(self, parsed: ParsedMessage, sender: str) -> Optional[str]:
         """
         Process a registration or edit response using the pending registration state.
+        
+        Args:
+            parsed (ParsedMessage): The parsed message.
+            sender (str): The sender's identifier.
+        Returns:
+            Optional[str]: The confirmation message if processed.
+        Side Effects:
+            Modifies the pending registration state and may update the database through volunteer registration.
         """
         from core.database import get_volunteer_record
         if not self.pending_actions.has_registration(sender):
             return None
-        mode = self.pending_actions.get_registration(sender)  # "register" or "edit"
+        mode = self.pending_actions.get_registration(sender)  # mode can be "register" or "edit"
         name_input = parsed.body.strip() if parsed.body else ""
         skip_values = {"skip", "s", "no", "n", "quit", "q", "no thank you", "unsubscribe", "help", "stop", "cancel", ""}
         if mode == "edit" and name_input.lower() in skip_values:
@@ -89,6 +109,8 @@ def handle_message(parsed: ParsedMessage, sender: str, state_machine: BotStateMa
         
     Returns:
         str: The response from the executed plugin command, or a pending state response.
+    Side Effects:
+        May modify global pending state and the database through volunteer actions.
     """
     from managers.volunteer_manager import PENDING_ACTIONS, VOLUNTEER_MANAGER
 

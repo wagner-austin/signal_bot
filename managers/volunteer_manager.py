@@ -2,7 +2,8 @@
 managers/volunteer_manager.py - Manages volunteer data and registration.
 Uses the SQLite database as the single source of truth for all volunteer data.
 Provides functions for volunteer status, check-in, sign-up, assignment, deletion, and skill tracking.
-Encapsulates pending registration and deletion actions within the PendingActions manager.
+This module modifies global state in the database (e.g. volunteer registration and deletion)
+and encapsulates pending registration/deletion states in memory.
 """
 
 import logging
@@ -102,6 +103,8 @@ class VolunteerManager:
             phone (str): The volunteer's phone number.
         Returns:
             str: Confirmation or error message.
+        Side Effects:
+            Updates the volunteer's availability in the database.
         """
         record = get_volunteer_record(phone)
         if record:
@@ -113,8 +116,8 @@ class VolunteerManager:
     def sign_up(self, phone: str, name: str, skills: List[str]) -> str:
         """
         Register a new volunteer or update an existing one.
-        Writes changes directly to the database.
-        If a deleted record exists for the phone, it is removed.
+        Writes changes directly to the database. If a deleted record exists for the phone,
+        it is removed.
         
         Args:
             phone (str): The volunteer's phone number.
@@ -122,6 +125,9 @@ class VolunteerManager:
             skills (List[str]): A list of skills.
         Returns:
             str: Confirmation message.
+        Side Effects:
+            Inserts or updates the volunteer record in the database and may remove a record
+            from the DeletedVolunteers table.
         """
         record = get_volunteer_record(phone)
         if record:
@@ -148,6 +154,9 @@ class VolunteerManager:
             phone (str): The volunteer's phone number.
         Returns:
             str: Confirmation message.
+        Side Effects:
+            Modifies the database by moving the volunteer record to DeletedVolunteers and removing it
+            from active registrations.
         """
         record = get_volunteer_record(phone)
         if not record:
@@ -170,8 +179,10 @@ class VolunteerManager:
 
 class PendingActions:
     """
-    PendingActions - Encapsulates pending registration and deletion actions.
-    Manages in-memory state for pending registration/edit and deletion processes.
+    PendingActions - Encapsulates in-memory pending registration and deletion actions.
+    Maintains global state for interactive volunteer registration/edit and deletion flows.
+    Side Effects:
+        Methods in this class modify the in-memory state used to track pending actions.
     """
     def __init__(self) -> None:
         self._registrations: Dict[str, str] = {}
@@ -179,28 +190,36 @@ class PendingActions:
 
     # Registration methods
     def set_registration(self, sender: str, mode: str) -> None:
+        """Sets the pending registration state for a sender."""
         self._registrations[sender] = mode
 
     def get_registration(self, sender: str) -> Optional[str]:
+        """Retrieves the pending registration state for a sender."""
         return self._registrations.get(sender)
 
     def has_registration(self, sender: str) -> bool:
+        """Checks if there is a pending registration state for a sender."""
         return sender in self._registrations
 
     def clear_registration(self, sender: str) -> None:
+        """Clears the pending registration state for a sender."""
         self._registrations.pop(sender, None)
 
     # Deletion methods
     def set_deletion(self, sender: str, mode: str) -> None:
+        """Sets the pending deletion state for a sender."""
         self._deletions[sender] = mode
 
     def get_deletion(self, sender: str) -> Optional[str]:
+        """Retrieves the pending deletion state for a sender."""
         return self._deletions.get(sender)
 
     def has_deletion(self, sender: str) -> bool:
+        """Checks if there is a pending deletion state for a sender."""
         return sender in self._deletions
 
     def clear_deletion(self, sender: str) -> None:
+        """Clears the pending deletion state for a sender."""
         self._deletions.pop(sender, None)
 
 # Expose a single instance for volunteer management.
