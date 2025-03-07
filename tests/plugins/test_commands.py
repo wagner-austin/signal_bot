@@ -1,6 +1,6 @@
 """
-tests/plugins/test_commands.py – Tests for plugin command functionalities.
-This module verifies that registered command plugins return valid responses,
+tests/plugins/test_commands.py - Tests for plugin command functionalities.
+Verifies that registered command plugins return valid responses,
 including tests for system, event, and help commands.
 """
 
@@ -15,8 +15,10 @@ async def test_all_plugin_commands():
     plugins = get_all_plugins()
     # Commands allowed to return an empty response (e.g., volunteer status when no data exists)
     allowed_empty = {"volunteer status"}
-    for command, func in plugins.items():
+    for command, entry in plugins.items():
         args = ""
+        # Extract the actual function from the plugin entry dictionary.
+        func = entry["function"]
         result = func(args, "+dummy", state_machine, msg_timestamp=123)
         if hasattr(result, "__await__"):
             result = await result

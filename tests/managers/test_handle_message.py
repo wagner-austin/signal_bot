@@ -1,5 +1,5 @@
 """
-tests/managers/test_handle_message.py – Tests for the handle_message function.
+tests/managers/test_handle_message.py - Tests for the handle_message function.
 Verifies that fuzzy matching correctly handles near-miss command inputs.
 """
 
@@ -29,9 +29,13 @@ def dummy_test_command(args: str, sender: str, state_machine: BotStateMachine, m
 
 @pytest.fixture(autouse=True)
 def register_dummy_plugin(monkeypatch):
-    # Inject a dummy plugin for fuzzy matching tests.
+    # Inject a dummy plugin for fuzzy matching tests in the new format.
     from plugins.manager import plugin_registry
-    plugin_registry["test"] = dummy_test_command
+    plugin_registry["test"] = {
+        "function": dummy_test_command,
+        "aliases": ["test"],
+        "help_visible": True
+    }
     yield
     plugin_registry.pop("test", None)
 
