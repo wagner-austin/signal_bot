@@ -1,6 +1,6 @@
 """
 tests/plugins/test_commands.py - Tests for plugin command functionalities.
-This module verifies that registered command plugins return valid responses.
+This module verifies that registered command plugins return valid responses without using sample arguments.
 """
 
 import pytest
@@ -29,12 +29,14 @@ def test_shutdown_command():
 async def test_all_plugin_commands():
     state_machine = BotStateMachine()
     plugins = get_all_plugins()
-    # Iterate over every plugin and call it with a sample argument.
+    # Use an empty string as the argument for all commands to avoid "sample argument" output.
     for command, func in plugins.items():
-        args = "sample argument"
+        args = ""
         result = func(args, "+dummy", state_machine, msg_timestamp=123)
         if hasattr(result, "__await__"):
             result = await result
+        # Ensure the output does not include the literal "sample argument"
         assert isinstance(result, str) and result.strip(), f"Plugin '{command}' returned empty response"
+        assert "sample argument" not in result
 
 # End of tests/plugins/test_commands.py

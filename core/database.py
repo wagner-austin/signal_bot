@@ -4,11 +4,13 @@ Contains functions to store volunteer assignments, event details, and command lo
 Also includes helper functions for parsing volunteer skills and trash management.
 """
 
+import os
 import sqlite3
 from sqlite3 import Connection
 from typing import Dict, Any, Optional, List
 
-DB_NAME = "bot_data.db"
+# Use environment variable DB_NAME if set, otherwise default to "bot_data.db"
+DB_NAME = os.environ.get("DB_NAME", "bot_data.db")
 
 def parse_skills(skills_str: Optional[str]) -> List[str]:
     """
