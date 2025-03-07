@@ -1,8 +1,8 @@
 """
-managers/volunteer.py - Manages volunteer data and registration.
+managers/volunteer_manager.py - Manages volunteer data and registration.
 Uses the SQLite database as the single source of truth for volunteer data.
 Provides functions for volunteer status, check-in, sign-up, assignment, deletion, and skill tracking.
-This module modifies global state in the database and is used by other managers.
+This module now uses externalized messages for user responses.
 """
 
 import logging
@@ -13,6 +13,10 @@ from core.database import (
     remove_deleted_volunteer_record
 )
 from core.skill_config import AVAILABLE_SKILLS
+from core.messages import (
+    NEW_VOLUNTEER_REGISTERED, VOLUNTEER_UPDATED,
+    VOLUNTEER_DELETED, VOLUNTEER_CHECKED_IN
+)
 
 logger = logging.getLogger(__name__)
 
@@ -106,7 +110,7 @@ class VolunteerManager:
         record = get_volunteer_record(phone)
         if record:
             update_volunteer_record(phone, record["name"], record.get("skills", []), True, record.get("current_role"))
-            return f"Volunteer '{normalize_name(record['name'], phone)}' has been checked in and is now available."
+            return VOLUNTEER_CHECKED_IN.format(name=normalize_name(record['name'], phone))
         return "Volunteer not found."
 
     def sign_up(self, phone: str, name: str, skills: List[str]) -> str:
@@ -129,13 +133,13 @@ class VolunteerManager:
             updated_skills = list(current_skills.union(skills))
             updated_name = normalize_name(updated_name, phone)
             update_volunteer_record(phone, updated_name, updated_skills, True, record.get("current_role"))
-            return f"Volunteer '{updated_name}' updated"
+            return VOLUNTEER_UPDATED.format(name=updated_name)
         else:
             remove_deleted_volunteer_record(phone)
             final_name = "Anonymous" if name.lower() == "skip" or name.strip() == "" else name
             final_name = normalize_name(final_name, phone)
             add_volunteer_record(phone, final_name, skills, True, None)
-            return f"New volunteer '{final_name}' registered"
+            return NEW_VOLUNTEER_REGISTERED.format(name=final_name)
 
     def delete_volunteer(self, phone: str) -> str:
         """
@@ -153,7 +157,7 @@ class VolunteerManager:
             return "You are not registered."
         add_deleted_volunteer_record(phone, record["name"], record.get("skills", []), record["available"], record.get("current_role"))
         delete_volunteer_record(phone)
-        return "Your registration has been deleted. Thank you."
+        return VOLUNTEER_DELETED
 
     def get_all_skills(self) -> List[str]:
         """
@@ -167,4 +171,4 @@ class VolunteerManager:
 # Global instance for volunteer management
 VOLUNTEER_MANAGER = VolunteerManager()
 
-# End of managers/volunteer.py
+# End of managers/volunteer_manager.py

@@ -1,7 +1,7 @@
 """
 managers/message_handler.py - Handles incoming messages and dispatches commands.
 Processes interactive registration, edit, and deletion responses using a consolidated pending state handler.
-This module depends on external pending actions and volunteer manager instances passed as parameters.
+Dependencies are now injected explicitly to facilitate testing.
 """
 
 import logging
@@ -10,9 +10,10 @@ from typing import Optional
 from plugins.manager import get_plugin, get_all_plugins
 from core.state import BotStateMachine
 from parsers.message_parser import ParsedMessage
-# Removed direct import of global instances.
-# from managers.volunteer import VOLUNTEER_MANAGER
-# from managers.pending_actions import PENDING_ACTIONS
+from core.messages import (
+    DELETION_CONFIRM_PROMPT, ALREADY_REGISTERED, DELETION_CANCELED,
+    EDIT_CANCELED, EDIT_CANCELED_WITH_NAME
+)
 
 logger = logging.getLogger(__name__)
 
@@ -21,8 +22,6 @@ class PendingStateHandler:
     PendingStateHandler - Consolidates common logic for handling pending registration and deletion states.
     
     Uses the pending actions manager and volunteer manager to process responses.
-    Side Effects:
-        Methods modify the pending actions global state and update the database.
     """
     def __init__(self, pending_actions, volunteer_manager) -> None:
         self.pending_actions = pending_actions
@@ -37,8 +36,6 @@ class PendingStateHandler:
             sender (str): The sender's identifier.
         Returns:
             Optional[str]: The deletion confirmation or cancellation message if processed.
-        Side Effects:
-            May update or clear the pending deletion state and invoke deletion in the database.
         """
         from core.database import get_volunteer_record
         if not self.pending_actions.has_deletion(sender):
@@ -48,10 +45,10 @@ class PendingStateHandler:
         if state == "initial":
             if user_input in {"yes", "y", "yea", "sure"}:
                 self.pending_actions.set_deletion(sender, "confirm")
-                return 'Please respond with "DELETE" to delete your account.'
+                return DELETION_CONFIRM_PROMPT
             else:
                 record = get_volunteer_record(sender)
-                confirmation = f"Thank you. You are registered as \"{record['name']}\"." if record else "Deletion cancelled."
+                confirmation = ALREADY_REGISTERED.format(name=record['name']) if record else DELETION_CANCELED
                 self.pending_actions.clear_deletion(sender)
                 return confirmation
         elif state == "confirm":
@@ -61,7 +58,7 @@ class PendingStateHandler:
                 return confirmation
             else:
                 record = get_volunteer_record(sender)
-                confirmation = f"Thank you. You are registered as \"{record['name']}\"." if record else "Deletion cancelled."
+                confirmation = ALREADY_REGISTERED.format(name=record['name']) if record else DELETION_CANCELED
                 self.pending_actions.clear_deletion(sender)
                 return confirmation
         return None
@@ -75,8 +72,6 @@ class PendingStateHandler:
             sender (str): The sender's identifier.
         Returns:
             Optional[str]: The confirmation message if processed.
-        Side Effects:
-            Modifies the pending registration state and may update the database.
         """
         from core.database import get_volunteer_record
         if not self.pending_actions.has_registration(sender):
@@ -86,7 +81,7 @@ class PendingStateHandler:
         skip_values = {"skip", "s", "no", "n", "quit", "q", "no thank you", "unsubscribe", "help", "stop", "cancel", ""}
         if mode == "edit" and name_input.lower() in skip_values:
             record = get_volunteer_record(sender)
-            confirmation = f"Editing cancelled. You remain registered as \"{record['name']}\"." if record else "Editing cancelled."
+            confirmation = EDIT_CANCELED_WITH_NAME.format(name=record['name']) if record else EDIT_CANCELED
         elif mode == "register" and name_input.lower() in skip_values:
             final_name = "Anonymous"
             confirmation = self.volunteer_manager.sign_up(sender, final_name, [])
@@ -112,8 +107,6 @@ def handle_message(parsed: ParsedMessage, sender: str, state_machine: BotStateMa
         msg_timestamp (Optional[int]): The message timestamp.
     Returns:
         str: The response from the executed plugin command, or a pending state response.
-    Side Effects:
-        May modify the pending state and update the database.
     """
     pending_handler = PendingStateHandler(pending_actions, volunteer_manager)
 

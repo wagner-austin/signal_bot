@@ -8,8 +8,12 @@ from typing import Optional
 from plugins.manager import plugin, get_all_plugins
 from core.state import BotStateMachine
 from core.database import get_volunteer_record
-from managers.volunteer import VOLUNTEER_MANAGER
+from managers.volunteer_manager import VOLUNTEER_MANAGER
 from managers.pending_actions import PENDING_ACTIONS
+from core.messages import (
+    REGISTRATION_PROMPT, ALREADY_REGISTERED, EDIT_PROMPT,
+    DELETION_PROMPT, NEW_VOLUNTEER_REGISTERED
+)
 
 @plugin('volunteer status')
 def volunteer_status_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
@@ -46,101 +50,74 @@ def register_command(args: str, sender: str, state_machine: BotStateMachine, msg
     register - Interactive volunteer registration command.
     Handles registration in two steps:
       1. If invoked as "@bot register" without arguments:
-         - If the sender is not registered, prompt:
-           "Welcome! Please respond with your first and last name to get registered. Or \"skip\" to remain anonymous."
-         - If the sender is already registered, reply:
-           "You are registered as \"<Existing Name>\". Use command \"@bot edit\" to edit your name."
+         - If the sender is not registered, prompt for registration.
+         - If the sender is already registered, inform them and suggest editing.
       2. If invoked with arguments, registers the volunteer,
-         returning "New volunteer '<Name>' registered".
+         returning a confirmation message.
     """
     if args.strip():
         name = args.strip()
         record = get_volunteer_record(sender)
         if record:
-            return f"You are registered as \"{record['name']}\". Use command \"@bot edit\" to edit your name."
+            return ALREADY_REGISTERED.format(name=record['name'])
         else:
             return VOLUNTEER_MANAGER.sign_up(sender, name, [])
     else:
         record = get_volunteer_record(sender)
         if record:
-            return f"You are registered as \"{record['name']}\". Use command \"@bot edit\" to edit your name."
+            return ALREADY_REGISTERED.format(name=record['name'])
         else:
             PENDING_ACTIONS.set_registration(sender, "register")
-            return "Welcome! Please respond with your first and last name to get registered. Or 'skip' to remain anonymous."
+            return REGISTRATION_PROMPT
 
-@plugin('edit')
-@plugin('change my name please')
-@plugin('change my name to')
-@plugin('change my name')
-@plugin('change name')
-@plugin('can you change my name please')
-@plugin('can you change my name to')
-@plugin('can you change my name')
-@plugin('can i change my name to')
-@plugin('can i change my name')
-@plugin('not my name')
-@plugin("that's not my name")
-@plugin('wrong name')
-@plugin('i mispelled')
+@plugin(['edit', 'change my name please', 'change my name to', 'change my name',
+         'change name', 'can you change my name please', 'can you change my name to',
+         'can you change my name', 'can i change my name to', 'can i change my name',
+         'not my name', "that's not my name", 'wrong name', 'i mispelled'])
 def edit_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
-    edit (aliases: change name, not my name, that's not my name, wrong name, i mispelled) - Edit your registered name.
+    edit - Edit your registered name.
     Usage:
       - If invoked without arguments:
           For new users: interpreted as register, initiating the registration process.
-          For existing users: reply "You are registered as '<Existing Name>'. Type a new name or type 'skip' to cancel editing."
+          For existing users: prompt for a new name or cancellation.
       - If invoked with arguments, updates the volunteer's name immediately.
     """
     record = get_volunteer_record(sender)
     if not record:
-        # Treat as registration for new users.
         PENDING_ACTIONS.set_registration(sender, "register")
-        return "Welcome! Please respond with your first and last name to get registered. Or \"skip\" to remain anonymous."
+        return REGISTRATION_PROMPT
     if not args.strip():
-        # For existing users, prompt for editing.
         PENDING_ACTIONS.set_registration(sender, "edit")
-        return f"You are registered as \"{record['name']}\". Type a new name or type \"skip\" to cancel editing."
-    # If arguments provided, update immediately.
+        return EDIT_PROMPT.format(name=record['name'])
     return VOLUNTEER_MANAGER.sign_up(sender, args.strip(), [])
 
-@plugin('delete')
-@plugin('del')
-@plugin('stop')
-@plugin('unsubscribe')
-@plugin('remove')
-@plugin('opt out')
+@plugin(['delete', 'del', 'stop', 'unsubscribe', 'remove', 'opt out'])
 def delete_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
-    delete/del/stop/unsubscribe/remove/opt out - Delete your registration.
+    delete - Delete your registration.
     Usage:
-      - When invoked as "@bot delete" (or any alias) without arguments, the bot asks:
-          "Would you like to delete your registration? Yes or No"
-      - Subsequent responses are processed interactively:
-          If affirmative, the bot then prompts: "Please respond with 'DELETE' to delete your account."
-          If the user responds with "DELETE", the registration is deleted (and stored in trash).
-          Otherwise, deletion is cancelled and the current registration is maintained.
+      - When invoked without arguments, the bot asks for deletion confirmation.
     """
     if not args.strip():
         PENDING_ACTIONS.set_deletion(sender, "initial")
-        return "Would you like to delete your registration? Yes or No"
+        return DELETION_PROMPT
     PENDING_ACTIONS.set_deletion(sender, "initial")
-    return "Would you like to delete your registration? Yes or No?"
+    return DELETION_PROMPT
 
 @plugin('skills')
 def skills_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
     skills - Display current skills and list available skills for addition.
-    For existing users: Shows their registered skills (formatted as a bullet list) and a list of relevant available skills.
-    For new users: Acts as a registration command.
-    Usage: "@bot skills"
+    For existing users: Shows their registered skills and available skills.
+    For new users: Initiates registration.
     """
     from core.database import get_volunteer_record
     from core.skill_config import AVAILABLE_SKILLS
     record = get_volunteer_record(sender)
     if not record:
-        # Not registered; treat as registration.
         PENDING_ACTIONS.set_registration(sender, "register")
-        return "Welcome! Please respond with your first and last name to get registered. Or 'skip' to remain anonymous."
+        return REGISTRATION_PROMPT
     else:
         current_skills = record.get("skills", [])
         if current_skills:
