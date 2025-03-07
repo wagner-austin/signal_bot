@@ -1,7 +1,7 @@
 """
 managers/message_handler.py - Handles incoming messages and dispatches commands.
-Also processes interactive registration, edit, and deletion responses using dedicated functions.
-Uses PendingActions from volunteer_manager to encapsulate pending state.
+Also processes interactive registration, edit, and deletion responses using a consolidated pending state handler.
+This module reduces redundancy by encapsulating similar patterns for pending actions in the PendingStateHandler class.
 """
 
 import logging
@@ -13,93 +13,73 @@ from parsers.message_parser import ParsedMessage
 
 logger = logging.getLogger(__name__)
 
-def process_deletion_response(parsed: ParsedMessage, sender: str) -> Optional[str]:
+class PendingStateHandler:
     """
-    Process a deletion response for a pending deletion.
+    PendingStateHandler - Consolidates common logic for handling pending registration and deletion states.
     
-    The deletion process has two stages:
-      - "initial": expecting a response "Yes" or "No" to the prompt.
-      - "confirm": expecting the exact text "DELETE" to finalize deletion.
-    
-    Args:
-        parsed (ParsedMessage): The parsed message.
-        sender (str): The sender's identifier.
-        
-    Returns:
-        Optional[str]: The deletion confirmation or cancellation message if processed, otherwise None.
+    Uses a pending actions manager and a volunteer manager to process responses.
     """
-    from managers.volunteer_manager import PENDING_ACTIONS, VOLUNTEER_MANAGER
-    from core.database import get_volunteer_record
-    if not PENDING_ACTIONS.has_deletion(sender):
-        return None
-    state = PENDING_ACTIONS.get_deletion(sender)  # "initial" or "confirm"
-    user_input = parsed.body.strip().lower() if parsed.body else ""
-    if state == "initial":
-        if user_input in {"yes", "y", "yea", "sure"}:
-            PENDING_ACTIONS.set_deletion(sender, "confirm")
-            return 'Please respond with "DELETE" to delete your account.'
-        else:
-            record = get_volunteer_record(sender)
-            confirmation = f"Thank you. You are registered as \"{record['name']}\"." if record else "Deletion cancelled."
-            PENDING_ACTIONS.clear_deletion(sender)
-            return confirmation
-    elif state == "confirm":
-        if parsed.body.strip() == "DELETE":
-            confirmation = VOLUNTEER_MANAGER.delete_volunteer(sender)
-            PENDING_ACTIONS.clear_deletion(sender)
-            return confirmation
-        else:
-            record = get_volunteer_record(sender)
-            confirmation = f"Thank you. You are registered as \"{record['name']}\"." if record else "Deletion cancelled."
-            PENDING_ACTIONS.clear_deletion(sender)
-            return confirmation
-    return None
+    def __init__(self, pending_actions, volunteer_manager) -> None:
+        self.pending_actions = pending_actions
+        self.volunteer_manager = volunteer_manager
 
-def process_registration_response(parsed: ParsedMessage, sender: str) -> Optional[str]:
-    """
-    Process a registration or edit response for a pending registration/edit.
-    
-    If the sender is in a pending registration state and sends a response,
-    interpret the response as the full name for registration or name editing.
-    
-    For pending registration:
-      - Allowed skip responses (case-insensitive): "skip", "no", "quit", "no thank you",
-        "unsubscribe", "q", "help", "stop", or empty input will register as "Anonymous".
-    
-    For pending edit:
-      - Allowed skip responses will cancel editing without updating the name.
-    
-    Args:
-        parsed (ParsedMessage): The parsed message.
-        sender (str): The sender's identifier.
-        
-    Returns:
-        Optional[str]: The confirmation message if processed, otherwise None.
-    """
-    from managers.volunteer_manager import PENDING_ACTIONS, VOLUNTEER_MANAGER
-    from core.database import get_volunteer_record
-    if not PENDING_ACTIONS.has_registration(sender):
+    def process_deletion_response(self, parsed: ParsedMessage, sender: str) -> Optional[str]:
+        """
+        Process a deletion response using the pending deletion state.
+        """
+        from core.database import get_volunteer_record
+        if not self.pending_actions.has_deletion(sender):
+            return None
+        state = self.pending_actions.get_deletion(sender)  # "initial" or "confirm"
+        user_input = parsed.body.strip().lower() if parsed.body else ""
+        if state == "initial":
+            if user_input in {"yes", "y", "yea", "sure"}:
+                self.pending_actions.set_deletion(sender, "confirm")
+                return 'Please respond with "DELETE" to delete your account.'
+            else:
+                record = get_volunteer_record(sender)
+                confirmation = f"Thank you. You are registered as \"{record['name']}\"." if record else "Deletion cancelled."
+                self.pending_actions.clear_deletion(sender)
+                return confirmation
+        elif state == "confirm":
+            if parsed.body.strip() == "DELETE":
+                confirmation = self.volunteer_manager.delete_volunteer(sender)
+                self.pending_actions.clear_deletion(sender)
+                return confirmation
+            else:
+                record = get_volunteer_record(sender)
+                confirmation = f"Thank you. You are registered as \"{record['name']}\"." if record else "Deletion cancelled."
+                self.pending_actions.clear_deletion(sender)
+                return confirmation
         return None
-    mode = PENDING_ACTIONS.get_registration(sender)  # mode can be "register" or "edit"
-    name_input = parsed.body.strip() if parsed.body else ""
-    skip_values = {"skip", "s", "no", "n", "quit", "q", "no thank you", "unsubscribe", "help", "stop", "cancel", ""}
-    if mode == "edit" and name_input.lower() in skip_values:
-        record = get_volunteer_record(sender)
-        confirmation = f"Editing cancelled. You remain registered as \"{record['name']}\"." if record else "Editing cancelled."
-    elif mode == "register" and name_input.lower() in skip_values:
-        final_name = "Anonymous"
-        confirmation = VOLUNTEER_MANAGER.sign_up(sender, final_name, [])
-    else:
-        final_name = name_input
-        confirmation = VOLUNTEER_MANAGER.sign_up(sender, final_name, [])
-    PENDING_ACTIONS.clear_registration(sender)
-    return confirmation
+
+    def process_registration_response(self, parsed: ParsedMessage, sender: str) -> Optional[str]:
+        """
+        Process a registration or edit response using the pending registration state.
+        """
+        from core.database import get_volunteer_record
+        if not self.pending_actions.has_registration(sender):
+            return None
+        mode = self.pending_actions.get_registration(sender)  # "register" or "edit"
+        name_input = parsed.body.strip() if parsed.body else ""
+        skip_values = {"skip", "s", "no", "n", "quit", "q", "no thank you", "unsubscribe", "help", "stop", "cancel", ""}
+        if mode == "edit" and name_input.lower() in skip_values:
+            record = get_volunteer_record(sender)
+            confirmation = f"Editing cancelled. You remain registered as \"{record['name']}\"." if record else "Editing cancelled."
+        elif mode == "register" and name_input.lower() in skip_values:
+            final_name = "Anonymous"
+            confirmation = self.volunteer_manager.sign_up(sender, final_name, [])
+        else:
+            final_name = name_input
+            confirmation = self.volunteer_manager.sign_up(sender, final_name, [])
+        self.pending_actions.clear_registration(sender)
+        return confirmation
 
 def handle_message(parsed: ParsedMessage, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
     Process an incoming message and execute the corresponding plugin command if available.
     Additionally, if a sender is in a pending deletion or registration/edit state (private message),
-    the respective response is handled in a dedicated function.
+    the respective response is handled via the PendingStateHandler.
     
     Args:
         parsed (ParsedMessage): The parsed message details.
@@ -108,25 +88,27 @@ def handle_message(parsed: ParsedMessage, sender: str, state_machine: BotStateMa
         msg_timestamp (Optional[int]): The message timestamp.
         
     Returns:
-        str: The response from the executed plugin command, deletion or registration/edit confirmation,
-             an error message if execution fails, or an empty string if no recognized command is found.
+        str: The response from the executed plugin command, or a pending state response.
     """
-    # Process pending deletion responses first for private messages.
+    from managers.volunteer_manager import PENDING_ACTIONS, VOLUNTEER_MANAGER
+
+    # Instantiate the pending state handler with the current pending actions and volunteer manager.
+    pending_handler = PendingStateHandler(PENDING_ACTIONS, VOLUNTEER_MANAGER)
+
+    # Process pending actions for private messages.
     if parsed.group_id is None:
-        del_response = process_deletion_response(parsed, sender)
-        if del_response is not None:
-            return del_response
-        # Process pending registration/edit responses.
-        reg_response = process_registration_response(parsed, sender)
-        if reg_response is not None:
-            return reg_response
+        response = pending_handler.process_deletion_response(parsed, sender)
+        if response is not None:
+            return response
+        response = pending_handler.process_registration_response(parsed, sender)
+        if response is not None:
+            return response
 
     command = parsed.command
     args = parsed.args
     if command:
         plugin_func = get_plugin(command)
         if not plugin_func:
-            # Use fuzzy matching to find a close match for the command.
             available_commands = list(get_all_plugins().keys())
             matches = difflib.get_close_matches(command, available_commands, n=1, cutoff=0.8)
             if matches:
