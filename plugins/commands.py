@@ -1,6 +1,6 @@
 """
 plugins/commands.py - Command plugins for the Signal bot.
-Implements various command plugins including event summary and detailed event info.
+Implements various command plugins including event summary, detailed event info, registration, and name editing.
 """
 
 from typing import Optional
@@ -128,26 +128,45 @@ def register_command(args: str, sender: str, state_machine: BotStateMachine, msg
     register - Interactive volunteer registration command.
     Handles registration in two steps:
       1. If invoked as "@bot register" without arguments:
-         - If the sender is not registered, respond with:
-           "Please provide your first and last name or skip if you wish"
-         - If the sender is already registered, respond with:
-           "Volunteer '<Existing Name>' already registered. Provide new name to update if desired."
-      2. If invoked with arguments (or a pending update reply), registers or updates the volunteer,
-         returning:
-         "New volunteer '<Name>' registered" or "Volunteer '<Name>' updated"
+         - If the sender is not registered, prompt:
+           "Welcome! Please respond with your first and last name to get registered. Or \"skip\" to remain anonymous."
+         - If the sender is already registered, reply:
+           "You are registered as \"<Existing Name>\". Use command \"@bot edit\" to edit your name."
+      2. If invoked with arguments, registers the volunteer,
+         returning "New volunteer '<Name>' registered".
     """
+    from managers.volunteer_manager import PENDING_REGISTRATIONS, VOLUNTEER_MANAGER
+    from core.database import get_volunteer_record
     if args.strip():
         name = args.strip()
-        return VOLUNTEER_MANAGER.sign_up(sender, name, [])
+        # For registration, if the user sends a name, only allow registration if not already registered.
+        record = get_volunteer_record(sender)
+        if record:
+            return f"You are registered as \"{record['name']}\". Use command \"@bot edit\" to edit your name."
+        else:
+            return VOLUNTEER_MANAGER.sign_up(sender, name, [])
     else:
         record = get_volunteer_record(sender)
         if record:
-            existing_name = record["name"] if record["name"] != sender else "Anonymous"
-            PENDING_REGISTRATIONS[sender] = True
-            return f"Volunteer '{existing_name}' already registered. Provide new name to update if desired."
+            return f"You are registered as \"{record['name']}\". Use command \"@bot edit\" to edit your name."
         else:
             PENDING_REGISTRATIONS[sender] = True
-            return "Please provide your first and last name or skip if you wish"
+            return "Welcome! Please respond with your first and last name to get registered. Or \"skip\" to remain anonymous."
+
+@plugin('edit')
+def edit_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
+    """
+    edit - Edit your registered name.
+    Usage: "@bot edit <new first and last name>"
+    """
+    from core.database import get_volunteer_record
+    if not args.strip():
+        return "Usage: @bot edit <new first and last name>"
+    record = get_volunteer_record(sender)
+    if not record:
+        return "You are not registered. Please use '@bot register' to register first."
+    # Use sign_up to update the volunteer record since it updates if record exists.
+    return VOLUNTEER_MANAGER.sign_up(sender, args.strip(), [])
 
 @plugin('help')
 def help_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:

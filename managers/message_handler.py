@@ -1,6 +1,6 @@
 """
 managers/message_handler.py - Handles incoming messages and dispatches commands.
-Also processes interactive registration responses when a pending registration exists.
+Also processes interactive registration responses using a dedicated function.
 """
 
 import logging
@@ -12,32 +12,57 @@ from parsers.message_parser import ParsedMessage
 
 logger = logging.getLogger(__name__)
 
+def process_registration_response(parsed: ParsedMessage, sender: str) -> Optional[str]:
+    """
+    Process a registration response for a pending registration.
+    
+    If the sender is in a pending registration state and sends a response,
+    interpret the response as the full name for registration.
+    
+    Allowed skip responses (case-insensitive): "skip", "no", "quit", "no thank you",
+    "unsubscribe", "q", "help", "stop", or empty input. In these cases, register as "Anonymous".
+    
+    Args:
+        parsed (ParsedMessage): The parsed message.
+        sender (str): The sender's identifier.
+        
+    Returns:
+        Optional[str]: The registration confirmation message if processed, otherwise None.
+    """
+    from managers.volunteer_manager import PENDING_REGISTRATIONS, VOLUNTEER_MANAGER
+    if sender not in PENDING_REGISTRATIONS:
+        return None
+    name_input = parsed.body.strip() if parsed.body else ""
+    skip_values = {"skip", "no", "quit", "no thank you", "unsubscribe", "q", "help", "stop", ""}
+    if name_input.lower() in skip_values:
+        final_name = "Anonymous"
+    else:
+        final_name = name_input
+    confirmation = VOLUNTEER_MANAGER.sign_up(sender, final_name, [])
+    del PENDING_REGISTRATIONS[sender]
+    return confirmation
+
 def handle_message(parsed: ParsedMessage, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
     Process an incoming message and execute the corresponding plugin command if available.
-    Additionally, if a sender is in a pending registration state (private message), treat the message
-    as the registration response.
+    Additionally, if a sender is in a pending registration state (private message), the registration
+    response is handled in a dedicated function.
     
     Args:
         parsed (ParsedMessage): The parsed message details.
-        sender (str): The sender's identifier (phone number).
+        sender (str): The sender's identifier.
         state_machine (BotStateMachine): The bot's state machine instance.
         msg_timestamp (Optional[int]): The message timestamp.
         
     Returns:
-        str: The response from the executed plugin command, an error message if execution fails,
-             or an empty string if no recognized command is found.
+        str: The response from the executed plugin command, registration confirmation,
+             an error message if execution fails, or an empty string if no recognized command is found.
     """
-    # Check for pending registration input (only for private messages)
-    if parsed.body and (parsed.group_id is None):
-        from managers.volunteer_manager import PENDING_REGISTRATIONS, VOLUNTEER_MANAGER
-        if sender in PENDING_REGISTRATIONS:
-            name_input = parsed.body.strip()
-            if name_input.lower() == "skip":
-                name_input = sender  # Use sender's phone as fallback name
-            confirmation = VOLUNTEER_MANAGER.sign_up(sender, name_input, [])
-            del PENDING_REGISTRATIONS[sender]
-            return confirmation
+    # Process pending registration responses for private messages
+    if parsed.group_id is None:
+        reg_response = process_registration_response(parsed, sender)
+        if reg_response is not None:
+            return reg_response
 
     command = parsed.command
     args = parsed.args
