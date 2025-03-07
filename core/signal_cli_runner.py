@@ -9,6 +9,7 @@ import logging
 import re
 from typing import List, Tuple, Optional
 from core.config import SIGNAL_CLI_COMMAND, BOT_NUMBER
+from core.constants import ALLOWED_CLI_FLAGS, DANGEROUS_PATTERN  # Imported constants
 
 logger = logging.getLogger(__name__)
 
@@ -81,11 +82,10 @@ async def async_run_signal_cli(args: List[str], stdin_input: Optional[str] = Non
     Raises:
         SignalCLIError: If an error occurs while running the signal-cli command.
     """
-    # Updated whitelist for allowed flags.
-    allowed_flags = {"send", "-g", "--quote-author", "--quote-timestamp", "--quote-message", "--message-from-stdin", "receive"}
-    dangerous_pattern = re.compile(r'[;&|`]')
-    
     # Validate that each flag is allowed and that no argument contains dangerous characters.
+    allowed_flags = ALLOWED_CLI_FLAGS
+    dangerous_pattern = re.compile(DANGEROUS_PATTERN)
+    
     for arg in args:
         if arg.startswith("-") and arg not in allowed_flags:
             raise SignalCLIError(f"Disallowed flag detected: {arg}")

@@ -14,6 +14,7 @@ from core.messages import (
     DELETION_CONFIRM_PROMPT, ALREADY_REGISTERED, DELETION_CANCELED,
     EDIT_CANCELED, EDIT_CANCELED_WITH_NAME
 )
+from core.constants import SKIP_VALUES  # Imported consolidated constant
 
 logger = logging.getLogger(__name__)
 
@@ -78,11 +79,10 @@ class PendingStateHandler:
             return None
         mode = self.pending_actions.get_registration(sender)
         name_input = parsed.body.strip() if parsed.body else ""
-        skip_values = {"skip", "s", "no", "n", "quit", "q", "no thank you", "unsubscribe", "help", "stop", "cancel", ""}
-        if mode == "edit" and name_input.lower() in skip_values:
+        if mode == "edit" and name_input.lower() in SKIP_VALUES:
             record = get_volunteer_record(sender)
             confirmation = EDIT_CANCELED_WITH_NAME.format(name=record['name']) if record else EDIT_CANCELED
-        elif mode == "register" and name_input.lower() in skip_values:
+        elif mode == "register" and name_input.lower() in SKIP_VALUES:
             final_name = "Anonymous"
             confirmation = self.volunteer_manager.sign_up(sender, final_name, [])
         else:
