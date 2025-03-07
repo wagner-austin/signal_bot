@@ -1,6 +1,6 @@
 """
 managers/message_handler.py - Handles incoming messages and dispatches commands.
-Also processes interactive registration responses using a dedicated function.
+Also processes interactive registration or edit responses using a dedicated function.
 """
 
 import logging
@@ -14,31 +14,41 @@ logger = logging.getLogger(__name__)
 
 def process_registration_response(parsed: ParsedMessage, sender: str) -> Optional[str]:
     """
-    Process a registration response for a pending registration.
+    Process a registration or edit response for a pending registration/edit.
     
     If the sender is in a pending registration state and sends a response,
-    interpret the response as the full name for registration.
+    interpret the response as the full name for registration or name editing.
     
-    Allowed skip responses (case-insensitive): "skip", "no", "quit", "no thank you",
-    "unsubscribe", "q", "help", "stop", or empty input. In these cases, register as "Anonymous".
+    For pending registration:
+      - Allowed skip responses (case-insensitive): "skip", "no", "quit", "no thank you",
+        "unsubscribe", "q", "help", "stop", or empty input will register as "Anonymous".
+    
+    For pending edit:
+      - Allowed skip responses will cancel editing without updating the name.
     
     Args:
         parsed (ParsedMessage): The parsed message.
         sender (str): The sender's identifier.
         
     Returns:
-        Optional[str]: The registration confirmation message if processed, otherwise None.
+        Optional[str]: The confirmation message if processed, otherwise None.
     """
     from managers.volunteer_manager import PENDING_REGISTRATIONS, VOLUNTEER_MANAGER
+    from core.database import get_volunteer_record
     if sender not in PENDING_REGISTRATIONS:
         return None
+    mode = PENDING_REGISTRATIONS[sender]  # mode can be "register" or "edit"
     name_input = parsed.body.strip() if parsed.body else ""
     skip_values = {"skip", "no", "quit", "no thank you", "unsubscribe", "q", "help", "stop", ""}
-    if name_input.lower() in skip_values:
+    if mode == "edit" and name_input.lower() in skip_values:
+        record = get_volunteer_record(sender)
+        confirmation = f"Editing cancelled. You remain registered as \"{record['name']}\"." if record else "Editing cancelled."
+    elif mode == "register" and name_input.lower() in skip_values:
         final_name = "Anonymous"
+        confirmation = VOLUNTEER_MANAGER.sign_up(sender, final_name, [])
     else:
         final_name = name_input
-    confirmation = VOLUNTEER_MANAGER.sign_up(sender, final_name, [])
+        confirmation = VOLUNTEER_MANAGER.sign_up(sender, final_name, [])
     del PENDING_REGISTRATIONS[sender]
     return confirmation
 
@@ -46,7 +56,7 @@ def handle_message(parsed: ParsedMessage, sender: str, state_machine: BotStateMa
     """
     Process an incoming message and execute the corresponding plugin command if available.
     Additionally, if a sender is in a pending registration state (private message), the registration
-    response is handled in a dedicated function.
+    or edit response is handled in a dedicated function.
     
     Args:
         parsed (ParsedMessage): The parsed message details.
@@ -55,10 +65,10 @@ def handle_message(parsed: ParsedMessage, sender: str, state_machine: BotStateMa
         msg_timestamp (Optional[int]): The message timestamp.
         
     Returns:
-        str: The response from the executed plugin command, registration confirmation,
+        str: The response from the executed plugin command, registration/edit confirmation,
              an error message if execution fails, or an empty string if no recognized command is found.
     """
-    # Process pending registration responses for private messages
+    # Process pending registration/edit responses for private messages
     if parsed.group_id is None:
         reg_response = process_registration_response(parsed, sender)
         if reg_response is not None:

@@ -90,7 +90,7 @@ def event_info_command(args: str, sender: str, state_machine: BotStateMachine, m
     )
     for role, person in event.get("volunteer_roles", {}).items():
         details += f"\n  - {role.capitalize()}: {person}"
-    details += "\n\nAvailable Skills:\n" + (", ".join(skills) if skills else "No skills recorded.")
+    details += "\n\nAvailable Skills:\n" + (", ".join(VOLUNTEER_MANAGER.get_all_skills()) if VOLUNTEER_MANAGER.get_all_skills() else "No skills recorded.")
     return details
 
 @plugin('volunteer status')
@@ -129,9 +129,9 @@ def register_command(args: str, sender: str, state_machine: BotStateMachine, msg
     Handles registration in two steps:
       1. If invoked as "@bot register" without arguments:
          - If the sender is not registered, prompt:
-           "Welcome! Please respond with your first and last name to get registered. Or \"skip\" to remain anonymous."
+           "Welcome! Please respond with your first and last name to get registered. Or "skip" to remain anonymous."
          - If the sender is already registered, reply:
-           "You are registered as \"<Existing Name>\". Use command \"@bot edit\" to edit your name."
+           "You are registered as "<Existing Name>". Use command "@bot edit" to edit your name."
       2. If invoked with arguments, registers the volunteer,
          returning "New volunteer '<Name>' registered".
     """
@@ -139,7 +139,6 @@ def register_command(args: str, sender: str, state_machine: BotStateMachine, msg
     from core.database import get_volunteer_record
     if args.strip():
         name = args.strip()
-        # For registration, if the user sends a name, only allow registration if not already registered.
         record = get_volunteer_record(sender)
         if record:
             return f"You are registered as \"{record['name']}\". Use command \"@bot edit\" to edit your name."
@@ -150,22 +149,31 @@ def register_command(args: str, sender: str, state_machine: BotStateMachine, msg
         if record:
             return f"You are registered as \"{record['name']}\". Use command \"@bot edit\" to edit your name."
         else:
-            PENDING_REGISTRATIONS[sender] = True
+            PENDING_REGISTRATIONS[sender] = "register"
             return "Welcome! Please respond with your first and last name to get registered. Or \"skip\" to remain anonymous."
 
 @plugin('edit')
 def edit_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
     edit - Edit your registered name.
-    Usage: "@bot edit <new first and last name>"
+    Usage:
+      - If invoked without arguments:
+          For new users: interpreted as register, initiating the registration process.
+          For existing users: reply "You are registered as '<Existing Name>'. Type a new name or type 'skip' to cancel editing."
+      - If invoked with arguments, updates the volunteer's name immediately.
     """
     from core.database import get_volunteer_record
-    if not args.strip():
-        return "Usage: @bot edit <new first and last name>"
+    from managers.volunteer_manager import PENDING_REGISTRATIONS
     record = get_volunteer_record(sender)
     if not record:
-        return "You are not registered. Please use '@bot register' to register first."
-    # Use sign_up to update the volunteer record since it updates if record exists.
+        # Treat as registration for new users.
+        PENDING_REGISTRATIONS[sender] = "register"
+        return "Welcome! Please respond with your first and last name to get registered. Or \"skip\" to remain anonymous."
+    if not args.strip():
+        # For existing users, prompt for editing.
+        PENDING_REGISTRATIONS[sender] = "edit"
+        return f"You are registered as \"{record['name']}\". Type a new name or type \"skip\" to cancel editing."
+    # If arguments provided, update immediately.
     return VOLUNTEER_MANAGER.sign_up(sender, args.strip(), [])
 
 @plugin('help')
