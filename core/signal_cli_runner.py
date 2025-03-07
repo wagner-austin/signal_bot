@@ -1,5 +1,6 @@
 """
 core/signal_cli_runner.py - Module for running signal-cli commands asynchronously with STDIN support.
+Provides standardized error handling for asynchronous subprocess calls using a decorator.
 This module now passes message content via STDIN using the --message-from-stdin flag.
 """
 
@@ -19,52 +20,56 @@ class SignalCLIError(Exception):
 
 def _log_and_raise(func_name: str, error_msg: str, exception: Exception, full_args: List[str]) -> None:
     """
-    Helper function to log an error message with context and raise a SignalCLIError.
+    _log_and_raise - Logs an error message with context and raises a SignalCLIError.
     """
     full_msg = f"[{func_name}] {error_msg} | Args: {full_args} | Exception: {exception}"
     logger.exception(full_msg)
     raise SignalCLIError(full_msg) from exception
 
+def async_error_handler(func):
+    """
+    async_error_handler - Decorator to standardize error handling in asynchronous subprocess calls.
+    Catches exceptions, logs standardized error messages, and raises SignalCLIError.
+    """
+    async def wrapper(*args, **kwargs):
+        try:
+            return await func(*args, **kwargs)
+        except Exception as e:
+            full_args = args[0] if args else []
+            _log_and_raise(func.__name__, "Async subprocess error", e, full_args)
+    return wrapper
+
+@async_error_handler
 async def _run_subprocess(full_args: List[str], timeout: int = 30, input_data: Optional[str] = None) -> Tuple[bytes, bytes, int]:
     """
-    Run a subprocess with unified error handling.
-    
-    Args:
-        full_args (List[str]): The full list of command-line arguments.
-        timeout (int): Timeout in seconds.
-        input_data (Optional[str]): Optional input string to pass via STDIN.
+    _run_subprocess - Executes a subprocess command asynchronously.
+    Uses the provided full_args and optional input_data (for STDIN) with a specified timeout.
+    In case of timeout, kills the process and logs the error.
     
     Returns:
         Tuple[bytes, bytes, int]: stdout, stderr, and the return code.
-    
-    Raises:
-        SignalCLIError: If any error occurs during subprocess execution.
     """
+    proc = await asyncio.create_subprocess_exec(
+        *full_args,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+        stdin=asyncio.subprocess.PIPE if input_data is not None else None
+    )
     try:
-        proc = await asyncio.create_subprocess_exec(
-            *full_args,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-            stdin=asyncio.subprocess.PIPE if input_data is not None else None
+        stdout, stderr = await asyncio.wait_for(
+            proc.communicate(input=input_data.encode() if input_data else None),
+            timeout=timeout
         )
-        try:
-            stdout, stderr = await asyncio.wait_for(
-                proc.communicate(input=input_data.encode() if input_data else None),
-                timeout=timeout
-            )
-        except asyncio.TimeoutError as te:
-            proc.kill()
-            await proc.communicate()
-            _log_and_raise("_run_subprocess", "Timed out waiting for process", te, full_args)
-        return stdout, stderr, proc.returncode
-    except OSError as ose:
-        _log_and_raise("_run_subprocess", "OS error encountered", ose, full_args)
-    except Exception as e:
-        _log_and_raise("_run_subprocess", "Unexpected error encountered", e, full_args)
+    except asyncio.TimeoutError as te:
+        proc.kill()
+        await proc.communicate()
+        _log_and_raise("_run_subprocess", "Timed out waiting for process", te, full_args)
+    return stdout, stderr, proc.returncode
 
 async def async_run_signal_cli(args: List[str], stdin_input: Optional[str] = None) -> str:
     """
-    Asynchronously run signal-cli with given arguments.
+    async_run_signal_cli - Asynchronously run signal-cli with the given arguments.
+    Validates allowed flags, constructs the full command, and returns the standard output.
     
     Args:
         args (List[str]): Command-line arguments.
