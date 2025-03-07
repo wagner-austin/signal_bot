@@ -2,12 +2,12 @@
 plugins/manager.py - Unified plugin manager.
 Handles registration, loading, and reloading of plugins.
 Supports registering multiple aliases in one decorator.
+Uses pkgutil.iter_modules to discover plugins within the package.
 """
 
-import os
 import sys
-import importlib.util
 import importlib
+import pkgutil
 from typing import Callable, Any, Optional, Dict, List, Union
 from types import ModuleType
 
@@ -65,70 +65,39 @@ def clear_plugins() -> None:
     """
     plugin_registry.clear()
 
-def _load_module(module_name: str, file_path: str) -> Optional[ModuleType]:
+def _load_plugins_from_pkg(reload: bool = False) -> None:
     """
-    Helper function to load a module given its module name and file path.
-    
-    Args:
-        module_name (str): The name of the module.
-        file_path (str): The file path to the module.
-        
-    Returns:
-        Optional[ModuleType]: The loaded module object if successful, else None.
-        
-    Raises:
-        Exception: If the module fails to load.
-    """
-    spec = importlib.util.spec_from_file_location(module_name, file_path)
-    if spec is None:
-        return None
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[module_name] = module
-    spec.loader.exec_module(module)
-    return module
-
-def _load_plugins_from_dir(reload: bool = False) -> None:
-    """
-    Helper function to load or reload all plugin modules from the plugins directory,
-    skipping non-plugin files such as __init__.py.
+    Helper function to load or reload all plugin modules from the plugins package using pkgutil.iter_modules.
     
     Args:
         reload (bool): If True, reloads modules already imported; otherwise, imports modules.
     """
-    base_dir = os.path.dirname(os.path.dirname(__file__))
-    plugins_dir = os.path.join(base_dir, 'plugins')
-    if not os.path.isdir(plugins_dir):
-        return
-    for filename in os.listdir(plugins_dir):
-        # Skip non-plugin files
-        if not filename.endswith('.py') or filename == '__init__.py':
-            continue
-        module_name = "plugins." + filename[:-3]
-        file_path = os.path.join(plugins_dir, filename)
+    import plugins  # Ensure the plugins package is imported.
+    for finder, name, ispkg in pkgutil.iter_modules(plugins.__path__):
+        module_name = f"plugins.{name}"
         if reload and module_name in sys.modules:
             importlib.reload(sys.modules[module_name])
         else:
-            _load_module(module_name, file_path)
+            importlib.import_module(module_name)
 
 def load_plugins() -> None:
     """
-    Automatically import all plugin modules in the 'plugins' directory,
-    skipping non-plugin files.
+    Automatically import all plugin modules in the 'plugins' package.
     
     Returns:
         None
     """
-    _load_plugins_from_dir(reload=False)
+    _load_plugins_from_pkg(reload=False)
 
 def reload_plugins() -> None:
     """
     Reload all plugin modules dynamically by clearing the plugin registry
-    and re-importing all plugin modules, skipping non-plugin files.
+    and re-importing all plugin modules.
     
     Returns:
         None
     """
     clear_plugins()
-    _load_plugins_from_dir(reload=True)
+    _load_plugins_from_pkg(reload=True)
 
 # End of plugins/manager.py
