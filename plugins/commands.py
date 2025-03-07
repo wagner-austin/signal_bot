@@ -1,7 +1,6 @@
 """
-plugins/commands.py - Command plugins for the Signal bot, including help, more help, and info commands.
-This module implements various command plugins, including volunteer management, test commands,
-event info, help commands, and more.
+plugins/commands.py - Command plugins for the Signal bot.
+Implements various command plugins with clean names and simplified help outputs.
 """
 
 from typing import Optional
@@ -29,7 +28,7 @@ def assign_command(args: str, sender: str, state_machine: BotStateMachine, msg_t
 def test_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
     test - Test command for verifying bot response.
-    Expected format: "test" or "@bot test"
+    Expected format: "@bot test"
     """
     return "yes"
 
@@ -42,19 +41,19 @@ def shutdown_command(args: str, sender: str, state_machine: BotStateMachine, msg
     state_machine.shutdown()
     return "Bot is shutting down."
 
-@plugin('test_all')
+@plugin('test all')
 async def test_all_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
-    test_all - Run integration tests.
+    test all - Run integration tests.
     """
     from tests.test_all import run_tests
     summary = await run_tests()
     return summary
 
-@plugin('event_info')
+@plugin('event info')
 def event_info_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
-    event_info - Display details about the upcoming event.
+    event info - Display details about the upcoming event.
     """
     from core.event_config import EVENT_DETAILS
     event = EVENT_DETAILS.get("upcoming_event", {})
@@ -72,18 +71,18 @@ def event_info_command(args: str, sender: str, state_machine: BotStateMachine, m
         details += f"\n - {role.capitalize()}: {person}"
     return details
 
-@plugin('volunteer_status')
+@plugin('volunteer status')
 def volunteer_status_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
-    volunteer_status - Display the current status of all volunteers.
+    volunteer status - Display the current status of all volunteers.
     """
     return VOLUNTEER_MANAGER.volunteer_status()
 
-@plugin('check_in')
+@plugin('check in')
 def check_in_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
-    check_in - Check in a volunteer.
-    Expected format: "@bot check_in" (the sender is assumed to be the volunteer).
+    check in - Check in a volunteer.
+    Expected format: "@bot check in" (the sender is assumed to be the volunteer).
     """
     return VOLUNTEER_MANAGER.check_in(sender)
 
@@ -134,29 +133,37 @@ def register_command(args: str, sender: str, state_machine: BotStateMachine, msg
 def help_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
     help - Provides a concise list of available commands.
-    Automatically updates as new commands are added.
     Usage: "@bot help"
     """
     commands = get_all_plugins()
+    # Exclude internal commands from help
+    excluded_commands = {"assign", "test", "shutdown", "test all"}
     lines = []
     for cmd, func in sorted(commands.items()):
+        if cmd in excluded_commands:
+            continue
+        # Use the first line of the docstring for a brief description.
         doc_line = func.__doc__.strip().splitlines()[0] if func.__doc__ else "No description"
         lines.append(f"@bot {cmd} - {doc_line}")
-    return "\n".join(lines)
+    # Join each command with an extra newline for clarity.
+    return "\n\n".join(lines)
 
 @plugin('more help')
 def more_help_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
-    more help - Provides detailed information for all available commands.
+    more help - Provides detailed information for available commands.
     Usage: "@bot more help"
-    This includes full descriptions and usage details extracted from each command's documentation.
     """
     commands = get_all_plugins()
+    excluded_commands = {"assign", "test", "shutdown", "test all"}
     lines = []
     for cmd, func in sorted(commands.items()):
+        if cmd in excluded_commands:
+            continue
         doc = func.__doc__.strip() if func.__doc__ else "No detailed help available."
-        lines.append(f"@bot {cmd}\n{doc}\n")
-    return "\n".join(lines)
+        lines.append(f"@bot {cmd}\n{doc}")
+    # Join each command with an extra newline for clarity.
+    return "\n\n".join(lines)
 
 @plugin('info')
 def info_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:

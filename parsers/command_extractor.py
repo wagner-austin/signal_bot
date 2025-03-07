@@ -1,29 +1,37 @@
 """
-parsers/command_extractor.py
-----------------------------
-Module dedicated to extracting commands and their arguments from a message body.
-Contains functions for command validation, prefix stripping, and splitting.
+parsers/command_extractor.py - Module for extracting commands and their arguments from a message body.
+Modified to support multi-word commands by matching against registered commands.
 """
 
 import re
 from typing import Optional, Tuple
+from plugins.manager import get_all_plugins
 
 def _validate_command(command: str) -> bool:
     """
-    Validate that the command consists only of allowed characters: lowercase letters, digits, and underscores.
+    Validate that the command consists only of allowed characters: lowercase letters, digits, and spaces.
     """
-    return re.match(r'^[a-z0-9_]+$', command) is not None
+    return re.match(r'^[a-z0-9 ]+$', command) is not None
 
 def _parse_default_command(message: str) -> Tuple[Optional[str], Optional[str]]:
     """
-    Parse command and arguments from a message without any prefix.
-
+    Parse command and arguments from a message, supporting multi-word commands.
+    
     Args:
         message (str): The normalized message string.
-
+    
     Returns:
         Tuple[Optional[str], Optional[str]]: The command and arguments.
     """
+    message_lower = message.lower()
+    # Retrieve registered commands from the plugin manager.
+    commands = sorted(get_all_plugins().keys(), key=lambda x: len(x), reverse=True)
+    for cmd in commands:
+        # Check if message starts with the command followed by a space or end of message.
+        if message_lower.startswith(cmd) and (len(message_lower) == len(cmd) or message_lower[len(cmd)] == " "):
+            args = message[len(cmd):].strip()
+            return cmd, args
+    # Fallback: split by first space.
     parts = message.split(" ", 1)
     command = parts[0].strip().lower()
     if not _validate_command(command):
@@ -35,21 +43,21 @@ def parse_command_from_body(body: Optional[str], is_group: bool = False) -> Tupl
     """
     Extract the command and its arguments from the message body, taking into account whether
     the message is from a group chat or a private chat.
-
+    
     In a group chat (is_group=True), the message must start with one of the allowed prefixes.
     In a private chat (is_group=False), the prefix is optional.
-
+    
     Allowed prefixes (case-insensitive):
       - "@bot"
       - "@50501oc bot"
-
+    
     Additionally, if the message begins with an object replacement character (U+FFFC),
     it is replaced with "@50501oc bot".
-
+    
     Args:
         body (Optional[str]): The text body of the message.
         is_group (bool): True if the message is from a group chat, False if private.
-
+    
     Returns:
         Tuple[Optional[str], Optional[str]]: A tuple containing the command in lowercase and its arguments,
                                                or (None, None) if parsing fails.
