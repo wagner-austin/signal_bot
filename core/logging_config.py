@@ -1,32 +1,10 @@
 """
-core/logging_config.py
-----------------------
-Centralized logging configuration using dictConfig for flexible environment setups.
+core/logging_config.py - Initializes logging using the centralized logger setup.
+This module configures the logging system at startup.
 """
 
-import logging
-import logging.config
+from core.logger_setup import setup_logging
 
-LOGGING_CONFIG = {
-    "version": 1,
-    "disable_existing_loggers": False,
-    "formatters": {
-        "default": {
-            "format": "%(asctime)s [%(levelname)s] %(message)s"
-        },
-    },
-    "handlers": {
-        "console": {
-            "class": "logging.StreamHandler",
-            "formatter": "default",
-        },
-    },
-    "root": {
-        "handlers": ["console"],
-        "level": "INFO",
-    },
-}
-
-logging.config.dictConfig(LOGGING_CONFIG)
+setup_logging()
 
 # End of core/logging_config.py
