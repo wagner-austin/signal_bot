@@ -10,6 +10,21 @@ from core.database import get_all_volunteers, get_volunteer_record, add_voluntee
 
 logger = logging.getLogger(__name__)
 
+def normalize_name(name: str, fallback: str) -> str:
+    """
+    Normalize the volunteer's name.
+    If the name is equal to the fallback (typically the phone number), return "Anonymous".
+    Otherwise, return the original name.
+    
+    Args:
+        name (str): The original name.
+        fallback (str): The fallback value, usually the phone number.
+    
+    Returns:
+        str: The normalized name.
+    """
+    return name if name != fallback else "Anonymous"
+
 class VolunteerManager:
     def __init__(self) -> None:
         """
@@ -30,9 +45,7 @@ class VolunteerManager:
         volunteers = get_all_volunteers()
         for phone, data in volunteers.items():
             if skill in data.get("skills", []) and data.get("available") and data.get("current_role") is None:
-                name = data.get("name", phone)
-                if name == phone:
-                    name = "Anonymous"
+                name = normalize_name(data.get("name", phone), phone)
                 return name
         logger.warning(f"[find_available_volunteer] No available volunteer found with skill '{skill}'.")
         return None
@@ -63,9 +76,7 @@ class VolunteerManager:
                     record["available"],
                     role
                 )
-                name = record["name"]
-                if name == target_phone:
-                    name = "Anonymous"
+                name = normalize_name(record["name"], target_phone)
                 return name
         return None
 
@@ -79,9 +90,7 @@ class VolunteerManager:
         volunteers = get_all_volunteers()
         status_lines = []
         for phone, data in volunteers.items():
-            name = data.get("name", phone)
-            if name == phone:
-                name = "Anonymous"
+            name = normalize_name(data.get("name", phone), phone)
             availability = "Available" if data.get("available") else "Not Available"
             role = data.get("current_role") if data.get("current_role") else "None"
             status_lines.append(f"{name}: {availability}, Current Role: {role}")
@@ -99,7 +108,7 @@ class VolunteerManager:
         record = get_volunteer_record(phone)
         if record:
             update_volunteer_record(phone, record["name"], record.get("skills", []), True, record.get("current_role"))
-            name = record["name"] if record["name"] != phone else "Anonymous"
+            name = normalize_name(record["name"], phone)
             return f"Volunteer '{name}' has been checked in and is now available."
         return "Volunteer not found."
 
@@ -120,31 +129,14 @@ class VolunteerManager:
             updated_name = record["name"] if name.lower() == "skip" else name
             current_skills = set(record.get("skills", []))
             updated_skills = list(current_skills.union(skills))
-            if updated_name == phone:
-                updated_name = "Anonymous"
+            updated_name = normalize_name(updated_name, phone)
             update_volunteer_record(phone, updated_name, updated_skills, True, record.get("current_role"))
             return f"Volunteer '{updated_name}' updated"
         else:
             final_name = "Anonymous" if name.lower() == "skip" or name.strip() == "" else name
+            final_name = normalize_name(final_name, phone)
             add_volunteer_record(phone, final_name, skills, True, None)
             return f"New volunteer '{final_name}' registered"
-
-    def get_all_skills(self) -> list:
-        """
-        Retrieve a unique list of all available skills from the volunteer database.
-        
-        Returns:
-            list: A sorted list of unique skills.
-        """
-        volunteers = get_all_volunteers()
-        skill_set = set()
-        for data in volunteers.values():
-            skills = data.get("skills", [])
-            for s in skills:
-                s = s.strip()
-                if s:
-                    skill_set.add(s)
-        return sorted(skill_set)
 
 # Expose a single instance for volunteer management.
 VOLUNTEER_MANAGER = VolunteerManager()

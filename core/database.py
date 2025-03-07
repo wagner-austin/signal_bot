@@ -1,13 +1,28 @@
 """
 core/database.py - SQLite database integration for persistent storage.
 Contains functions to store volunteer assignments, event details, and command logs.
+Also includes helper functions for parsing volunteer skills.
 """
 
 import sqlite3
 from sqlite3 import Connection
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 
 DB_NAME = "bot_data.db"
+
+def parse_skills(skills_str: Optional[str]) -> List[str]:
+    """
+    Parse a comma-separated skills string into a list of trimmed skill names.
+    
+    Args:
+        skills_str (Optional[str]): The string containing skills separated by commas.
+    
+    Returns:
+        List[str]: A list of individual skill names.
+    """
+    if not skills_str:
+        return []
+    return [skill.strip() for skill in skills_str.split(",") if skill.strip()]
 
 def get_connection() -> Connection:
     conn = sqlite3.connect(DB_NAME)
@@ -57,7 +72,7 @@ def get_all_volunteers() -> Dict[str, Dict[str, Any]]:
     for row in rows:
         volunteers[row["phone"]] = {
             "name": row["name"],
-            "skills": row["skills"].split(",") if row["skills"] else [],
+            "skills": parse_skills(row["skills"]),
             "available": bool(row["available"]),
             "current_role": row["current_role"]
         }
@@ -81,7 +96,7 @@ def get_volunteer_record(phone: str) -> Optional[Dict[str, Any]]:
     if row:
         return {
             "name": row["name"],
-            "skills": row["skills"].split(",") if row["skills"] else [],
+            "skills": parse_skills(row["skills"]),
             "available": bool(row["available"]),
             "current_role": row["current_role"]
         }
