@@ -4,7 +4,7 @@ This module tests sign-up, status, check-in, and deletion of volunteer records u
 """
 
 import pytest
-from managers.volunteer_manager import VOLUNTEER_MANAGER
+from managers.volunteer import VOLUNTEER_MANAGER
 from core.database import get_volunteer_record, get_connection
 
 @pytest.fixture(autouse=True)

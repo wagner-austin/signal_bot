@@ -8,7 +8,8 @@ from typing import Optional
 from plugins.manager import plugin, get_all_plugins
 from core.state import BotStateMachine
 from core.database import get_volunteer_record
-from managers.volunteer_manager import VOLUNTEER_MANAGER, PENDING_ACTIONS
+from managers.volunteer import VOLUNTEER_MANAGER
+from managers.pending_actions import PENDING_ACTIONS
 
 @plugin('volunteer status')
 def volunteer_status_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:

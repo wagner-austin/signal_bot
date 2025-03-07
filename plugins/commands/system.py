@@ -7,7 +7,7 @@ from typing import Optional
 import difflib
 from plugins.manager import plugin, get_all_plugins
 from core.state import BotStateMachine
-from managers.volunteer_manager import VOLUNTEER_MANAGER
+from managers.volunteer import VOLUNTEER_MANAGER
 
 @plugin('assign')
 def assign_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:

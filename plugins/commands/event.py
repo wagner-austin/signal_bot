@@ -6,7 +6,7 @@ Includes commands like event and event info.
 from typing import Optional
 from plugins.manager import plugin
 from core.state import BotStateMachine
-from managers.volunteer_manager import VOLUNTEER_MANAGER
+from managers.volunteer import VOLUNTEER_MANAGER
 
 @plugin('event')
 def event_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:

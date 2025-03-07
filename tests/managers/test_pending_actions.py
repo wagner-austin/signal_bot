@@ -4,7 +4,7 @@ Ensures that pending registration and deletion states are properly managed.
 """
 
 import pytest
-from managers.volunteer_manager import PendingActions
+from managers.pending_actions import PendingActions
 
 @pytest.fixture
 def pending_actions():
