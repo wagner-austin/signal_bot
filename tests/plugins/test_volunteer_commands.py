@@ -1,29 +1,12 @@
 """
-tests/plugins/test_volunteer_commands.py - Tests for volunteer command plugins.
+tests/plugins/test_volunteer_commands.py – Tests for volunteer command plugins.
 This module tests commands related to volunteer registration and modification.
 """
 
 import pytest
 from plugins.commands.volunteer import register_command, delete_command
 from core.state import BotStateMachine
-from core.database import get_volunteer_record, get_connection
-
-@pytest.fixture(autouse=True)
-def clear_volunteers():
-    """
-    Clears the Volunteers table before each test.
-    """
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM Volunteers")
-    conn.commit()
-    conn.close()
-    yield
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM Volunteers")
-    conn.commit()
-    conn.close()
+from core.database import get_volunteer_record
 
 def test_register_command_new_user():
     phone = "+20000000001"

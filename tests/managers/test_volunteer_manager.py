@@ -1,34 +1,15 @@
 """
-tests/managers/test_volunteer_manager.py - Tests for volunteer management functionalities.
-Verifies that operations like sign_up, check_in, delete_volunteer, and volunteer_status work correctly
-by interacting with the test database.
+tests/managers/test_volunteer_manager.py – Tests for volunteer management functionalities.
+Verifies that operations like sign_up, check_in, delete_volunteer, and volunteer_status work correctly.
 """
 
 import pytest
 from managers.volunteer_manager import VOLUNTEER_MANAGER
 from core.database import get_volunteer_record, get_connection
 
-@pytest.fixture(autouse=True)
-def clear_volunteers():
-    """
-    Clears the Volunteers table before and after each test.
-    """
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM Volunteers")
-    conn.commit()
-    conn.close()
-    yield
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM Volunteers")
-    conn.commit()
-    conn.close()
-
 def test_volunteer_status_empty():
     # Initially, no volunteer exists.
     status = VOLUNTEER_MANAGER.volunteer_status()
-    # Expect an empty string when no volunteers are registered.
     assert status == ""
 
 def test_sign_up_and_status():

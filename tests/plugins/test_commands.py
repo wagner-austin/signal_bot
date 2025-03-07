@@ -1,7 +1,7 @@
 """
-tests/plugins/test_commands.py - Tests for plugin command functionalities.
-This module verifies that registered command plugins return valid responses.
-Certain commands (like 'volunteer status') may legitimately return an empty response.
+tests/plugins/test_commands.py – Tests for plugin command functionalities.
+This module verifies that registered command plugins return valid responses,
+including tests for system, event, and help commands.
 """
 
 import pytest
@@ -41,5 +41,22 @@ def test_shutdown_command():
     result = shutdown_command("", "+111", state_machine, msg_timestamp=123)
     assert result.strip() == "Bot is shutting down."
     assert not state_machine.should_continue()
+
+def test_event_command():
+    from plugins.commands.event import event_command, event_info_command
+    from core.event_config import EVENT_DETAILS
+    state_machine = BotStateMachine()
+    result = event_command("", "+dummy", state_machine, msg_timestamp=123)
+    assert EVENT_DETAILS["upcoming_event"]["title"] in result
+    result_info = event_info_command("", "+dummy", state_machine, msg_timestamp=123)
+    assert "Volunteer Roles:" in result_info
+
+def test_help_commands():
+    from plugins.commands.help import help_command, more_help_command
+    state_machine = BotStateMachine()
+    result_help = help_command("", "+dummy", state_machine, msg_timestamp=123)
+    assert "@bot" in result_help
+    result_more_help = more_help_command("", "+dummy", state_machine, msg_timestamp=123)
+    assert "@bot" in result_more_help
 
 # End of tests/plugins/test_commands.py

@@ -1,5 +1,5 @@
 """
-tests/core/test_database_volunteers.py - Tests for volunteer database operations.
+tests/core/test_database_volunteers.py – Tests for volunteer database operations.
 Verifies functions for adding, updating, retrieving, and deleting volunteer records.
 """
 
@@ -13,23 +13,6 @@ from core.database.volunteers import (
     remove_deleted_volunteer_record,
 )
 from core.database.connection import get_connection
-
-@pytest.fixture(autouse=True)
-def clear_volunteers():
-    # Clear Volunteers and DeletedVolunteers tables before each test.
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM Volunteers")
-    cursor.execute("DELETE FROM DeletedVolunteers")
-    conn.commit()
-    conn.close()
-    yield
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM Volunteers")
-    cursor.execute("DELETE FROM DeletedVolunteers")
-    conn.commit()
-    conn.close()
 
 def test_add_and_get_volunteer():
     phone = "+1234567890"
@@ -68,15 +51,11 @@ def test_deleted_volunteer_record_handling():
     name = "Deleted Volunteer"
     skills = ["SkillX"]
     add_volunteer_record(phone, name, skills, True, None)
-    # Add to deleted volunteers and then delete from active records.
     add_deleted_volunteer_record(phone, name, skills, True, None)
     delete_volunteer_record(phone)
-    # Active record should be removed.
     record_active = get_volunteer_record(phone)
     assert record_active is None
-    # Now remove the deleted record.
     remove_deleted_volunteer_record(phone)
-    # Directly check DeletedVolunteers table.
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM DeletedVolunteers WHERE phone = ?", (phone,))
