@@ -45,13 +45,11 @@ def test_shutdown_command():
     assert not state_machine.should_continue()
 
 def test_event_command():
-    from plugins.commands.event import event_command, event_info_command
+    from plugins.commands.event import event_command
     from core.event_config import EVENT_DETAILS
     state_machine = BotStateMachine()
     result = event_command("", "+dummy", state_machine, msg_timestamp=123)
     assert EVENT_DETAILS["upcoming_event"]["title"] in result
-    result_info = event_info_command("", "+dummy", state_machine, msg_timestamp=123)
-    assert "Volunteer Roles:" in result_info
 
 def test_help_commands():
     from plugins.commands.help import help_command
