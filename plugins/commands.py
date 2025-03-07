@@ -1,18 +1,17 @@
 """
-plugins/commands.py - Contains the implementation of command plugins for the Signal bot.
-Each command is registered using the @plugin decorator from the unified plugins/manager.
-Includes new commands for event information, volunteer status, check-in, sign-up, and feedback.
+plugins/commands.py - Implements command plugins for the Signal bot.
+This module uses the VolunteerManager, which now directly interfaces with the database.
 """
 
 from typing import Optional
 from plugins.manager import plugin
-from managers.volunteer_manager import VOLUNTEER_MANAGER
+from managers.volunteer_manager import VOLUNTEER_MANAGER, PENDING_REGISTRATIONS
 from core.state import BotStateMachine
 
 @plugin('assign')
 def assign_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
-    Plugin command to assign a volunteer based on a skill.
+    Assign a volunteer based on a required skill.
     Expected format: "@bot assign <Skill Name>"
     """
     skill = args.strip()
@@ -21,22 +20,20 @@ def assign_command(args: str, sender: str, state_machine: BotStateMachine, msg_t
     volunteer = VOLUNTEER_MANAGER.assign_volunteer(skill, skill)
     if volunteer:
         return f"{skill} assigned to {volunteer}."
-    else:
-        return f"No available volunteer for {skill}."
+    return f"No available volunteer for {skill}."
 
 @plugin('test')
 def test_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
-    Plugin command for testing.
+    Test command for verifying bot response.
     Expected format: "test" or "@bot test"
-    Responds with "yes".
     """
     return "yes"
 
 @plugin('shutdown')
 def shutdown_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
-    Plugin command to shut down the bot gracefully.
+    Shut down the bot gracefully.
     Expected format: "@bot shutdown"
     """
     state_machine.shutdown()
@@ -45,9 +42,7 @@ def shutdown_command(args: str, sender: str, state_machine: BotStateMachine, msg
 @plugin('test_all')
 async def test_all_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
-    Plugin command to run all integration tests.
-    Invokes tests for message parsing, volunteer assignment, state transitions,
-    and simulated message sending. Returns a summary of test results.
+    Run integration tests.
     """
     from tests.test_all import run_tests
     summary = await run_tests()
@@ -56,8 +51,7 @@ async def test_all_command(args: str, sender: str, state_machine: BotStateMachin
 @plugin('event_info')
 def event_info_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
-    Plugin command to display details about the upcoming event.
-    Fetches event details such as time, location, and volunteer roles.
+    Display details about the upcoming event.
     """
     from core.event_config import EVENT_DETAILS
     event = EVENT_DETAILS.get("upcoming_event", {})
@@ -71,48 +65,29 @@ def event_info_command(args: str, sender: str, state_machine: BotStateMachine, m
         f"Description: {event.get('description')}\n"
         f"Volunteer Roles:"
     )
-    roles = event.get("volunteer_roles", {})
-    for role, person in roles.items():
+    for role, person in event.get("volunteer_roles", {}).items():
         details += f"\n - {role.capitalize()}: {person}"
     return details
 
 @plugin('volunteer_status')
 def volunteer_status_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
-    Plugin command to display the current status of all volunteers.
+    Display the current status of all volunteers.
     """
     return VOLUNTEER_MANAGER.volunteer_status()
 
 @plugin('check_in')
 def check_in_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
-    Plugin command to check in a volunteer, marking them as available.
-    Expected format: "@bot check_in <Volunteer Name>"
+    Check in a volunteer.
+    Expected format: "@bot check_in" (the sender is assumed to be the volunteer).
     """
-    volunteer_name = args.strip()
-    if not volunteer_name:
-        return "Usage: @bot check_in <Volunteer Name>"
-    return VOLUNTEER_MANAGER.check_in(volunteer_name)
-
-@plugin('sign_up')
-def sign_up_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
-    """
-    Plugin command to sign up a new volunteer or update an existing volunteer's skills.
-    Expected format: "@bot sign_up <Volunteer Name> <Skill1,Skill2,...>"
-    """
-    parts = args.split()
-    if len(parts) < 2:
-        return "Usage: @bot sign_up <Volunteer Name> <Skill1,Skill2,...>"
-    volunteer_name = parts[0]
-    skills_str = " ".join(parts[1:])
-    skills = [s.strip() for s in skills_str.split(",") if s.strip()]
-    return VOLUNTEER_MANAGER.sign_up(volunteer_name, skills)
+    return VOLUNTEER_MANAGER.check_in(sender)
 
 @plugin('feedback')
 def feedback_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
-    Plugin command for feedback and reporting.
-    Users can report issues or suggest improvements.
+    Submit feedback or report issues.
     Expected format: "@bot feedback <Your feedback or report>"
     """
     feedback_text = args.strip()
@@ -122,5 +97,32 @@ def feedback_command(args: str, sender: str, state_machine: BotStateMachine, msg
     logger = logging.getLogger(__name__)
     logger.info(f"Feedback from {sender}: {feedback_text}")
     return "Thank you for your feedback. It has been logged for review."
+
+@plugin('register')
+def register_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
+    """
+    register - Interactive volunteer registration command.
+    Handles registration in two steps:
+      1. If invoked as "@bot register" without arguments:
+         - If the sender is not registered, respond with:
+           "Please provide your first and last name or skip if you wish"
+         - If the sender is already registered, respond with:
+           "Volunteer '<Existing Name>' already registered. Provide new name to update if desired."
+      2. If invoked with arguments (or a pending update reply), registers or updates the volunteer,
+         returning:
+         "New volunteer '<Name>' registered" or "Volunteer '<Name>' updated"
+    """
+    if args.strip():
+        name = args.strip()
+        return VOLUNTEER_MANAGER.sign_up(sender, name, [])
+    else:
+        record = get_volunteer_record(sender)
+        if record:
+            existing_name = record["name"] if record["name"] != sender else "Anonymous"
+            PENDING_REGISTRATIONS[sender] = True
+            return f"Volunteer '{existing_name}' already registered. Provide new name to update if desired."
+        else:
+            PENDING_REGISTRATIONS[sender] = True
+            return "Please provide your first and last name or skip if you wish"
 
 # End of plugins/commands.py

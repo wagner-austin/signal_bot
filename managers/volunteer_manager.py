@@ -1,121 +1,136 @@
 """
-volunteer_manager.py - Encapsulates volunteer management by wrapping volunteer data in a VolunteerManager class.
-Loads volunteer data from a separate configuration file and provides logging for volunteer assignments.
-Also includes functions to check volunteer status, check in, and sign up new volunteers.
+volunteer_manager.py - Manages volunteer data and registration.
+Uses the SQLite database as the single source of truth for all volunteer data.
+Provides functions for volunteer status, check-in, sign-up, and assignment that read/write directly to the database.
 """
 
 import logging
 from typing import Optional, Dict, Any, List
-from core.volunteer_config import VOLUNTEER_DATA
+from core.database import get_all_volunteers, get_volunteer_record, add_volunteer_record, update_volunteer_record
 
 logger = logging.getLogger(__name__)
 
 class VolunteerManager:
     def __init__(self) -> None:
         """
-        Initializes the VolunteerManager with volunteer data loaded from the configuration file.
+        Initializes the VolunteerManager.
+        No in-memory cache is maintained; all operations use the database.
         """
-        # Use a copy of the data to avoid modifying the original configuration.
-        self.volunteers: Dict[str, Dict[str, Any]] = {k: v.copy() for k, v in VOLUNTEER_DATA.items()}
+        pass
 
     def find_available_volunteer(self, skill: str) -> Optional[str]:
         """
         Find the first available volunteer with the specified skill.
-        
+
         Args:
-            skill (str): The required skill for the volunteer.
-            
+            skill (str): The required skill.
         Returns:
-            Optional[str]: The name of the available volunteer, or None if no volunteer is available.
+            Optional[str]: The volunteer's name if found, else None.
         """
-        for name, data in self.volunteers.items():
-            if skill in data['skills'] and data['available'] and data['current_role'] is None:
-                logger.info(f"[find_available_volunteer] Volunteer '{name}' found with skill '{skill}'.")
+        volunteers = get_all_volunteers()
+        for phone, data in volunteers.items():
+            if skill in data.get("skills", []) and data.get("available") and data.get("current_role") is None:
+                name = data.get("name", phone)
+                if name == phone:
+                    name = "Anonymous"
                 return name
         logger.warning(f"[find_available_volunteer] No available volunteer found with skill '{skill}'.")
         return None
 
     def assign_volunteer(self, skill: str, role: str) -> Optional[str]:
         """
-        Assign a volunteer with the specified skill to a role.
-        
+        Assign a volunteer with the given skill to a role.
+
         Args:
-            skill (str): The required skill for the volunteer.
-            role (str): The role to assign to the volunteer.
-            
+            skill (str): The required skill.
+            role (str): The role to assign.
         Returns:
-            Optional[str]: The name of the assigned volunteer, or None if no volunteer is available.
+            Optional[str]: The volunteer's name if assignment is successful, else None.
         """
-        volunteer = self.find_available_volunteer(skill)
-        if volunteer:
-            self.volunteers[volunteer]['current_role'] = role
-            logger.info(f"[assign_volunteer] Volunteer '{volunteer}' assigned to role '{role}'.")
-            return volunteer
-        logger.warning(f"[assign_volunteer] Failed to assign volunteer for skill '{skill}' to role '{role}'.")
+        volunteers = get_all_volunteers()
+        target_phone = None
+        for phone, data in volunteers.items():
+            if skill in data.get("skills", []) and data.get("available") and data.get("current_role") is None:
+                target_phone = phone
+                break
+        if target_phone:
+            record = get_volunteer_record(target_phone)
+            if record:
+                # Update current_role in the database
+                update_volunteer_record(
+                    target_phone,
+                    record["name"],
+                    record.get("skills", []),
+                    record["available"],
+                    role
+                )
+                name = record["name"]
+                if name == target_phone:
+                    name = "Anonymous"
+                return name
         return None
 
     def volunteer_status(self) -> str:
         """
-        Get the status of all volunteers.
-        
+        Retrieve and format the current volunteer status from the database.
         Returns:
-            str: A formatted string listing each volunteer's name, availability, and current role.
+            str: Volunteer statuses formatted as one line per volunteer.
         """
+        volunteers = get_all_volunteers()
         status_lines = []
-        for name, data in self.volunteers.items():
+        for phone, data in volunteers.items():
+            name = data.get("name", phone)
+            if name == phone:
+                name = "Anonymous"
             availability = "Available" if data.get("available") else "Not Available"
             role = data.get("current_role") if data.get("current_role") else "None"
             status_lines.append(f"{name}: {availability}, Current Role: {role}")
         return "\n".join(status_lines)
 
-    def check_in(self, name: str) -> str:
+    def check_in(self, phone: str) -> str:
         """
-        Check in a volunteer, marking them as available.
-        
+        Check in a volunteer (by phone), marking them as available.
         Args:
-            name (str): The name of the volunteer.
-            
+            phone (str): The volunteer's phone number.
         Returns:
-            str: A confirmation message or error message if the volunteer is not found.
+            str: Confirmation or error message.
         """
-        if name in self.volunteers:
-            self.volunteers[name]["available"] = True
-            logger.info(f"[check_in] Volunteer '{name}' checked in and marked as available.")
+        record = get_volunteer_record(phone)
+        if record:
+            update_volunteer_record(phone, record["name"], record.get("skills", []), True, record.get("current_role"))
+            name = record["name"] if record["name"] != phone else "Anonymous"
             return f"Volunteer '{name}' has been checked in and is now available."
-        else:
-            logger.warning(f"[check_in] Volunteer '{name}' not found.")
-            return f"Volunteer '{name}' not found."
+        return "Volunteer not found."
 
-    def sign_up(self, name: str, skills: List[str]) -> str:
+    def sign_up(self, phone: str, name: str, skills: List[str]) -> str:
         """
-        Sign up a new volunteer or update an existing volunteer's skills.
-        
+        Register a new volunteer or update an existing one.
+        Writes changes directly to the database.
         Args:
-            name (str): The name of the volunteer.
-            skills (List[str]): A list of skills for the volunteer.
-            
+            phone (str): The volunteer's phone number.
+            name (str): The volunteer's full name.
+            skills (List[str]): A list of skills (typically empty for interactive registration).
         Returns:
-            str: A confirmation message indicating the sign-up status.
+            str: Confirmation message.
         """
-        if name in self.volunteers:
-            # Update existing volunteer's skills by adding new ones (if not already present)
-            current_skills = set(self.volunteers[name].get("skills", []))
-            updated_skills = current_skills.union(skills)
-            self.volunteers[name]["skills"] = list(updated_skills)
-            self.volunteers[name]["available"] = True
-            logger.info(f"[sign_up] Volunteer '{name}' updated with skills {updated_skills}.")
-            return f"Volunteer '{name}' updated with skills: {', '.join(updated_skills)}."
+        record = get_volunteer_record(phone)
+        if record:
+            # Update existing volunteer; if name is "skip", leave it unchanged.
+            updated_name = record["name"] if name.lower() == "skip" else name
+            current_skills = set(record.get("skills", []))
+            updated_skills = list(current_skills.union(skills))
+            if updated_name == phone:
+                updated_name = "Anonymous"
+            update_volunteer_record(phone, updated_name, updated_skills, True, record.get("current_role"))
+            return f"Volunteer '{updated_name}' updated"
         else:
-            # Add new volunteer
-            self.volunteers[name] = {
-                "skills": skills,
-                "available": True,
-                "current_role": None
-            }
-            logger.info(f"[sign_up] New volunteer '{name}' signed up with skills {skills}.")
-            return f"New volunteer '{name}' signed up with skills: {', '.join(skills)}."
+            final_name = "Anonymous" if name.lower() == "skip" or name.strip() == "" else name
+            add_volunteer_record(phone, final_name, skills, True, None)
+            return f"New volunteer '{final_name}' registered"
 
 # Expose a single instance for volunteer management.
 VOLUNTEER_MANAGER = VolunteerManager()
+# Global dictionary to track pending registrations (or updates) by sender's phone.
+PENDING_REGISTRATIONS: Dict[str, bool] = {}
 
 # End of managers/volunteer_manager.py
