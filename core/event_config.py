@@ -1,25 +1,23 @@
 """
 core/event_config.py - Event configuration for the Signal bot.
-Contains details for upcoming events such as time, location, and volunteer roles.
+Contains details for upcoming events such as time, location, volunteer roles.
 """
 
 EVENT_DETAILS = {
     "upcoming_event": {
-        "title": "Weekly Rally for Democracy",
-        "date": "2025-03-09",
+        "title": "50501 OC March",
+        "date": "Sunday March 9th",  # Update the date as needed for the upcoming Sunday
         "time": "2-4PM",
-        "location": "Irvine City Hall",
-        "description": "A peaceful, family-friendly grassroots rally for democracy.",
+        "location": "1 Civic Center Plaza, Irvine, CA 92606",
+        "description": "Join the 50501 OC March to promote community engagement and civic participation at Irvine City Hall.",
         "volunteer_roles": {
-            "greeter": "Raquel, TBD",
-            "emcee": "Daniel",
-            "organizer": "Jen",
+            "greeter": "TBD",
+            "emcee": "TBD",
+            "organizer": "TBD",
             "medic": "TBD",
-            "peacekeeper": "Dawn",
-            "chant_leader": "Spence",
-            "police_liaison": "TBD"
+            "peacekeeper": "TBD",
+            "chant leader": "TBD",
+            "police liaison": "TBD"
         }
     }
 }
-
-# End of core/event_config.py

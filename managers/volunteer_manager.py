@@ -1,7 +1,7 @@
 """
 volunteer_manager.py - Manages volunteer data and registration.
 Uses the SQLite database as the single source of truth for all volunteer data.
-Provides functions for volunteer status, check-in, sign-up, and assignment that read/write directly to the database.
+Provides functions for volunteer status, check-in, sign-up, assignment, and skill tracking.
 """
 
 import logging
@@ -21,7 +21,7 @@ class VolunteerManager:
     def find_available_volunteer(self, skill: str) -> Optional[str]:
         """
         Find the first available volunteer with the specified skill.
-
+        
         Args:
             skill (str): The required skill.
         Returns:
@@ -40,7 +40,7 @@ class VolunteerManager:
     def assign_volunteer(self, skill: str, role: str) -> Optional[str]:
         """
         Assign a volunteer with the given skill to a role.
-
+        
         Args:
             skill (str): The required skill.
             role (str): The role to assign.
@@ -56,7 +56,6 @@ class VolunteerManager:
         if target_phone:
             record = get_volunteer_record(target_phone)
             if record:
-                # Update current_role in the database
                 update_volunteer_record(
                     target_phone,
                     record["name"],
@@ -73,6 +72,7 @@ class VolunteerManager:
     def volunteer_status(self) -> str:
         """
         Retrieve and format the current volunteer status from the database.
+        
         Returns:
             str: Volunteer statuses formatted as one line per volunteer.
         """
@@ -90,6 +90,7 @@ class VolunteerManager:
     def check_in(self, phone: str) -> str:
         """
         Check in a volunteer (by phone), marking them as available.
+        
         Args:
             phone (str): The volunteer's phone number.
         Returns:
@@ -106,16 +107,16 @@ class VolunteerManager:
         """
         Register a new volunteer or update an existing one.
         Writes changes directly to the database.
+        
         Args:
             phone (str): The volunteer's phone number.
             name (str): The volunteer's full name.
-            skills (List[str]): A list of skills (typically empty for interactive registration).
+            skills (List[str]): A list of skills.
         Returns:
             str: Confirmation message.
         """
         record = get_volunteer_record(phone)
         if record:
-            # Update existing volunteer; if name is "skip", leave it unchanged.
             updated_name = record["name"] if name.lower() == "skip" else name
             current_skills = set(record.get("skills", []))
             updated_skills = list(current_skills.union(skills))
@@ -127,6 +128,23 @@ class VolunteerManager:
             final_name = "Anonymous" if name.lower() == "skip" or name.strip() == "" else name
             add_volunteer_record(phone, final_name, skills, True, None)
             return f"New volunteer '{final_name}' registered"
+
+    def get_all_skills(self) -> list:
+        """
+        Retrieve a unique list of all available skills from the volunteer database.
+        
+        Returns:
+            list: A sorted list of unique skills.
+        """
+        volunteers = get_all_volunteers()
+        skill_set = set()
+        for data in volunteers.values():
+            skills = data.get("skills", [])
+            for s in skills:
+                s = s.strip()
+                if s:
+                    skill_set.add(s)
+        return sorted(skill_set)
 
 # Expose a single instance for volunteer management.
 VOLUNTEER_MANAGER = VolunteerManager()

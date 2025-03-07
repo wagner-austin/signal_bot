@@ -1,6 +1,6 @@
 """
 plugins/commands.py - Command plugins for the Signal bot.
-Implements various command plugins with clean names and simplified help outputs.
+Implements various command plugins including event summary and detailed event info.
 """
 
 from typing import Optional
@@ -50,25 +50,47 @@ async def test_all_command(args: str, sender: str, state_machine: BotStateMachin
     summary = await run_tests()
     return summary
 
-@plugin('event info')
-def event_info_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
+@plugin('event')
+def event_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
-    event info - Display details about the upcoming event.
+    event - Shows a summary of the next event.
+    Usage: "@bot event"
     """
     from core.event_config import EVENT_DETAILS
     event = EVENT_DETAILS.get("upcoming_event", {})
     if not event:
         return "No upcoming event information available."
+    summary = (
+        f"{event.get('title', 'Next Event')}\n\n"
+        f"{event.get('date', 'Unknown Date')} "
+        f"from {event.get('time', 'Unknown Time')}.\n\n"
+        f"{event.get('description', 'No description')}\n\n"
+        f"{event.get('location', 'Unknown Location')}"
+    )
+    return summary
+
+@plugin('event info')
+def event_info_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
+    """
+    event info - Provides detailed information on the next event.
+    Usage: "@bot event info"
+    """
+    from core.event_config import EVENT_DETAILS
+    event = EVENT_DETAILS.get("upcoming_event", {})
+    if not event:
+        return "No upcoming event information available."
+    skills = VOLUNTEER_MANAGER.get_all_skills()
     details = (
-        f"Event: {event.get('title')}\n"
-        f"Date: {event.get('date')}\n"
-        f"Time: {event.get('time')}\n"
-        f"Location: {event.get('location')}\n"
-        f"Description: {event.get('description')}\n"
-        f"Volunteer Roles:"
+        f"Title: {event.get('title', 'Next Event')}\n"
+        f"Date: {event.get('date', 'Unknown')}\n"
+        f"Time: {event.get('time', 'Unknown')}\n"
+        f"Location: {event.get('location', 'Unknown')}\n"
+        f"Description: {event.get('description', 'No description')}\n"
+        "Volunteer Roles:"
     )
     for role, person in event.get("volunteer_roles", {}).items():
-        details += f"\n - {role.capitalize()}: {person}"
+        details += f"\n  - {role.capitalize()}: {person}"
+    details += "\n\nAvailable Skills:\n" + (", ".join(skills) if skills else "No skills recorded.")
     return details
 
 @plugin('volunteer status')
@@ -127,8 +149,6 @@ def register_command(args: str, sender: str, state_machine: BotStateMachine, msg
             PENDING_REGISTRATIONS[sender] = True
             return "Please provide your first and last name or skip if you wish"
 
-# --- New Commands ---
-
 @plugin('help')
 def help_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
@@ -136,16 +156,13 @@ def help_command(args: str, sender: str, state_machine: BotStateMachine, msg_tim
     Usage: "@bot help"
     """
     commands = get_all_plugins()
-    # Exclude internal commands from help
     excluded_commands = {"assign", "test", "shutdown", "test all"}
     lines = []
     for cmd, func in sorted(commands.items()):
         if cmd in excluded_commands:
             continue
-        # Use the first line of the docstring for a brief description.
         doc_line = func.__doc__.strip().splitlines()[0] if func.__doc__ else "No description"
         lines.append(f"@bot {cmd} - {doc_line}")
-    # Join each command with an extra newline for clarity.
     return "\n\n".join(lines)
 
 @plugin('more help')
@@ -162,7 +179,6 @@ def more_help_command(args: str, sender: str, state_machine: BotStateMachine, ms
             continue
         doc = func.__doc__.strip() if func.__doc__ else "No detailed help available."
         lines.append(f"@bot {cmd}\n{doc}")
-    # Join each command with an extra newline for clarity.
     return "\n\n".join(lines)
 
 @plugin('info')
@@ -172,7 +188,7 @@ def info_command(args: str, sender: str, state_machine: BotStateMachine, msg_tim
     Usage: "@bot info"
     """
     return (
-        "50501 OC Grassroots Movement is dedicated to upholding the Constitution and ending executive overreach. "
+        "50501 OC Grassroots Movement is dedicated to upholding the Constitution and ending executive overreach. \n\n"
         "Our objective is to foster peaceful, visible, and sustained community engagement through nonviolent protest. "
         "We empower citizens to reclaim democracy and hold power accountable, inspiring change through unity and active resistance."
     )
