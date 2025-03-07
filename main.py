@@ -6,7 +6,10 @@ Optionally runs the test suite if the --test flag is provided.
 
 import sys
 import asyncio
-import core.logging_config  # Initialize logging configuration
+from core.logger_setup import setup_logging  # Use logger setup directly
+
+setup_logging()
+
 import core.database        # Import the database module
 import core.metrics         # Initialize metrics tracking (starts timer)
 import logging
