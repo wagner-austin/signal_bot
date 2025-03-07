@@ -81,7 +81,7 @@ def process_registration_response(parsed: ParsedMessage, sender: str) -> Optiona
         return None
     mode = PENDING_REGISTRATIONS[sender]  # mode can be "register" or "edit"
     name_input = parsed.body.strip() if parsed.body else ""
-    skip_values = {"skip", "no", "quit", "no thank you", "unsubscribe", "q", "help", "stop", ""}
+    skip_values = {"skip", "s", "no", "n", "quit", "q", "no thank you", "unsubscribe", "help", "stop", "cancel", ""}
     if mode == "edit" and name_input.lower() in skip_values:
         record = get_volunteer_record(sender)
         confirmation = f"Editing cancelled. You remain registered as \"{record['name']}\"." if record else "Editing cancelled."
@@ -127,7 +127,7 @@ def handle_message(parsed: ParsedMessage, sender: str, state_machine: BotStateMa
         if not plugin_func:
             # Use fuzzy matching to find a close match for the command.
             available_commands = list(get_all_plugins().keys())
-            matches = difflib.get_close_matches(command, available_commands, n=1, cutoff=0.7)
+            matches = difflib.get_close_matches(command, available_commands, n=1, cutoff=0.8)
             if matches:
                 plugin_func = get_plugin(matches[0])
                 logger.info(f"Fuzzy matching: '{command}' interpreted as '{matches[0]}'")
