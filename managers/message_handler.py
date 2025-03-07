@@ -1,7 +1,6 @@
 """
 managers/message_handler.py - Handles incoming messages and dispatches commands.
-Processes interactive registration, edit, and deletion responses using a consolidated pending state handler.
-Dependencies are now injected explicitly to facilitate testing.
+Refactored into separate handlers for registration/edit and deletion flows.
 """
 
 import logging
@@ -14,7 +13,7 @@ from core.messages import (
     DELETION_CONFIRM_PROMPT, ALREADY_REGISTERED, DELETION_CANCELED,
     EDIT_CANCELED, EDIT_CANCELED_WITH_NAME
 )
-from core.constants import SKIP_VALUES  # Imported consolidated constant
+from core.constants import SKIP_VALUES  # Consolidated constant
 
 logger = logging.getLogger(__name__)
 
@@ -37,11 +36,11 @@ def _get_confirmation_message(sender: str, registered_format: str, default_messa
     else:
         return default_message
 
-class PendingStateHandler:
+class DeletionPendingHandler:
     """
-    PendingStateHandler - Consolidates common logic for handling pending registration and deletion states.
+    DeletionPendingHandler - Handles pending deletion responses.
     
-    Uses the pending actions manager and volunteer manager to process responses.
+    Separates deletion flow from registration logic for clarity and easier testing.
     """
     def __init__(self, pending_actions, volunteer_manager) -> None:
         self.pending_actions = pending_actions
@@ -80,6 +79,16 @@ class PendingStateHandler:
                 return confirmation
         return None
 
+class RegistrationPendingHandler:
+    """
+    RegistrationPendingHandler - Handles pending registration/edit responses.
+    
+    Splits out registration and edit flow from deletion, making logic more modular.
+    """
+    def __init__(self, pending_actions, volunteer_manager) -> None:
+        self.pending_actions = pending_actions
+        self.volunteer_manager = volunteer_manager
+
     def process_registration_response(self, parsed: ParsedMessage, sender: str) -> Optional[str]:
         """
         process_registration_response - Processes a registration or edit response using the pending registration state.
@@ -110,7 +119,7 @@ def handle_message(parsed: ParsedMessage, sender: str, state_machine: BotStateMa
     handle_message - Processes an incoming message and executes the corresponding plugin command if available.
     
     Additionally, if a sender is in a pending deletion or registration/edit state (private message),
-    the respective response is handled via the PendingStateHandler.
+    the respective response is handled via the separated PendingStateHandlers.
     
     Args:
         parsed (ParsedMessage): The parsed message details.
@@ -122,15 +131,14 @@ def handle_message(parsed: ParsedMessage, sender: str, state_machine: BotStateMa
     Returns:
         str: The response from the executed plugin command, or a pending state response.
     """
-    pending_handler = PendingStateHandler(pending_actions, volunteer_manager)
-
+    # Only process pending responses for private chats
     if parsed.group_id is None:
-        response = pending_handler.process_deletion_response(parsed, sender)
-        if response is not None:
-            return response
-        response = pending_handler.process_registration_response(parsed, sender)
-        if response is not None:
-            return response
+        deletion_response = DeletionPendingHandler(pending_actions, volunteer_manager).process_deletion_response(parsed, sender)
+        if deletion_response is not None:
+            return deletion_response
+        registration_response = RegistrationPendingHandler(pending_actions, volunteer_manager).process_registration_response(parsed, sender)
+        if registration_response is not None:
+            return registration_response
 
     command = parsed.command
     args = parsed.args
