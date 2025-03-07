@@ -19,13 +19,6 @@ def normalize_name(name: str, fallback: str) -> str:
     Normalize the volunteer's name.
     If the name is equal to the fallback (typically the phone number), return "Anonymous".
     Otherwise, return the original name.
-    
-    Args:
-        name (str): The original name.
-        fallback (str): The fallback value, usually the phone number.
-    
-    Returns:
-        str: The normalized name.
     """
     return name if name != fallback else "Anonymous"
 
@@ -163,6 +156,16 @@ class VolunteerManager:
         # Remove from active registrations
         delete_volunteer_record(phone)
         return "Your registration has been deleted. Thank you."
+
+    def get_all_skills(self) -> List[str]:
+        """
+        Retrieve the unified list of available skills.
+        
+        Returns:
+            List[str]: The list of skills from the centralized skill configuration.
+        """
+        from core.skill_config import AVAILABLE_SKILLS
+        return AVAILABLE_SKILLS
 
 # Expose a single instance for volunteer management.
 VOLUNTEER_MANAGER = VolunteerManager()
