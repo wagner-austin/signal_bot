@@ -18,6 +18,25 @@ from core.constants import SKIP_VALUES  # Imported consolidated constant
 
 logger = logging.getLogger(__name__)
 
+def _get_confirmation_message(sender: str, registered_format: str, default_message: str) -> str:
+    """
+    _get_confirmation_message - Helper function to fetch the volunteer record and generate a confirmation message.
+    
+    Args:
+        sender (str): The sender's phone number.
+        registered_format (str): A format string expecting a 'name' parameter.
+        default_message (str): A default message if no volunteer record is found.
+        
+    Returns:
+        str: The formatted confirmation message.
+    """
+    from core.database import get_volunteer_record
+    record = get_volunteer_record(sender)
+    if record:
+        return registered_format.format(name=record['name'])
+    else:
+        return default_message
+
 class PendingStateHandler:
     """
     PendingStateHandler - Consolidates common logic for handling pending registration and deletion states.
@@ -38,7 +57,6 @@ class PendingStateHandler:
         Returns:
             Optional[str]: The deletion confirmation or cancellation message if processed.
         """
-        from core.database import get_volunteer_record
         if not self.pending_actions.has_deletion(sender):
             return None
         state = self.pending_actions.get_deletion(sender)
@@ -48,8 +66,7 @@ class PendingStateHandler:
                 self.pending_actions.set_deletion(sender, "confirm")
                 return DELETION_CONFIRM_PROMPT
             else:
-                record = get_volunteer_record(sender)
-                confirmation = ALREADY_REGISTERED.format(name=record['name']) if record else DELETION_CANCELED
+                confirmation = _get_confirmation_message(sender, ALREADY_REGISTERED, DELETION_CANCELED)
                 self.pending_actions.clear_deletion(sender)
                 return confirmation
         elif state == "confirm":
@@ -58,8 +75,7 @@ class PendingStateHandler:
                 self.pending_actions.clear_deletion(sender)
                 return confirmation
             else:
-                record = get_volunteer_record(sender)
-                confirmation = ALREADY_REGISTERED.format(name=record['name']) if record else DELETION_CANCELED
+                confirmation = _get_confirmation_message(sender, ALREADY_REGISTERED, DELETION_CANCELED)
                 self.pending_actions.clear_deletion(sender)
                 return confirmation
         return None
@@ -74,14 +90,12 @@ class PendingStateHandler:
         Returns:
             Optional[str]: The confirmation message if processed.
         """
-        from core.database import get_volunteer_record
         if not self.pending_actions.has_registration(sender):
             return None
         mode = self.pending_actions.get_registration(sender)
         name_input = parsed.body.strip() if parsed.body else ""
         if mode == "edit" and name_input.lower() in SKIP_VALUES:
-            record = get_volunteer_record(sender)
-            confirmation = EDIT_CANCELED_WITH_NAME.format(name=record['name']) if record else EDIT_CANCELED
+            confirmation = _get_confirmation_message(sender, EDIT_CANCELED_WITH_NAME, EDIT_CANCELED)
         elif mode == "register" and name_input.lower() in SKIP_VALUES:
             final_name = "Anonymous"
             confirmation = self.volunteer_manager.sign_up(sender, final_name, [])
