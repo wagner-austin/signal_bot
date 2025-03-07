@@ -1,7 +1,8 @@
 """
-volunteer_manager.py - Manages volunteer data and registration.
+managers/volunteer_manager.py - Manages volunteer data and registration.
 Uses the SQLite database as the single source of truth for all volunteer data.
 Provides functions for volunteer status, check-in, sign-up, assignment, deletion, and skill tracking.
+Encapsulates pending registration and deletion actions within the PendingActions manager.
 """
 
 import logging
@@ -167,10 +168,44 @@ class VolunteerManager:
         from core.skill_config import AVAILABLE_SKILLS
         return AVAILABLE_SKILLS
 
+class PendingActions:
+    """
+    PendingActions - Encapsulates pending registration and deletion actions.
+    Manages in-memory state for pending registration/edit and deletion processes.
+    """
+    def __init__(self) -> None:
+        self._registrations: Dict[str, str] = {}
+        self._deletions: Dict[str, str] = {}
+
+    # Registration methods
+    def set_registration(self, sender: str, mode: str) -> None:
+        self._registrations[sender] = mode
+
+    def get_registration(self, sender: str) -> Optional[str]:
+        return self._registrations.get(sender)
+
+    def has_registration(self, sender: str) -> bool:
+        return sender in self._registrations
+
+    def clear_registration(self, sender: str) -> None:
+        self._registrations.pop(sender, None)
+
+    # Deletion methods
+    def set_deletion(self, sender: str, mode: str) -> None:
+        self._deletions[sender] = mode
+
+    def get_deletion(self, sender: str) -> Optional[str]:
+        return self._deletions.get(sender)
+
+    def has_deletion(self, sender: str) -> bool:
+        return sender in self._deletions
+
+    def clear_deletion(self, sender: str) -> None:
+        self._deletions.pop(sender, None)
+
 # Expose a single instance for volunteer management.
 VOLUNTEER_MANAGER = VolunteerManager()
-# Global dictionaries to track pending registration/edit and deletion by sender's phone.
-PENDING_REGISTRATIONS: Dict[str, str] = {}
-PENDING_DELETIONS: Dict[str, str] = {}
+# Global instance for pending actions.
+PENDING_ACTIONS = PendingActions()
 
 # End of managers/volunteer_manager.py

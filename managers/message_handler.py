@@ -1,6 +1,7 @@
 """
 managers/message_handler.py - Handles incoming messages and dispatches commands.
 Also processes interactive registration, edit, and deletion responses using dedicated functions.
+Uses PendingActions from volunteer_manager to encapsulate pending state.
 """
 
 import logging
@@ -27,30 +28,30 @@ def process_deletion_response(parsed: ParsedMessage, sender: str) -> Optional[st
     Returns:
         Optional[str]: The deletion confirmation or cancellation message if processed, otherwise None.
     """
-    from managers.volunteer_manager import PENDING_DELETIONS, VOLUNTEER_MANAGER
+    from managers.volunteer_manager import PENDING_ACTIONS, VOLUNTEER_MANAGER
     from core.database import get_volunteer_record
-    if sender not in PENDING_DELETIONS:
+    if not PENDING_ACTIONS.has_deletion(sender):
         return None
-    state = PENDING_DELETIONS[sender]  # "initial" or "confirm"
+    state = PENDING_ACTIONS.get_deletion(sender)  # "initial" or "confirm"
     user_input = parsed.body.strip().lower() if parsed.body else ""
     if state == "initial":
         if user_input in {"yes", "y", "yea", "sure"}:
-            PENDING_DELETIONS[sender] = "confirm"
+            PENDING_ACTIONS.set_deletion(sender, "confirm")
             return 'Please respond with "DELETE" to delete your account.'
         else:
             record = get_volunteer_record(sender)
             confirmation = f"Thank you. You are registered as \"{record['name']}\"." if record else "Deletion cancelled."
-            del PENDING_DELETIONS[sender]
+            PENDING_ACTIONS.clear_deletion(sender)
             return confirmation
     elif state == "confirm":
         if parsed.body.strip() == "DELETE":
             confirmation = VOLUNTEER_MANAGER.delete_volunteer(sender)
-            del PENDING_DELETIONS[sender]
+            PENDING_ACTIONS.clear_deletion(sender)
             return confirmation
         else:
             record = get_volunteer_record(sender)
             confirmation = f"Thank you. You are registered as \"{record['name']}\"." if record else "Deletion cancelled."
-            del PENDING_DELETIONS[sender]
+            PENDING_ACTIONS.clear_deletion(sender)
             return confirmation
     return None
 
@@ -75,11 +76,11 @@ def process_registration_response(parsed: ParsedMessage, sender: str) -> Optiona
     Returns:
         Optional[str]: The confirmation message if processed, otherwise None.
     """
-    from managers.volunteer_manager import PENDING_REGISTRATIONS, VOLUNTEER_MANAGER
+    from managers.volunteer_manager import PENDING_ACTIONS, VOLUNTEER_MANAGER
     from core.database import get_volunteer_record
-    if sender not in PENDING_REGISTRATIONS:
+    if not PENDING_ACTIONS.has_registration(sender):
         return None
-    mode = PENDING_REGISTRATIONS[sender]  # mode can be "register" or "edit"
+    mode = PENDING_ACTIONS.get_registration(sender)  # mode can be "register" or "edit"
     name_input = parsed.body.strip() if parsed.body else ""
     skip_values = {"skip", "s", "no", "n", "quit", "q", "no thank you", "unsubscribe", "help", "stop", "cancel", ""}
     if mode == "edit" and name_input.lower() in skip_values:
@@ -91,7 +92,7 @@ def process_registration_response(parsed: ParsedMessage, sender: str) -> Optiona
     else:
         final_name = name_input
         confirmation = VOLUNTEER_MANAGER.sign_up(sender, final_name, [])
-    del PENDING_REGISTRATIONS[sender]
+    PENDING_ACTIONS.clear_registration(sender)
     return confirmation
 
 def handle_message(parsed: ParsedMessage, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:

@@ -1,13 +1,14 @@
 """
 plugins/commands/volunteer.py - Volunteer-related command plugins for the Signal bot.
 Includes commands such as volunteer status, check in, feedback, register, edit, delete, and skills.
+Utilizes PendingActions to manage interactive registration and deletion flows.
 """
 
 from typing import Optional
 from plugins.manager import plugin, get_all_plugins
 from core.state import BotStateMachine
 from core.database import get_volunteer_record
-from managers.volunteer_manager import VOLUNTEER_MANAGER, PENDING_REGISTRATIONS, PENDING_DELETIONS
+from managers.volunteer_manager import VOLUNTEER_MANAGER, PENDING_ACTIONS
 
 @plugin('volunteer status')
 def volunteer_status_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
@@ -63,8 +64,8 @@ def register_command(args: str, sender: str, state_machine: BotStateMachine, msg
         if record:
             return f"You are registered as \"{record['name']}\". Use command \"@bot edit\" to edit your name."
         else:
-            PENDING_REGISTRATIONS[sender] = "register"
-            return "Welcome! Please respond with your first and last name to get registered. Or \"skip\" to remain anonymous."
+            PENDING_ACTIONS.set_registration(sender, "register")
+            return "Welcome! Please respond with your first and last name to get registered. Or 'skip' to remain anonymous."
 
 @plugin('edit')
 @plugin('change my name please')
@@ -92,11 +93,11 @@ def edit_command(args: str, sender: str, state_machine: BotStateMachine, msg_tim
     record = get_volunteer_record(sender)
     if not record:
         # Treat as registration for new users.
-        PENDING_REGISTRATIONS[sender] = "register"
+        PENDING_ACTIONS.set_registration(sender, "register")
         return "Welcome! Please respond with your first and last name to get registered. Or \"skip\" to remain anonymous."
     if not args.strip():
         # For existing users, prompt for editing.
-        PENDING_REGISTRATIONS[sender] = "edit"
+        PENDING_ACTIONS.set_registration(sender, "edit")
         return f"You are registered as \"{record['name']}\". Type a new name or type \"skip\" to cancel editing."
     # If arguments provided, update immediately.
     return VOLUNTEER_MANAGER.sign_up(sender, args.strip(), [])
@@ -119,9 +120,9 @@ def delete_command(args: str, sender: str, state_machine: BotStateMachine, msg_t
           Otherwise, deletion is cancelled and the current registration is maintained.
     """
     if not args.strip():
-        PENDING_DELETIONS[sender] = "initial"
+        PENDING_ACTIONS.set_deletion(sender, "initial")
         return "Would you like to delete your registration? Yes or No"
-    PENDING_DELETIONS[sender] = "initial"
+    PENDING_ACTIONS.set_deletion(sender, "initial")
     return "Would you like to delete your registration? Yes or No?"
 
 @plugin('skills')
@@ -134,11 +135,10 @@ def skills_command(args: str, sender: str, state_machine: BotStateMachine, msg_t
     """
     from core.database import get_volunteer_record
     from core.skill_config import AVAILABLE_SKILLS
-    from managers.volunteer_manager import PENDING_REGISTRATIONS
     record = get_volunteer_record(sender)
     if not record:
         # Not registered; treat as registration.
-        PENDING_REGISTRATIONS[sender] = "register"
+        PENDING_ACTIONS.set_registration(sender, "register")
         return "Welcome! Please respond with your first and last name to get registered. Or 'skip' to remain anonymous."
     else:
         current_skills = record.get("skills", [])
