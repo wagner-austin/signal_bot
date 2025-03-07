@@ -24,7 +24,7 @@ def assign_command(args: str, sender: str, state_machine: BotStateMachine, msg_t
     return f"No available volunteer for {skill}."
 
 @plugin('test')
-def test_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
+def plugin_test_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
     test - Test command for verifying bot response.
     Expected format: "@bot test"
@@ -41,13 +41,12 @@ def shutdown_command(args: str, sender: str, state_machine: BotStateMachine, msg
     return "Bot is shutting down."
 
 @plugin('test all')
-async def test_all_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
+async def plugin_test_all_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
-    test all - Run integration tests.
+    test all - Instructs to run tests via pytest.
+    Instead of running integration tests, instructs the user to run 'pytest' from the project root.
     """
-    from tests.test_all import run_tests
-    summary = await run_tests()
-    return summary
+    return "To run tests, please execute 'pytest' in the project directory."
 
 @plugin('info')
 def info_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
