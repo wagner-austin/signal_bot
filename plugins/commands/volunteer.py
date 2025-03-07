@@ -1,6 +1,6 @@
 """
 plugins/commands/volunteer.py - Volunteer-related command plugins for the Signal bot.
-Includes commands such as volunteer status, check in, feedback, register, edit, and delete.
+Includes commands such as volunteer status, check in, feedback, register, edit, delete, and skills.
 """
 
 from typing import Optional
@@ -67,9 +67,15 @@ def register_command(args: str, sender: str, state_machine: BotStateMachine, msg
             return "Welcome! Please respond with your first and last name to get registered. Or \"skip\" to remain anonymous."
 
 @plugin('edit')
-@plugin('change name')
+@plugin('change my name please')
+@plugin('change my name to')
 @plugin('change my name')
+@plugin('change name')
+@plugin('can you change my name please')
+@plugin('can you change my name to')
+@plugin('can you change my name')
 @plugin('can i change my name to')
+@plugin('can i change my name')
 @plugin('not my name')
 @plugin("that's not my name")
 @plugin('wrong name')
@@ -117,5 +123,33 @@ def delete_command(args: str, sender: str, state_machine: BotStateMachine, msg_t
         return "Would you like to delete your registration? Yes or No"
     PENDING_DELETIONS[sender] = "initial"
     return "Would you like to delete your registration? Yes or No?"
+
+@plugin('skills')
+def skills_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
+    """
+    skills - Display current skills and list available skills for addition.
+    For existing users: Shows their registered skills (formatted as a bullet list) and a list of relevant available skills.
+    For new users: Acts as a registration command.
+    Usage: "@bot skills"
+    """
+    from core.database import get_volunteer_record
+    from core.skill_config import AVAILABLE_SKILLS
+    from managers.volunteer_manager import PENDING_REGISTRATIONS
+    record = get_volunteer_record(sender)
+    if not record:
+        # Not registered; treat as registration.
+        PENDING_REGISTRATIONS[sender] = "register"
+        return "Welcome! Please respond with your first and last name to get registered. Or 'skip' to remain anonymous."
+    else:
+        current_skills = record.get("skills", [])
+        if current_skills:
+            current_skills_formatted = "\n".join([f" - {skill}" for skill in current_skills])
+        else:
+            current_skills_formatted = " - None"
+        available_skills_formatted = "\n".join([f" - {skill}" for skill in AVAILABLE_SKILLS])
+        name = record.get("name", "Anonymous")
+        message = f"{name} currently has skills:\n{current_skills_formatted}\n\n"
+        message += "Here is a list of relevant skills you can add to your profile:\n" + available_skills_formatted
+        return message
 
 # End of plugins/commands/volunteer.py
