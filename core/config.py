@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 load_dotenv()  # Load environment variables from the .env file
 
 # Bot phone number in E.164 format, defaulting to a specified value.
-BOT_NUMBER: str = os.environ.get("BOT_NUMBER", "REDACTED_PHONE_NUMBER")
+BOT_NUMBER: str = os.environ.get("BOT_NUMBER", "YOUR_SIGNAL_NUMBER")
 
 # Polling interval in seconds for checking incoming messages.
 POLLING_INTERVAL: int = int(os.environ.get("POLLING_INTERVAL", "1"))
