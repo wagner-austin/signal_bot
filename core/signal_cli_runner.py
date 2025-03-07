@@ -9,7 +9,8 @@ import logging
 import re
 from typing import List, Tuple, Optional
 from core.config import SIGNAL_CLI_COMMAND, BOT_NUMBER
-from core.constants import ALLOWED_CLI_FLAGS, DANGEROUS_PATTERN  # Imported constants
+from core.constants import ALLOWED_CLI_FLAGS, DANGEROUS_PATTERN  # For any legacy usage
+from core.validators import validate_cli_args, CLIValidationError  # Imported validation utilities
 
 logger = logging.getLogger(__name__)
 
@@ -82,15 +83,10 @@ async def async_run_signal_cli(args: List[str], stdin_input: Optional[str] = Non
     Raises:
         SignalCLIError: If an error occurs while running the signal-cli command.
     """
-    # Validate that each flag is allowed and that no argument contains dangerous characters.
-    allowed_flags = ALLOWED_CLI_FLAGS
-    dangerous_pattern = re.compile(DANGEROUS_PATTERN)
-    
-    for arg in args:
-        if arg.startswith("-") and arg not in allowed_flags:
-            raise SignalCLIError(f"Disallowed flag detected: {arg}")
-        if dangerous_pattern.search(arg):
-            raise SignalCLIError(f"Potentially dangerous character detected in argument: {arg}")
+    try:
+        validate_cli_args(args)
+    except CLIValidationError as e:
+        raise SignalCLIError(str(e))
     
     full_args = [SIGNAL_CLI_COMMAND, '-u', BOT_NUMBER] + args
     stdout, stderr, returncode = await _run_subprocess(full_args, timeout=30, input_data=stdin_input)
