@@ -1,10 +1,11 @@
 """
 core/database/volunteers.py - Volunteer-related database operations.
-Provides functions to manage volunteer records, including adding, updating, retrieving, and deleting volunteers.
+Provides functions to manage volunteer records, including adding, updating, retrieving, and deleting volunteers,
+using a context manager for connection handling.
 """
 
 from typing import Dict, Any, Optional, List
-from .connection import get_connection
+from .connection import db_connection
 
 def parse_skills(skills_str: Optional[str]) -> List[str]:
     """
@@ -27,11 +28,10 @@ def get_all_volunteers() -> Dict[str, Dict[str, Any]]:
     Returns:
         Dict[str, Dict[str, Any]]: A dictionary of volunteer records keyed by phone number.
     """
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM Volunteers")
-    rows = cursor.fetchall()
-    conn.close()
+    with db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM Volunteers")
+        rows = cursor.fetchall()
     volunteers = {}
     for row in rows:
         volunteers[row["phone"]] = {
@@ -52,11 +52,10 @@ def get_volunteer_record(phone: str) -> Optional[Dict[str, Any]]:
     Returns:
         Optional[Dict[str, Any]]: The volunteer record or None if not found.
     """
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM Volunteers WHERE phone = ?", (phone,))
-    row = cursor.fetchone()
-    conn.close()
+    with db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM Volunteers WHERE phone = ?", (phone,))
+        row = cursor.fetchone()
     if row:
         return {
             "name": row["name"],
@@ -78,12 +77,11 @@ def add_volunteer_record(phone: str, display_name: str, skills: list, available:
         current_role (Optional[str]): Current assigned role.
     """
     skills_str = ",".join(skills)
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("INSERT OR REPLACE INTO Volunteers (phone, name, skills, available, current_role) VALUES (?, ?, ?, ?, ?)",
-                   (phone, display_name, skills_str, int(available), current_role))
-    conn.commit()
-    conn.close()
+    with db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("INSERT OR REPLACE INTO Volunteers (phone, name, skills, available, current_role) VALUES (?, ?, ?, ?, ?)",
+                       (phone, display_name, skills_str, int(available), current_role))
+        conn.commit()
 
 def update_volunteer_record(phone: str, display_name: str, skills: list, available: bool, current_role: Optional[str]) -> None:
     """
@@ -97,15 +95,14 @@ def update_volunteer_record(phone: str, display_name: str, skills: list, availab
         current_role (Optional[str]): Current assigned role.
     """
     skills_str = ",".join(skills)
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("""
-    UPDATE Volunteers 
-    SET name = ?, skills = ?, available = ?, current_role = ?
-    WHERE phone = ?
-    """, (display_name, skills_str, int(available), current_role, phone))
-    conn.commit()
-    conn.close()
+    with db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+        UPDATE Volunteers 
+        SET name = ?, skills = ?, available = ?, current_role = ?
+        WHERE phone = ?
+        """, (display_name, skills_str, int(available), current_role, phone))
+        conn.commit()
 
 def delete_volunteer_record(phone: str) -> None:
     """
@@ -114,11 +111,10 @@ def delete_volunteer_record(phone: str) -> None:
     Args:
         phone (str): The volunteer's phone number.
     """
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM Volunteers WHERE phone = ?", (phone,))
-    conn.commit()
-    conn.close()
+    with db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM Volunteers WHERE phone = ?", (phone,))
+        conn.commit()
 
 def add_deleted_volunteer_record(phone: str, name: str, skills: list, available: bool, current_role: Optional[str]) -> None:
     """
@@ -132,12 +128,11 @@ def add_deleted_volunteer_record(phone: str, name: str, skills: list, available:
         current_role (Optional[str]): Current assigned role.
     """
     skills_str = ",".join(skills)
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("INSERT OR REPLACE INTO DeletedVolunteers (phone, name, skills, available, current_role) VALUES (?, ?, ?, ?, ?)",
-                   (phone, name, skills_str, int(available), current_role))
-    conn.commit()
-    conn.close()
+    with db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("INSERT OR REPLACE INTO DeletedVolunteers (phone, name, skills, available, current_role) VALUES (?, ?, ?, ?, ?)",
+                       (phone, name, skills_str, int(available), current_role))
+        conn.commit()
 
 def remove_deleted_volunteer_record(phone: str) -> None:
     """
@@ -146,10 +141,9 @@ def remove_deleted_volunteer_record(phone: str) -> None:
     Args:
         phone (str): The volunteer's phone number.
     """
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM DeletedVolunteers WHERE phone = ?", (phone,))
-    conn.commit()
-    conn.close()
+    with db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM DeletedVolunteers WHERE phone = ?", (phone,))
+        conn.commit()
 
 # End of core/database/volunteers.py

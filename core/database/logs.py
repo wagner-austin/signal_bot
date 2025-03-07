@@ -1,9 +1,9 @@
 """
 core/database/logs.py - Command logs database operations.
-Provides functions to log command executions.
+Provides functions to log command executions using a context manager for connection handling.
 """
 
-from .connection import get_connection
+from .connection import db_connection
 
 def log_command(sender: str, command: str, args: str) -> None:
     """
@@ -14,13 +14,12 @@ def log_command(sender: str, command: str, args: str) -> None:
         command (str): The command executed.
         args (str): The arguments passed.
     """
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("""
-    INSERT INTO CommandLogs (sender, command, args)
-    VALUES (?, ?, ?)
-    """, (sender, command, args))
-    conn.commit()
-    conn.close()
+    with db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+        INSERT INTO CommandLogs (sender, command, args)
+        VALUES (?, ?, ?)
+        """, (sender, command, args))
+        conn.commit()
 
 # End of core/database/logs.py
