@@ -37,7 +37,6 @@ def event_info_command(args: str, sender: str, state_machine: BotStateMachine, m
     event = EVENT_DETAILS.get("upcoming_event", {})
     if not event:
         return "No upcoming event information available."
-    skills = VOLUNTEER_MANAGER.get_all_skills()
     details = (
         f"Title: {event.get('title', 'Next Event')}\n"
         f"Date: {event.get('date', 'Unknown')}\n"
@@ -48,7 +47,6 @@ def event_info_command(args: str, sender: str, state_machine: BotStateMachine, m
     )
     for role, person in event.get("volunteer_roles", {}).items():
         details += f"\n  - {role.capitalize()}: {person}"
-    details += "\n\nAvailable Skills:\n" + (", ".join(VOLUNTEER_MANAGER.get_all_skills()) if VOLUNTEER_MANAGER.get_all_skills() else "No skills recorded.")
     return details
 
 # End of plugins/commands/event.py
