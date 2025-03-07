@@ -1,11 +1,11 @@
 """
-parsers/command_extractor.py - Module for extracting commands and their arguments from a message body.
-Modified to support multi-word commands by matching against registered commands.
+parsers/command_extractor.py - Extract commands and arguments from a message.
+Supports multi-word commands by matching against registered aliases.
 """
 
 import re
 from typing import Optional, Tuple
-from plugins.manager import get_all_plugins
+from plugins.manager import alias_mapping  # Import the alias mapping
 
 def _validate_command(command: str) -> bool:
     """
@@ -15,23 +15,24 @@ def _validate_command(command: str) -> bool:
 
 def _parse_default_command(message: str) -> Tuple[Optional[str], Optional[str]]:
     """
-    Parse command and arguments from a message, supporting multi-word commands.
+    Parse command and arguments from a message using registered aliases.
     
     Args:
         message (str): The normalized message string.
     
     Returns:
-        Tuple[Optional[str], Optional[str]]: The command and arguments.
+        Tuple[Optional[str], Optional[str]]: The canonical command and its arguments.
     """
     message_lower = message.lower()
-    # Retrieve registered commands from the plugin manager.
-    commands = sorted(get_all_plugins().keys(), key=lambda x: len(x), reverse=True)
-    for cmd in commands:
-        # Check if message starts with the command followed by a space or end of message.
-        if message_lower.startswith(cmd) and (len(message_lower) == len(cmd) or message_lower[len(cmd)] == " "):
-            args = message[len(cmd):].strip()
-            return cmd, args
-    # Fallback: split by first space.
+    # Get all aliases sorted by descending length to match longer phrases first.
+    aliases = sorted(alias_mapping.keys(), key=lambda x: len(x), reverse=True)
+    for alias in aliases:
+        if message_lower.startswith(alias) and (len(message_lower) == len(alias) or message_lower[len(alias)] == " "):
+            args = message[len(alias):].strip()
+            # Map alias to canonical command.
+            canonical = alias_mapping[alias]
+            return canonical, args
+    # Fallback: split by the first space.
     parts = message.split(" ", 1)
     command = parts[0].strip().lower()
     if not _validate_command(command):
@@ -44,14 +45,14 @@ def parse_command_from_body(body: Optional[str], is_group: bool = False) -> Tupl
     Extract the command and its arguments from the message body, taking into account whether
     the message is from a group chat or a private chat.
     
-    In a group chat (is_group=True), the message must start with one of the allowed prefixes.
-    In a private chat (is_group=False), the prefix is optional.
+    In group chats (is_group=True), the message must start with one of the allowed prefixes.
+    In private chats (is_group=False), the prefix is optional.
     
     Allowed prefixes (case-insensitive):
       - "@bot"
       - "@50501oc bot"
     
-    Additionally, if the message begins with an object replacement character (U+FFFC),
+    If the message begins with the object replacement character (U+FFFC),
     it is replaced with "@50501oc bot".
     
     Args:
@@ -59,7 +60,7 @@ def parse_command_from_body(body: Optional[str], is_group: bool = False) -> Tupl
         is_group (bool): True if the message is from a group chat, False if private.
     
     Returns:
-        Tuple[Optional[str], Optional[str]]: A tuple containing the command in lowercase and its arguments,
+        Tuple[Optional[str], Optional[str]]: A tuple containing the canonical command and its arguments,
                                                or (None, None) if parsing fails.
     """
     if not body:
@@ -68,7 +69,7 @@ def parse_command_from_body(body: Optional[str], is_group: bool = False) -> Tupl
     # Normalize whitespace.
     message = " ".join(body.strip().split())
 
-    # If message starts with the object replacement character, replace it with "@50501oc bot"
+    # Replace object replacement character if present.
     if message and message[0] == "\uFFFC":
         message = "@50501oc bot" + message[1:]
         message = message.strip()
@@ -76,7 +77,6 @@ def parse_command_from_body(body: Optional[str], is_group: bool = False) -> Tupl
     allowed_prefixes = ["@bot", "@50501oc bot"]
 
     if is_group:
-        # In group chats, require one of the allowed prefixes.
         found_prefix = None
         for prefix in allowed_prefixes:
             if message.lower().startswith(prefix):
@@ -88,7 +88,6 @@ def parse_command_from_body(body: Optional[str], is_group: bool = False) -> Tupl
         else:
             return None, None
     else:
-        # In private chats, the prefix is optional.
         for prefix in allowed_prefixes:
             if message.lower().startswith(prefix):
                 message = message[len(prefix):].strip()

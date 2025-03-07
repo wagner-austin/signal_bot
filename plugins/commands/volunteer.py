@@ -1,11 +1,11 @@
 """
-plugins/commands/volunteer.py - Volunteer-related command plugins for the Signal bot.
-Includes commands such as volunteer status, check in, feedback, register, edit, delete, and skills.
-Utilizes PendingActions to manage interactive registration and deletion flows.
+plugins/commands/volunteer.py - Volunteer-related command plugins.
+Includes commands for volunteer status, check in, feedback, register, edit, delete, and skills.
+Utilizes PendingActions for interactive flows.
 """
 
 from typing import Optional
-from plugins.manager import plugin, get_all_plugins
+from plugins.manager import plugin
 from core.state import BotStateMachine
 from core.database import get_volunteer_record
 from managers.volunteer_manager import VOLUNTEER_MANAGER
@@ -15,14 +15,14 @@ from core.messages import (
     DELETION_PROMPT, NEW_VOLUNTEER_REGISTERED
 )
 
-@plugin('volunteer status')
+@plugin(commands=['volunteer status'], canonical='volunteer status')
 def volunteer_status_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
     volunteer status - Display the current status of all volunteers.
     """
     return VOLUNTEER_MANAGER.volunteer_status()
 
-@plugin('check in')
+@plugin(commands=['check in'], canonical='check in')
 def check_in_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
     check in - Check in a volunteer.
@@ -30,7 +30,7 @@ def check_in_command(args: str, sender: str, state_machine: BotStateMachine, msg
     """
     return VOLUNTEER_MANAGER.check_in(sender)
 
-@plugin('feedback')
+@plugin(commands=['feedback'], canonical='feedback')
 def feedback_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
     feedback - Submit feedback or report issues.
@@ -44,16 +44,11 @@ def feedback_command(args: str, sender: str, state_machine: BotStateMachine, msg
     logger.info(f"Feedback from {sender}: {feedback_text}")
     return "Thank you for your feedback. It has been logged for review."
 
-@plugin('register')
+@plugin(commands=['register'], canonical='register')
 def register_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
     register - Interactive volunteer registration command.
-    Handles registration in two steps:
-      1. If invoked as "@bot register" without arguments:
-         - If the sender is not registered, prompt for registration.
-         - If the sender is already registered, inform them and suggest editing.
-      2. If invoked with arguments, registers the volunteer,
-         returning a confirmation message.
+    If invoked without arguments, prompts for registration; otherwise registers the volunteer.
     """
     if args.strip():
         name = args.strip()
@@ -70,18 +65,14 @@ def register_command(args: str, sender: str, state_machine: BotStateMachine, msg
             PENDING_ACTIONS.set_registration(sender, "register")
             return REGISTRATION_PROMPT
 
-@plugin(['edit', 'change my name please', 'change my name to', 'change my name',
-         'change name', 'can you change my name please', 'can you change my name to',
-         'can you change my name', 'can i change my name to', 'can i change my name',
-         'not my name', "that's not my name", 'wrong name', 'i mispelled'])
+@plugin(commands=['edit', 'change my name please', 'change my name to', 'change my name', 'change name',
+                  'can you change my name please', 'can you change my name to', 'can you change my name',
+                  'can i change my name to', 'can i change my name', 'not my name', "that's not my name",
+                  'wrong name', 'i mispelled'], canonical='edit')
 def edit_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
     edit - Edit your registered name.
-    Usage:
-      - If invoked without arguments:
-          For new users: interpreted as register, initiating the registration process.
-          For existing users: prompt for a new name or cancellation.
-      - If invoked with arguments, updates the volunteer's name immediately.
+    If no arguments are provided, initiates an interactive edit; otherwise updates the name.
     """
     record = get_volunteer_record(sender)
     if not record:
@@ -92,12 +83,11 @@ def edit_command(args: str, sender: str, state_machine: BotStateMachine, msg_tim
         return EDIT_PROMPT.format(name=record['name'])
     return VOLUNTEER_MANAGER.sign_up(sender, args.strip(), [])
 
-@plugin(['delete', 'del', 'stop', 'unsubscribe', 'remove', 'opt out'])
+@plugin(commands=['delete', 'del', 'stop', 'unsubscribe', 'remove', 'opt out'], canonical='delete')
 def delete_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
     delete - Delete your registration.
-    Usage:
-      - When invoked without arguments, the bot asks for deletion confirmation.
+    When invoked without arguments, asks for deletion confirmation.
     """
     if not args.strip():
         PENDING_ACTIONS.set_deletion(sender, "initial")
@@ -105,12 +95,11 @@ def delete_command(args: str, sender: str, state_machine: BotStateMachine, msg_t
     PENDING_ACTIONS.set_deletion(sender, "initial")
     return DELETION_PROMPT
 
-@plugin('skills')
+@plugin(commands=['skills'], canonical='skills')
 def skills_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
-    skills - Display current skills and list available skills for addition.
-    For existing users: Shows their registered skills and available skills.
-    For new users: Initiates registration.
+    skills - Display your current skills and list available skills for addition.
+    If not registered, initiates the registration process.
     """
     from core.database import get_volunteer_record
     from core.skill_config import AVAILABLE_SKILLS
