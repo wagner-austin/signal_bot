@@ -93,6 +93,10 @@ async def process_incoming(state_machine) -> int:
     Returns:
         int: The count of processed messages.
     """
+    # Import global dependencies explicitly and pass them to the handler.
+    from managers.pending_actions import PENDING_ACTIONS
+    from managers.volunteer import VOLUNTEER_MANAGER
+
     messages = await receive_messages()
     processed_count = 0
     for message in messages:
@@ -104,7 +108,14 @@ async def process_incoming(state_machine) -> int:
         
         processed_count += 1
         quote_details = _get_quote_details(parsed)
-        response = handle_message(parsed, parsed.sender, state_machine, msg_timestamp=parsed.timestamp)
+        response = handle_message(
+            parsed,
+            parsed.sender,
+            state_machine,
+            PENDING_ACTIONS,
+            VOLUNTEER_MANAGER,
+            msg_timestamp=parsed.timestamp
+        )
         if asyncio.iscoroutine(response):
             response = await response
         if response:

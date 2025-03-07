@@ -1,7 +1,7 @@
 """
 managers/message_handler.py - Handles incoming messages and dispatches commands.
 Processes interactive registration, edit, and deletion responses using a consolidated pending state handler.
-This module depends on global state (from the database and in-memory pending actions) and modifies that state.
+This module depends on external pending actions and volunteer manager instances passed as parameters.
 """
 
 import logging
@@ -10,8 +10,9 @@ from typing import Optional
 from plugins.manager import get_plugin, get_all_plugins
 from core.state import BotStateMachine
 from parsers.message_parser import ParsedMessage
-from managers.volunteer import VOLUNTEER_MANAGER
-from managers.pending_actions import PENDING_ACTIONS
+# Removed direct import of global instances.
+# from managers.volunteer import VOLUNTEER_MANAGER
+# from managers.pending_actions import PENDING_ACTIONS
 
 logger = logging.getLogger(__name__)
 
@@ -95,7 +96,7 @@ class PendingStateHandler:
         self.pending_actions.clear_registration(sender)
         return confirmation
 
-def handle_message(parsed: ParsedMessage, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
+def handle_message(parsed: ParsedMessage, sender: str, state_machine: BotStateMachine, pending_actions, volunteer_manager, msg_timestamp: Optional[int] = None) -> str:
     """
     handle_message - Processes an incoming message and executes the corresponding plugin command if available.
     
@@ -106,13 +107,15 @@ def handle_message(parsed: ParsedMessage, sender: str, state_machine: BotStateMa
         parsed (ParsedMessage): The parsed message details.
         sender (str): The sender's identifier.
         state_machine (BotStateMachine): The bot's state machine instance.
+        pending_actions: Instance managing pending actions.
+        volunteer_manager: Instance managing volunteer operations.
         msg_timestamp (Optional[int]): The message timestamp.
     Returns:
         str: The response from the executed plugin command, or a pending state response.
     Side Effects:
-        May modify global pending state and update the database.
+        May modify the pending state and update the database.
     """
-    pending_handler = PendingStateHandler(PENDING_ACTIONS, VOLUNTEER_MANAGER)
+    pending_handler = PendingStateHandler(pending_actions, volunteer_manager)
 
     if parsed.group_id is None:
         response = pending_handler.process_deletion_response(parsed, sender)
@@ -141,5 +144,5 @@ def handle_message(parsed: ParsedMessage, sender: str, state_machine: BotStateMa
             logger.exception(f"[handle_message] Error executing plugin for command '{command}' with args '{args}' from sender '{sender}': {e}")
             return f"An error occurred while processing the command '{command}': {e}"
     return ""
-
+    
 # End of managers/message_handler.py
