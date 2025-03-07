@@ -95,7 +95,7 @@ async def process_incoming(state_machine) -> int:
     """
     # Import global dependencies explicitly and pass them to the handler.
     from managers.pending_actions import PENDING_ACTIONS
-    from managers.volunteer import VOLUNTEER_MANAGER
+    from managers.volunteer_manager import VOLUNTEER_MANAGER
 
     messages = await receive_messages()
     processed_count = 0
