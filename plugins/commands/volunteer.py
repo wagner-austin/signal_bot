@@ -1,6 +1,7 @@
 """
 plugins/commands/volunteer.py - Volunteer-related command plugins.
-Includes commands such as volunteer status, check in, register, edit, delete, and skills.
+Includes commands such as volunteer status, check in, register, edit, delete, skills,
+find (by skill), and add skills to your profile.
 Utilizes PendingActions for interactive flows.
 """
 
@@ -15,14 +16,14 @@ from core.messages import (
     DELETION_PROMPT, NEW_VOLUNTEER_REGISTERED
 )
 
-@plugin(commands=['volunteer status'], canonical='volunteer status')
+@plugin('volunteer status', canonical='volunteer status')
 def volunteer_status_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
     volunteer status - Display the current status of all volunteers.
     """
     return VOLUNTEER_MANAGER.volunteer_status()
 
-@plugin(commands=['check in'], canonical='check in')
+@plugin('check in', canonical='check in')
 def check_in_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
     check in - Check in a volunteer.
@@ -30,7 +31,7 @@ def check_in_command(args: str, sender: str, state_machine: BotStateMachine, msg
     """
     return VOLUNTEER_MANAGER.check_in(sender)
 
-@plugin(commands=['register'], canonical='register')
+@plugin('register', canonical='register')
 def register_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
     register - Interactive volunteer registration command.
@@ -51,10 +52,10 @@ def register_command(args: str, sender: str, state_machine: BotStateMachine, msg
             PENDING_ACTIONS.set_registration(sender, "register")
             return REGISTRATION_PROMPT
 
-@plugin(commands=['edit', 'change my name please', 'change my name to', 'change my name', 'change name',
-                  'can you change my name please', 'can you change my name to', 'can you change my name',
-                  'can i change my name to', 'can i change my name', 'not my name', "that's not my name",
-                  'wrong name', 'i mispelled'], canonical='edit', help_visible=False)
+@plugin(['edit', 'change my name please', 'change my name to', 'change my name', 'change name',
+         'can you change my name please', 'can you change my name to', 'can you change my name',
+         'can i change my name to', 'can i change my name', 'not my name', "that's not my name",
+         'wrong name', 'i mispelled'], canonical='edit', help_visible=False)
 def edit_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
     edit - Edit your registered name.
@@ -69,7 +70,7 @@ def edit_command(args: str, sender: str, state_machine: BotStateMachine, msg_tim
         return EDIT_PROMPT.format(name=record['name'])
     return VOLUNTEER_MANAGER.sign_up(sender, args.strip(), [])
 
-@plugin(commands=['delete', 'del', 'stop', 'unsubscribe', 'remove', 'opt out'], canonical='delete', help_visible=False)
+@plugin(['delete', 'del', 'stop', 'unsubscribe', 'remove', 'opt out'], canonical='delete', help_visible=False)
 def delete_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
     delete - Delete your registration.
@@ -81,7 +82,7 @@ def delete_command(args: str, sender: str, state_machine: BotStateMachine, msg_t
     PENDING_ACTIONS.set_deletion(sender, "initial")
     return DELETION_PROMPT
 
-@plugin(commands=['skills'], canonical='skills')
+@plugin('skills', canonical='skills')
 def skills_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
     skills - Display your current skills and list available skills for addition.
@@ -104,5 +105,42 @@ def skills_command(args: str, sender: str, state_machine: BotStateMachine, msg_t
         message = f"{name} currently has skills:\n{current_skills_formatted}\n\n"
         message += "Here is a list of relevant skills you can add to your profile:\n" + available_skills_formatted
         return message
+
+@plugin('find', canonical='find')
+def find_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
+    """
+    find - Finds volunteers with the specified skill(s).
+    Usage: "@bot find <skill1> <skill2> ..."
+    """
+    skills = [s.strip().lower() for s in args.split() if s.strip()]
+    if not skills:
+        return "Usage: @bot find <skill1> <skill2> ..."
+    
+    from core.database import get_all_volunteers
+    volunteers = get_all_volunteers()
+    matching_volunteers = []
+    for phone, data in volunteers.items():
+        volunteer_skills = [s.lower() for s in data.get("skills", [])]
+        if all(skill in volunteer_skills for skill in skills):
+            matching_volunteers.append(data.get("name", phone))
+    if matching_volunteers:
+        return "Volunteers with specified skills: " + ", ".join(matching_volunteers)
+    else:
+        return "No volunteers found with the specified skills."
+
+@plugin('add skills', canonical='add skills')
+def add_skills_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
+    """
+    add skills - Adds skills to your profile.
+    Usage: "@bot add skills <skill1>, <skill2>, ..."
+    """
+    skills = [s.strip() for s in args.split(",") if s.strip()]
+    if not skills:
+        return "Usage: @bot add skills <skill1>, <skill2>, ..."
+    record = get_volunteer_record(sender)
+    if not record:
+        return "You are not registered. Please register first."
+    # Use the sign-up function to update the volunteer's skills without changing the name.
+    return VOLUNTEER_MANAGER.sign_up(sender, "skip", skills)
 
 # End of plugins/commands/volunteer.py

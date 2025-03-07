@@ -1,6 +1,7 @@
 """
 core/signal_client.py - Encapsulates functions to interact with signal-cli for sending and receiving messages.
 Now uses the --message-from-stdin flag to send multi-line messages via STDIN.
+Includes graceful handling of timeouts during message receiving.
 """
 
 import asyncio
@@ -26,7 +27,7 @@ async def send_message(
     
     For group chats, includes direct reply quoting if available.
     For individual chats, sends without quoting.
-    Uses the new --message-from-stdin flag to pass multi-line message content via STDIN.
+    Uses the new --message-from-stdin flag to pass message content via STDIN.
     """
     if group_id:
         args = ['send', '-g', group_id]
@@ -49,15 +50,24 @@ async def send_message(
     else:
         logger.info(f"Sent to {to_number}: {message} (individual chat)")
     await async_run_signal_cli(args, stdin_input=message)
+    
+    # Increment message count after successful send.
+    from core.metrics import increment_message_count
+    increment_message_count()
 
 async def receive_messages() -> List[str]:
     """
     Asynchronously retrieve incoming messages using signal-cli.
+    Gracefully handles timeouts by logging the error and returning an empty list.
     
     Returns:
         List[str]: A list of raw message strings.
     """
-    output = await async_run_signal_cli(['receive'])
+    try:
+        output = await async_run_signal_cli(['receive'], stdin_input=None)
+    except SignalCLIError as e:
+        logger.error(f"Error receiving messages: {e}")
+        return []
     if output:
         messages = re.split(r'\n(?=Envelope)', output.strip())
         return messages

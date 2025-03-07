@@ -1,13 +1,14 @@
 """
 main.py - Main entry point for the Signal bot.
-Initializes logging and the database, then starts the SignalBotService.
+Initializes logging, metrics, and the database, then starts the SignalBotService.
 Optionally runs the test suite if the --test flag is provided.
 """
 
 import sys
 import asyncio
 import core.logging_config  # Initialize logging configuration
-import core.database      # Import the database module
+import core.database        # Import the database module
+import core.metrics         # Initialize metrics tracking (starts timer)
 import logging
 from core.signal_bot_service import SignalBotService
 
