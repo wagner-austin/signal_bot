@@ -2,14 +2,27 @@
 core/database/volunteers.py - Volunteer-related database operations.
 Provides functions to manage volunteer records, including adding, updating, retrieving, and deleting volunteers,
 using a general-purpose SQL execution helper to reduce duplication.
+Also includes utility functions for converting skills lists to comma-separated strings and vice versa.
 """
 
 from typing import Dict, Any, Optional, List
 from .helpers import execute_sql
 
-def parse_skills(skills_str: Optional[str]) -> List[str]:
+def serialize_skills(skills: List[str]) -> str:
     """
-    Parse a comma-separated skills string into a list of trimmed skill names.
+    serialize_skills - Converts a list of skills into a comma-separated string.
+    
+    Args:
+        skills (List[str]): The list of skills.
+        
+    Returns:
+        str: A comma-separated string of skills.
+    """
+    return ",".join(skills)
+
+def deserialize_skills(skills_str: Optional[str]) -> List[str]:
+    """
+    deserialize_skills - Converts a comma-separated skills string into a list of trimmed skill names.
     
     Args:
         skills_str (Optional[str]): The string containing skills separated by commas.
@@ -20,6 +33,9 @@ def parse_skills(skills_str: Optional[str]) -> List[str]:
     if not skills_str:
         return []
     return [skill.strip() for skill in skills_str.split(",") if skill.strip()]
+
+# For backwards compatibility
+parse_skills = deserialize_skills
 
 def get_all_volunteers() -> Dict[str, Dict[str, Any]]:
     """
@@ -33,7 +49,7 @@ def get_all_volunteers() -> Dict[str, Dict[str, Any]]:
     for row in rows:
         volunteers[row["phone"]] = {
             "name": row["name"],
-            "skills": parse_skills(row["skills"]),
+            "skills": deserialize_skills(row["skills"]),
             "available": bool(row["available"]),
             "current_role": row["current_role"]
         }
@@ -53,7 +69,7 @@ def get_volunteer_record(phone: str) -> Optional[Dict[str, Any]]:
     if row:
         return {
             "name": row["name"],
-            "skills": parse_skills(row["skills"]),
+            "skills": deserialize_skills(row["skills"]),
             "available": bool(row["available"]),
             "current_role": row["current_role"]
         }
@@ -70,7 +86,7 @@ def add_volunteer_record(phone: str, display_name: str, skills: list, available:
         available (bool): Availability status.
         current_role (Optional[str]): Current assigned role.
     """
-    skills_str = ",".join(skills)
+    skills_str = serialize_skills(skills)
     execute_sql(
         "INSERT OR REPLACE INTO Volunteers (phone, name, skills, available, current_role) VALUES (?, ?, ?, ?, ?)",
         (phone, display_name, skills_str, int(available), current_role),
@@ -88,7 +104,7 @@ def update_volunteer_record(phone: str, display_name: str, skills: list, availab
         available (bool): Availability status.
         current_role (Optional[str]): Current assigned role.
     """
-    skills_str = ",".join(skills)
+    skills_str = serialize_skills(skills)
     execute_sql(
         """
         UPDATE Volunteers 
@@ -119,7 +135,7 @@ def add_deleted_volunteer_record(phone: str, name: str, skills: list, available:
         available (bool): Availability status.
         current_role (Optional[str]): Current assigned role.
     """
-    skills_str = ",".join(skills)
+    skills_str = serialize_skills(skills)
     execute_sql(
         "INSERT OR REPLACE INTO DeletedVolunteers (phone, name, skills, available, current_role) VALUES (?, ?, ?, ?, ?)",
         (phone, name, skills_str, int(available), current_role),
