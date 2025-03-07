@@ -146,7 +146,7 @@ def handle_message(parsed: ParsedMessage, sender: str, state_machine: BotStateMa
         plugin_func = get_plugin(command)
         if not plugin_func:
             available_commands = list(get_all_plugins().keys())
-            matches = difflib.get_close_matches(command, available_commands, n=1, cutoff=0.8)
+            matches = difflib.get_close_matches(command, available_commands, n=1, cutoff=0.75)
             if matches:
                 plugin_func = get_plugin(matches[0])
                 logger.info(f"Fuzzy matching: '{command}' interpreted as '{matches[0]}'")
