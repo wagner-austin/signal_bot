@@ -1,22 +1,20 @@
 """
-plugins/manager.py - Unified plugin manager.
-Handles registration, loading, and reloading of plugins.
-Supports registering multiple aliases in one decorator.
-Uses pkgutil.iter_modules to discover plugins within the package.
+plugins/manager.py - Unified plugin manager for registering and loading plugins.
+Handles registration, loading, and reloading of plugins by explicitly importing all submodules
+under the plugins.commands package to ensure plugin decorators are executed.
 """
 
 import sys
 import importlib
 import pkgutil
 from typing import Callable, Any, Optional, Dict, List, Union
-from types import ModuleType
 
 # Registry to hold command plugins.
 plugin_registry: Dict[str, Callable[..., Any]] = {}
 
 def plugin(commands: Union[str, List[str]]) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """
-    Decorator to register a function as a command plugin with one or more aliases.
+    plugin - Decorator to register a function as a command plugin with one or more aliases.
     
     Args:
         commands (Union[str, List[str]]): A command name or a list of command aliases.
@@ -24,23 +22,23 @@ def plugin(commands: Union[str, List[str]]) -> Callable[[Callable[..., Any]], Ca
     Returns:
         Callable: A decorator that registers the plugin function.
         
-    Raises:
-        ValueError: If a plugin for any of the given commands is already registered.
+    Note:
+        Instead of raising an error for duplicate registrations, the new registration
+        overrides any existing one. This facilitates module reloading.
     """
     if isinstance(commands, str):
         commands = [commands]
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         for command in commands:
             key = command.lower()
-            if key in plugin_registry:
-                raise ValueError(f"Duplicate registration for '{command}'")
+            # Override any existing registration to support reloads.
             plugin_registry[key] = func
         return func
     return decorator
 
 def get_plugin(command: str) -> Optional[Callable[..., Any]]:
     """
-    Retrieve a plugin function by command.
+    get_plugin - Retrieve a plugin function by command.
     
     Args:
         command (str): The command name.
@@ -52,7 +50,7 @@ def get_plugin(command: str) -> Optional[Callable[..., Any]]:
 
 def get_all_plugins() -> Dict[str, Callable[..., Any]]:
     """
-    Return all registered plugins.
+    get_all_plugins - Return all registered plugins.
     
     Returns:
         Dict[str, Callable]: Dictionary containing all registered plugins.
@@ -61,43 +59,36 @@ def get_all_plugins() -> Dict[str, Callable[..., Any]]:
 
 def clear_plugins() -> None:
     """
-    Clear all registered plugins to facilitate dynamic reloading.
+    clear_plugins - Clear all registered plugins to facilitate dynamic reloading.
     """
     plugin_registry.clear()
 
-def _load_plugins_from_pkg(reload: bool = False) -> None:
-    """
-    Helper function to load or reload all plugin modules from the plugins package using pkgutil.iter_modules.
-    
-    Args:
-        reload (bool): If True, reloads modules already imported; otherwise, imports modules.
-    """
-    import plugins  # Ensure the plugins package is imported.
-    for finder, name, ispkg in pkgutil.iter_modules(plugins.__path__):
-        module_name = f"plugins.{name}"
-        if reload and module_name in sys.modules:
-            importlib.reload(sys.modules[module_name])
-        else:
-            importlib.import_module(module_name)
-
 def load_plugins() -> None:
     """
-    Automatically import all plugin modules in the 'plugins' package.
+    load_plugins - Automatically import (or reload) all plugin modules in the 'plugins.commands'
+    package to register all plugins.
     
     Returns:
         None
     """
-    _load_plugins_from_pkg(reload=False)
+    import plugins.commands  # Ensure the package is imported.
+    # Collect module names from plugins.commands submodules, deduplicated.
+    module_names = {module_info.name for module_info in pkgutil.walk_packages(plugins.commands.__path__, plugins.commands.__name__ + ".")}
+    for module_name in module_names:
+        if module_name in sys.modules:
+            importlib.reload(sys.modules[module_name])
+        else:
+            importlib.import_module(module_name)
 
 def reload_plugins() -> None:
     """
-    Reload all plugin modules dynamically by clearing the plugin registry
+    reload_plugins - Reload all plugin modules dynamically by clearing the plugin registry
     and re-importing all plugin modules.
     
     Returns:
         None
     """
     clear_plugins()
-    _load_plugins_from_pkg(reload=True)
+    load_plugins()
 
 # End of plugins/manager.py
