@@ -1,26 +1,18 @@
+#!/usr/bin/env python
 """
-core/database/logs.py - Command logs database operations.
-Provides functions to log command executions using the general-purpose SQL helper to reduce duplication.
+core/database/logs.py - Command logs database operations using repository pattern.
+Provides functions to log command executions.
 """
 
-from .helpers import execute_sql
+from core.database.repository import CommandLogRepository
 
 def log_command(sender: str, command: str, args: str) -> None:
-    """
-    Log a command execution to the database.
-    
-    Args:
-        sender (str): The sender's identifier.
-        command (str): The command executed.
-        args (str): The arguments passed.
-    """
-    execute_sql(
-        """
-        INSERT INTO CommandLogs (sender, command, args)
-        VALUES (?, ?, ?)
-        """,
-        (sender, command, args),
-        commit=True
-    )
+    repo = CommandLogRepository()
+    data = {
+        "sender": sender,
+        "command": command,
+        "args": args
+    }
+    repo.create(data)
 
 # End of core/database/logs.py

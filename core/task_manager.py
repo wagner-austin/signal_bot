@@ -1,44 +1,24 @@
 #!/usr/bin/env python
 """
-core/task_manager.py - Task Manager for shared to-do items.
+core/task_manager.py - Task Manager for shared to-do items using repository pattern.
 Provides functions to add, list, assign, and close tasks.
 """
 
 from typing import List, Dict, Optional
+from core.database.repository import TaskRepository
 from core.database.helpers import execute_sql
 from core.database.connection import get_connection
-from managers.volunteer.volunteer_common import normalize_name  # Import normalization for consistent volunteer display
+from managers.volunteer.volunteer_common import normalize_name
 
 def add_task(created_by: str, description: str) -> int:
-    """
-    add_task - Add a new task to the Tasks table.
-    
-    Args:
-        created_by (str): The phone number of the volunteer creating the task.
-        description (str): The task description.
-        
-    Returns:
-        int: The task_id of the newly created task.
-    """
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute(
-        "INSERT INTO Tasks (description, created_by) VALUES (?, ?)",
-        (description, created_by)
-    )
-    conn.commit()
-    task_id = cursor.lastrowid
-    conn.close()
-    return task_id
+    repo = TaskRepository()
+    data = {
+        "description": description,
+        "created_by": created_by
+    }
+    return repo.create(data)
 
 def list_tasks() -> List[Dict]:
-    """
-    list_tasks - List all tasks with joined volunteer display names for created_by and assigned_to.
-    
-    Returns:
-        List[Dict]: A list of tasks with keys: task_id, description, status, created_at,
-                    created_by_name, assigned_to_name.
-    """
     query = """
     SELECT t.task_id, t.description, t.status, t.created_at,
            t.created_by,
@@ -67,17 +47,6 @@ def list_tasks() -> List[Dict]:
     return tasks
 
 def assign_task(task_id: int, volunteer_display_name: str) -> Optional[str]:
-    """
-    assign_task - Assign a task to a volunteer by display name.
-    Performs a case-insensitive search in the Volunteers table.
-    
-    Args:
-        task_id (int): The ID of the task to assign.
-        volunteer_display_name (str): The display name of the volunteer to assign.
-        
-    Returns:
-        Optional[str]: An error message if assignment fails, otherwise None.
-    """
     query = "SELECT phone FROM Volunteers WHERE lower(name)=? LIMIT 1"
     result = execute_sql(query, (volunteer_display_name.lower(),), fetchone=True)
     if not result:
@@ -88,15 +57,6 @@ def assign_task(task_id: int, volunteer_display_name: str) -> Optional[str]:
     return None
 
 def close_task(task_id: int) -> bool:
-    """
-    close_task - Close a task by updating its status to 'closed'.
-    
-    Args:
-        task_id (int): The ID of the task to close.
-        
-    Returns:
-        bool: True if the task was updated, False otherwise.
-    """
     update_query = "UPDATE Tasks SET status = 'closed' WHERE task_id = ?"
     execute_sql(update_query, (task_id,), commit=True)
     return True
