@@ -1,20 +1,22 @@
 #!/usr/bin/env python
 """
-test_config.py - Tests for core/config.py.
-Verifies environment variables for BOT_NUMBER and SIGNAL_CLI_COMMAND, ensuring default values
-are used when unset and that overrides are applied when set. Also checks backup interval and retention.
+tests/core/test_config.py - Tests for core/config.py.
+Verifies environment variables for BOT_NUMBER, SIGNAL_CLI_COMMAND, backup intervals,
+retention counts, and also checks behavior when .env is missing or values are invalid.
 """
 
 import os
 import importlib
 import pytest
-import core.config as config
+import logging
 from unittest.mock import patch
+import core.config as config
 
 @pytest.mark.usefixtures("clear_database_tables")  # If needed in your environment
 class TestCoreConfig:
     """
-    TestCoreConfig - Grouped tests for verifying environment variable fallback and overrides.
+    TestCoreConfig - Grouped tests for verifying environment variable fallback, overrides,
+    invalid numeric values, and missing .env file scenarios.
     """
 
     @patch.dict(os.environ, {}, clear=True)
@@ -80,5 +82,47 @@ class TestCoreConfig:
         assert config.BACKUP_INTERVAL > 0
         assert isinstance(config.BACKUP_RETENTION_COUNT, int)
         assert config.BACKUP_RETENTION_COUNT > 0
+
+    @patch.dict(os.environ, {"BACKUP_INTERVAL": "notanumber"}, clear=True)
+    def test_backup_interval_invalid_value(self, caplog):
+        """
+        Test that an invalid BACKUP_INTERVAL logs a warning and uses default (3600).
+        """
+        caplog.set_level(logging.WARNING)
+        importlib.reload(config)
+        assert any("Invalid integer value for BACKUP_INTERVAL" in rec.message for rec in caplog.records), \
+            "Should log a warning for invalid BACKUP_INTERVAL"
+        assert config.BACKUP_INTERVAL == 3600
+
+    @patch.dict(os.environ, {"BACKUP_RETENTION_COUNT": "abc"}, clear=True)
+    def test_backup_retention_count_invalid_value(self, caplog):
+        """
+        Test that an invalid BACKUP_RETENTION_COUNT logs a warning and uses default (5).
+        """
+        caplog.set_level(logging.WARNING)
+        importlib.reload(config)
+        assert any("Invalid integer value for BACKUP_RETENTION_COUNT" in rec.message for rec in caplog.records), \
+            "Should log a warning for invalid BACKUP_RETENTION_COUNT"
+        assert config.BACKUP_RETENTION_COUNT == 5
+
+    # ADDED patch.dict BELOW for clearing environment so BOT_NUMBER is NOT set at OS level
+    @patch.dict(os.environ, {}, clear=True)
+    @patch("os.path.exists", return_value=False)
+    @patch("dotenv.load_dotenv")
+    def test_missing_env_file(self, mock_load_dotenv, mock_path_exists, caplog):
+        """
+        Test that if .env file is missing, an info log is written and environment is still loaded from OS or defaults,
+        specifically we expect BOT_NUMBER to remain 'YOUR_SIGNAL_NUMBER' if the OS-level variable is not set.
+        """
+        caplog.set_level(logging.INFO)
+        importlib.reload(config)
+        # load_dotenv should NOT be called, because we patched exists() to False.
+        mock_load_dotenv.assert_not_called()
+        assert any("No .env found" in rec.message for rec in caplog.records), \
+            "Should log an info message about missing .env file"
+        # Confirm defaults remain consistent
+        assert config.BOT_NUMBER == "YOUR_SIGNAL_NUMBER"
+        assert config.BACKUP_INTERVAL == 3600
+        assert config.BACKUP_RETENTION_COUNT == 10
 
 # End of tests/core/test_config.py
