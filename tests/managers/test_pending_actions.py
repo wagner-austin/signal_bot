@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 """
-tests/managers/test_pending_actions.py - Tests for the PendingActions class.
-Ensures that pending registration and deletion states are properly managed,
-including concurrent access using thread pools to simulate multiple threads.
+test_pending_actions.py - Tests for the PendingActions class.
+Ensures that pending registration, deletion, and event creation states
+are properly managed, including concurrent access using thread pools.
 """
 
 import pytest
@@ -61,6 +61,20 @@ def test_clear_deletion(pending_actions):
     # Confirm the state is cleared
     assert not pending_actions.has_deletion(sender)
     assert pending_actions.get_deletion(sender) is None
+
+def test_set_and_get_event_creation(pending_actions):
+    sender = "+1234567899"
+    # Initially, no event creation is pending
+    assert not pending_actions.has_event_creation(sender)
+    pending_actions.set_event_creation(sender)
+    assert pending_actions.has_event_creation(sender)
+
+def test_clear_event_creation(pending_actions):
+    sender = "+1111111111"
+    pending_actions.set_event_creation(sender)
+    assert pending_actions.has_event_creation(sender)
+    pending_actions.clear_event_creation(sender)
+    assert not pending_actions.has_event_creation(sender)
 
 # --- Concurrent Tests for Thread Safety ---
 
@@ -123,5 +137,41 @@ def test_concurrent_clear_deletion(pending_actions):
     for result in results:
         assert result is False
     assert pending_actions.get_deletion(sender) is None
+
+def concurrent_set_event_creation(pending_actions, sender):
+    pending_actions.set_event_creation(sender)
+    return pending_actions.has_event_creation(sender)
+
+def test_concurrent_event_creation_set(pending_actions):
+    """
+    Test concurrency for setting event creation states.
+    """
+    sender = "+5555555555"
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+        futures = [executor.submit(concurrent_set_event_creation, pending_actions, sender) for _ in range(4)]
+        results = [future.result() for future in concurrent.futures.as_completed(futures)]
+    # All results should be True after setting event creation.
+    for res in results:
+        assert res is True
+    assert pending_actions.has_event_creation(sender)
+
+def concurrent_clear_event_creation(pending_actions, sender):
+    pending_actions.clear_event_creation(sender)
+    return pending_actions.has_event_creation(sender)
+
+def test_concurrent_event_creation_clear(pending_actions):
+    """
+    Test concurrency for clearing event creation states.
+    """
+    sender = "+5555555556"
+    pending_actions.set_event_creation(sender)
+    assert pending_actions.has_event_creation(sender)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+        futures = [executor.submit(concurrent_clear_event_creation, pending_actions, sender) for _ in range(4)]
+        results = [future.result() for future in concurrent.futures.as_completed(futures)]
+    # All results should be False after clearing event creation.
+    for res in results:
+        assert res is False
+    assert not pending_actions.has_event_creation(sender)
 
 # End of tests/managers/test_pending_actions.py
