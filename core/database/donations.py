@@ -5,7 +5,7 @@ Provides functions for adding donation records to the Donations table.
 """
 
 from .helpers import execute_sql
-from .connection import get_connection
+from .connection import db_connection
 
 def add_donation(phone: str, amount: float, donation_type: str, description: str) -> int:
     """
@@ -20,15 +20,14 @@ def add_donation(phone: str, amount: float, donation_type: str, description: str
     Returns:
         int: The ID of the newly added donation record.
     """
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute(
-        "INSERT INTO Donations (phone, amount, donation_type, description) VALUES (?, ?, ?, ?)",
-        (phone, amount, donation_type, description)
-    )
-    conn.commit()
-    donation_id = cursor.lastrowid
-    conn.close()
+    with db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO Donations (phone, amount, donation_type, description) VALUES (?, ?, ?, ?)",
+            (phone, amount, donation_type, description)
+        )
+        conn.commit()
+        donation_id = cursor.lastrowid
     return donation_id
 
 # End of core/database/donations.py

@@ -1,10 +1,11 @@
+#!/usr/bin/env python
 """
 core/database/resources.py - Database operations for resource links.
 Provides functions to add, list, and remove resource records.
 """
 
 from .helpers import execute_sql
-from .connection import get_connection
+from .connection import db_connection
 
 def add_resource(category: str, url: str, title: str = "") -> int:
     """
@@ -16,14 +17,13 @@ def add_resource(category: str, url: str, title: str = "") -> int:
         title (str, optional): The title or description of the resource.
         
     Returns:
-        int: The ID of the newly added resource, or -1 if insertion failed.
+        int: The ID of the newly added resource.
     """
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("INSERT INTO Resources (category, title, url) VALUES (?, ?, ?)", (category, title, url))
-    conn.commit()
-    resource_id = cursor.lastrowid
-    conn.close()
+    with db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("INSERT INTO Resources (category, title, url) VALUES (?, ?, ?)", (category, title, url))
+        conn.commit()
+        resource_id = cursor.lastrowid
     return resource_id
 
 def list_resources(category: str = None):
