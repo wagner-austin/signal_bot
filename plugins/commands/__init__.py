@@ -8,5 +8,6 @@ from .event import *
 from .volunteer import *
 from .help import *
 from .speaker import *
+from .resource import *
 
 # End of plugins/commands/__init__.py
