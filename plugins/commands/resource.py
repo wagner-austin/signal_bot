@@ -12,6 +12,7 @@ from typing import Optional
 from plugins.manager import plugin
 from core.state import BotStateMachine
 from core.database.resources import add_resource, list_resources, remove_resource
+from parsers.argument_parser import split_args
 
 @plugin('resource', canonical='resource')
 def resource_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
@@ -34,12 +35,12 @@ def resource_command(args: str, sender: str, state_machine: BotStateMachine, msg
                 "  @bot resource add <category> <url> [title?]\n"
                 "  @bot resource list [<category>]\n"
                 "  @bot resource remove <resource_id>")
-    parts = args.split(maxsplit=1)
+    parts = split_args(args, maxsplit=1)
     subcommand = parts[0].lower()
     rest = parts[1].strip() if len(parts) > 1 else ""
     
     if subcommand == "add":
-        tokens = rest.split(maxsplit=2)
+        tokens = split_args(rest, maxsplit=2)
         if len(tokens) < 2:
             return "Usage: @bot resource add <category> <url> [title?]"
         category = tokens[0]

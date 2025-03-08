@@ -13,6 +13,7 @@ from typing import Optional
 from plugins.manager import plugin
 from core.state import BotStateMachine
 from core.task_manager import add_task, list_tasks, assign_task, close_task
+from parsers.argument_parser import split_args
 
 @plugin('task', canonical='task')
 def task_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
@@ -39,7 +40,7 @@ def task_command(args: str, sender: str, state_machine: BotStateMachine, msg_tim
                 "  @bot task assign <task_id> <volunteer_display_name>\n"
                 "  @bot task close <task_id>")
     
-    parts = args.split(maxsplit=1)
+    parts = split_args(args, maxsplit=1)
     subcommand = parts[0].lower()
     rest = parts[1].strip() if len(parts) > 1 else ""
     
@@ -64,7 +65,7 @@ def task_command(args: str, sender: str, state_machine: BotStateMachine, msg_tim
     elif subcommand == "assign":
         if not rest:
             return "Usage: @bot task assign <task_id> <volunteer_display_name>"
-        assign_parts = rest.split(maxsplit=1)
+        assign_parts = split_args(rest, maxsplit=1)
         if len(assign_parts) < 2:
             return "Usage: @bot task assign <task_id> <volunteer_display_name>"
         try:

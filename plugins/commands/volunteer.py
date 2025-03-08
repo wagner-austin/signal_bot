@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """
 plugins/commands/volunteer.py - Volunteer-related command plugins.
 Includes commands such as volunteer status, check in, register, edit, delete, skills,
@@ -15,6 +16,7 @@ from core.messages import (
     REGISTRATION_PROMPT, ALREADY_REGISTERED, EDIT_PROMPT,
     DELETION_PROMPT, NEW_VOLUNTEER_REGISTERED
 )
+from parsers.argument_parser import split_args
 
 @plugin('volunteer status', canonical='volunteer status')
 def volunteer_status_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
@@ -112,7 +114,7 @@ def find_command(args: str, sender: str, state_machine: BotStateMachine, msg_tim
     find - Finds volunteers with the specified skill(s).
     Usage: "@bot find <skill1> <skill2> ..."
     """
-    skills = [s.strip().lower() for s in args.split() if s.strip()]
+    skills = [s.lower() for s in split_args(args)]
     if not skills:
         return "Usage: @bot find <skill1> <skill2> ..."
     
@@ -134,7 +136,7 @@ def add_skills_command(args: str, sender: str, state_machine: BotStateMachine, m
     add skills - Adds skills to your profile.
     Usage: "@bot add skills <skill1>, <skill2>, ..."
     """
-    skills = [s.strip() for s in args.split(",") if s.strip()]
+    skills = split_args(args, sep=",")
     if not skills:
         return "Usage: @bot add skills <skill1>, <skill2>, ..."
     record = get_volunteer_record(sender)

@@ -19,6 +19,7 @@ Usage examples:
 from typing import Optional
 from plugins.manager import plugin
 from core.state import BotStateMachine
+from parsers.argument_parser import parse_key_value_args, split_args
 
 @plugin('event', canonical='event')
 def event_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int]=None) -> str:
@@ -55,21 +56,16 @@ def plan_event_command(args: str, sender: str, state_machine: BotStateMachine, m
                 "Or reply with 'skip' to cancel event creation.")
     if args.strip().lower() in {"skip", "cancel"}:
         return "Event creation cancelled."
-    details = {}
     try:
-        parts = [part.strip() for part in args.split(",")]
-        for part in parts:
-            if ":" in part:
-                key, value = part.split(":", 1)
-                details[key.strip().lower()] = value.strip()
-        required = ["title", "date", "time", "location", "description"]
-        if not all(field in details for field in required):
-            return "Missing one or more required fields. Required fields: Title, Date, Time, Location, Description."
-        from core.event_manager import create_event
-        event_id = create_event(details["title"], details["date"], details["time"], details["location"], details["description"])
-        return f"Event '{details['title']}' created successfully with ID {event_id}."
-    except Exception as e:
-        return f"Error parsing event details: {str(e)}"
+        details = parse_key_value_args(args)
+    except ValueError as ve:
+        return f"Error parsing event details: {str(ve)}"
+    required = ["title", "date", "time", "location", "description"]
+    if not all(field in details for field in required):
+        return "Missing one or more required fields. Required fields: Title, Date, Time, Location, Description."
+    from core.event_manager import create_event
+    event_id = create_event(details["title"], details["date"], details["time"], details["location"], details["description"])
+    return f"Event '{details['title']}' created successfully with ID {event_id}."
 
 @plugin('edit event', canonical='edit event')
 def edit_event_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int]=None) -> str:
@@ -81,70 +77,61 @@ def edit_event_command(args: str, sender: str, state_machine: BotStateMachine, m
     """
     if not args.strip():
         return "Usage: @bot edit event EventID: <id>, <key>:<value>, [<key>:<value>, ...]"
-    details = {}
     try:
-        parts = [part.strip() for part in args.split(",")]
-        event_id = None
-        for part in parts:
-            if ":" in part:
-                key, value = part.split(":", 1)
-                key = key.strip().lower()
-                value = value.strip()
-                if key == "eventid":
-                    try:
-                        event_id = int(value)
-                    except ValueError:
-                        return "Invalid EventID provided."
-                else:
-                    details[key] = value
-        if event_id is None:
-            return "EventID is required for updating an event."
-        if not details:
-            return "No update fields provided."
-        from core.event_manager import update_event
-        update_event(event_id, **details)
-        return f"Event with ID {event_id} updated successfully."
-    except Exception as e:
-        return f"Error updating event: {str(e)}"
+        details = parse_key_value_args(args)
+    except ValueError as ve:
+        return f"Error parsing event details: {str(ve)}"
+    event_id = None
+    update_fields = {}
+    for key, value in details.items():
+        if key == "eventid":
+            try:
+                event_id = int(value)
+            except ValueError:
+                return "Invalid EventID provided."
+        else:
+            update_fields[key] = value
+    if event_id is None:
+        return "EventID is required for updating an event."
+    if not update_fields:
+        return "No update fields provided."
+    from core.event_manager import update_event
+    update_event(event_id, **update_fields)
+    return f"Event with ID {event_id} updated successfully."
 
 @plugin('remove event', canonical='remove event')
 def remove_event_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int]=None) -> str:
     """
     remove event - Deletes an existing event.
     
-    Usage: "@bot remove event EventID: <id>" or "@bot remove event Title: <event title>"
+    Usage: "@bot remove event EventID: <id> or Title: <event title>"
     """
     if not args.strip():
         return "Usage: @bot remove event EventID: <id> or Title: <event title>"
     try:
-        details = {}
-        parts = [part.strip() for part in args.split(",")]
-        for part in parts:
-            if ":" in part:
-                key, value = part.split(":", 1)
-                details[key.strip().lower()] = value.strip()
-        event_id = None
-        if "eventid" in details:
-            try:
-                event_id = int(details["eventid"])
-            except ValueError:
-                return "Invalid EventID provided."
-        elif "title" in details:
-            from core.event_manager import list_events
-            events = list_events()
-            for event in events:
-                if event.get("title", "").lower() == details["title"].lower():
-                    event_id = event.get("event_id")
-                    break
-            if event_id is None:
-                return f"No event found with title '{details['title']}'."
-        else:
-            return "Please provide either EventID or Title to remove an event."
-        from core.event_manager import delete_event
-        delete_event(event_id)
-        return f"Event with ID {event_id} removed successfully."
-    except Exception as e:
-        return f"Error removing event: {str(e)}"
+        details = parse_key_value_args(args)
+    except ValueError as ve:
+        return f"Error parsing event details: {str(ve)}"
+    event_id = None
+    if "eventid" in details:
+        try:
+            event_id = int(details["eventid"])
+        except ValueError:
+            return "Invalid EventID provided."
+    elif "title" in details:
+        from core.event_manager import list_events
+        events = list_events()
+        for event in events:
+            if event.get("title", "").lower() == details["title"].lower():
+                event_id = event.get("event_id")
+                break
+        if event_id is None:
+            return f"No event found with title '{details['title']}'."
+    else:
+        return "Please provide either EventID or Title to remove an event."
+    from core.event_manager import delete_event
+    delete_event(event_id)
+    return f"Event with ID {event_id} removed successfully."
 
 @plugin('speakers', canonical='speakers')
 def speakers_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int]=None) -> str:

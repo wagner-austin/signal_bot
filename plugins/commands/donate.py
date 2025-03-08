@@ -13,6 +13,7 @@ from typing import Optional
 from plugins.manager import plugin
 from core.state import BotStateMachine
 from core.database.donations import add_donation
+from parsers.argument_parser import split_args
 
 @plugin('donate', canonical='donate')
 def donate_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
@@ -35,7 +36,7 @@ def donate_command(args: str, sender: str, state_machine: BotStateMachine, msg_t
                 "  @bot donate <amount> <description>\n"
                 "  @bot donate in-kind <description>\n"
                 "  @bot donate register <method> [<description>]")
-    tokens = args.split()
+    tokens = split_args(args)  # using the centralized utility
     donation_type = "cash"
     amount = 0.0
     description = ""
