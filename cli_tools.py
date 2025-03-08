@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-cli_tools.py - Aggregated CLI Tools Facade.
+cli_tools.py --- Aggregated CLI Tools Facade
 Provides a unified command-line interface to perform various database operations.
 
 Usage Examples:
@@ -21,8 +21,36 @@ import argparse
 from cli.volunteers_cli import list_volunteers_cli, add_volunteer_cli, list_deleted_volunteers_cli
 from cli.events_cli import list_events_cli, list_event_speakers_cli
 from cli.logs_cli import list_logs_cli
-from cli.resources_cli import list_resources_cli, add_resource_cli, remove_resource_cli
+from cli.resources_cli import list_resources_cli, add_resource_cli as original_add_resource_cli, remove_resource_cli as original_remove_resource_cli
 from cli.tasks_cli import list_tasks_cli
+
+
+def add_resource_cli(args: argparse.Namespace):
+    """
+    add_resource_cli - Enhanced with a basic URL format validation.
+    """
+    category = args.category
+    url = args.url
+    title = args.title if args.title else ""
+    # Minimal validation: require the URL to start with 'http'
+    # This addresses negative edge cases (invalid or empty URLs).
+    if not url.startswith("http"):
+        print(f"Error: URL must start with 'http'. Provided: {url}")
+        return
+    # Delegate to the original function if valid
+    original_add_resource_cli(args)
+
+
+def remove_resource_cli(args: argparse.Namespace):
+    """
+    remove_resource_cli - Enhanced to check the resource ID is > 0.
+    """
+    resource_id = args.id
+    if resource_id <= 0:
+        print(f"Error: Resource ID must be a positive integer. Provided: {resource_id}")
+        return
+    # Delegate to the original function if valid
+    original_remove_resource_cli(args)
 
 
 def main():
@@ -72,7 +100,6 @@ def main():
     elif args.command == "add-volunteer":
         # Minor addition: handle invalid --available input gracefully
         try:
-            # In add_volunteer_cli we now catch the ValueError if parsing fails
             add_volunteer_cli(args)
         except ValueError as ve:
             print(f"Error parsing --available value: {ve}")
