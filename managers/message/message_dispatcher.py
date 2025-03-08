@@ -2,6 +2,7 @@
 """
 managers/message/message_dispatcher.py - Dispatches incoming messages to appropriate handlers or plugins.
 Contains the function to process a message and route it accordingly.
+Supports dependency injection for the logger.
 """
 
 import logging
@@ -14,26 +15,15 @@ if TYPE_CHECKING:
 from core.state import BotStateMachine
 from plugins.manager import get_plugin, get_all_plugins
 
-logger = logging.getLogger(__name__)
-
 def dispatch_message(parsed: "ParsedMessage", sender: str, state_machine: BotStateMachine,
                      pending_actions: any, volunteer_manager: any,
-                     msg_timestamp: Optional[int] = None) -> str:
+                     msg_timestamp: Optional[int] = None, logger: Optional[logging.Logger] = None) -> str:
     """
-    dispatch_message - Processes an incoming message by first handling pending actions
-    (for private chats) and then dispatching commands via registered plugins.
-
-    Parameters:
-        parsed (ParsedMessage): The parsed incoming message.
-        sender (str): Sender's phone number.
-        state_machine (BotStateMachine): The current state machine instance.
-        pending_actions (any): Global pending actions object.
-        volunteer_manager (any): Volunteer manager instance.
-        msg_timestamp (Optional[int]): Optional message timestamp.
-
-    Returns:
-        str: The response message.
+    dispatch_message - Processes an incoming message by handling pending actions and then dispatching commands via plugins.
+    Accepts an optional logger dependency.
     """
+    if logger is None:
+        logger = logging.getLogger(__name__)
     if parsed.group_id is None:
         from managers.message.pending_handlers import EventCreationPendingHandler, DeletionPendingHandler, RegistrationPendingHandler
         event_response = EventCreationPendingHandler(pending_actions).process_event_creation_response(parsed, sender)

@@ -2,6 +2,7 @@
 """
 core/signal_client.py - Encapsulates functions to interact with signal-cli.
 Uses MessageManager for processing incoming messages and sending responses.
+Supports dependency injection for the logger.
 """
 
 import asyncio
@@ -10,11 +11,7 @@ import logging
 from typing import List, Optional, Tuple
 from core.signal_cli_runner import async_run_signal_cli, SignalCLIError
 from parsers.message_parser import parse_message, ParsedMessage
-
-# Updated: Import the aggregated facade instead of the removed message_handler.
 from managers.message_manager import MessageManager
-
-logger = logging.getLogger(__name__)
 
 async def send_message(
     to_number: str,
@@ -22,22 +19,15 @@ async def send_message(
     group_id: Optional[str] = None,
     reply_quote_author: Optional[str] = None,
     reply_quote_timestamp: Optional[str] = None,
-    reply_quote_message: Optional[str] = None
+    reply_quote_message: Optional[str] = None,
+    logger: Optional[logging.Logger] = None
 ) -> None:
     """
-    Asynchronously send a message using signal-cli.
-    
-    Parameters:
-        to_number (str): Recipient number.
-        message (str): Message text.
-        group_id (Optional[str]): Group ID if applicable.
-        reply_quote_author (Optional[str]): Author of the quoted message.
-        reply_quote_timestamp (Optional[str]): Timestamp of the quoted message.
-        reply_quote_message (Optional[str]): The quoted message text.
-        
-    Returns:
-        None
+    send_message - Asynchronously send a message using signal-cli.
+    Accepts an optional logger dependency.
     """
+    if logger is None:
+        logger = logging.getLogger(__name__)
     if group_id:
         args = ['send', '-g', group_id]
     else:
@@ -61,13 +51,13 @@ async def send_message(
     from core.metrics import increment_message_count
     increment_message_count()
 
-async def receive_messages() -> List[str]:
+async def receive_messages(logger: Optional[logging.Logger] = None) -> List[str]:
     """
-    Asynchronously retrieve incoming messages using signal-cli.
-    
-    Returns:
-        List[str]: A list of raw message strings.
+    receive_messages - Asynchronously retrieve incoming messages using signal-cli.
+    Accepts an optional logger dependency.
     """
+    if logger is None:
+        logger = logging.getLogger(__name__)
     try:
         output = await async_run_signal_cli(['receive'], stdin_input=None)
     except SignalCLIError as e:
@@ -81,9 +71,7 @@ async def receive_messages() -> List[str]:
 def _get_quote_details(parsed: ParsedMessage) -> Tuple[Optional[str], str, str]:
     """
     Extract quoting details from a parsed message.
-
-    Returns:
-        Tuple[Optional[str], str, str]: quote_timestamp, quote_author, quote_message.
+    Returns a tuple of (quote_timestamp, quote_author, quote_message).
     """
     msg_timestamp = parsed.timestamp
     quote_timestamp = str(parsed.message_timestamp or msg_timestamp) if msg_timestamp else None
@@ -91,40 +79,36 @@ def _get_quote_details(parsed: ParsedMessage) -> Tuple[Optional[str], str, str]:
     quote_message = parsed.body
     return quote_timestamp, quote_author, quote_message
 
-async def _dispatch_message(response: str, parsed: ParsedMessage, quote_details: Tuple[Optional[str], str, str]) -> None:
+async def _dispatch_message(response: str, parsed: ParsedMessage, quote_details: Tuple[Optional[str], str, str], logger: Optional[logging.Logger] = None) -> None:
     """
     Dispatch the response message using send_message with quoting details.
-    
-    Parameters:
-        response (str): Response text.
-        parsed (ParsedMessage): Parsed original message.
-        quote_details (Tuple[Optional[str], str, str]): Quoting details.
-        
-    Returns:
-        None
+    Accepts an optional logger dependency.
     """
+    if logger is None:
+        logger = logging.getLogger(__name__)
     await send_message(
         parsed.sender,
         response,
         group_id=parsed.group_id,
         reply_quote_author=quote_details[1],
         reply_quote_timestamp=quote_details[0],
-        reply_quote_message=quote_details[2]
+        reply_quote_message=quote_details[2],
+        logger=logger
     )
 
-async def process_incoming(state_machine) -> int:
+async def process_incoming(state_machine, logger: Optional[logging.Logger] = None) -> int:
     """
-    Process incoming messages, dispatch commands, and send responses.
-    
-    Returns:
-        int: Number of processed messages.
+    process_incoming - Process incoming messages, dispatch commands, and send responses.
+    Accepts an optional logger dependency.
+    Returns the number of processed messages.
     """
+    if logger is None:
+        logger = logging.getLogger(__name__)
     from managers.pending_actions import PENDING_ACTIONS
     from managers.volunteer_manager import VOLUNTEER_MANAGER
 
-    messages = await receive_messages()
+    messages = await receive_messages(logger=logger)
     processed_count = 0
-    # Instantiate the aggregated MessageManager
     message_manager = MessageManager(state_machine)
     for message in messages:
         logger.info(f"Processing message:\n{message}\n")
@@ -137,7 +121,7 @@ async def process_incoming(state_machine) -> int:
         if asyncio.iscoroutine(response):
             response = await response
         if response:
-            await _dispatch_message(response, parsed, quote_details)
+            await _dispatch_message(response, parsed, quote_details, logger=logger)
     return processed_count
 
 # End of core/signal_client.py
