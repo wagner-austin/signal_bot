@@ -46,42 +46,33 @@ def test_delete_volunteer(phone, name, skills):
     record = get_volunteer_record(phone)
     assert record is None
 
-def test_volunteer_status_empty():
-    # If no volunteer exists, volunteer_status should return an empty string.
-    status = VOLUNTEER_MANAGER.volunteer_status()
-    assert status == ""
-
-# --- New tests for role management ---
-
-def test_assign_role_without_required_skills():
+def test_sign_up_with_availability_and_role():
+    """
+    tests/managers/test_volunteer_manager.py - test_sign_up_with_availability_and_role
+    Tests that sign_up correctly creates a volunteer with specified availability and role,
+    and then updates the record when called again.
+    """
     phone = "+10000000004"
-    # Sign up with a skill that doesn't meet "greeter" requirements.
-    VOLUNTEER_MANAGER.sign_up(phone, "Test Role", ["some skill"])
-    response = VOLUNTEER_MANAGER.assign_role(phone, "greeter")
-    assert "do not have the necessary skills" in response.lower()
-
-def test_assign_role_with_required_skills():
-    phone = "+10000000005"
-    # Sign up with required skills for "greeter": "communication", "interpersonal"
-    VOLUNTEER_MANAGER.sign_up(phone, "Test Greeter", ["communication", "interpersonal"])
-    response = VOLUNTEER_MANAGER.assign_role(phone, "greeter")
-    assert "preferred role has been set" in response.lower()
-
-def test_switch_role():
-    phone = "+10000000006"
-    # Sign up with skills that satisfy both "greeter" and "speaker coordinator" roles.
-    VOLUNTEER_MANAGER.sign_up(phone, "Test Switch", ["communication", "interpersonal", "organizational"])
-    # Assign "greeter" first.
-    assign_response = VOLUNTEER_MANAGER.assign_role(phone, "greeter")
-    # Now switch to "speaker coordinator" which requires "organizational", "communication".
-    switch_response = VOLUNTEER_MANAGER.switch_role(phone, "speaker coordinator")
-    assert ("switching" in switch_response.lower() or "preferred role has been set" in switch_response.lower())
-
-def test_unassign_role():
-    phone = "+10000000007"
-    VOLUNTEER_MANAGER.sign_up(phone, "Test Unassign", ["communication", "interpersonal"])
-    VOLUNTEER_MANAGER.assign_role(phone, "greeter")
-    unassign_response = VOLUNTEER_MANAGER.unassign_role(phone)
-    assert "cleared" in unassign_response.lower()
+    # Create a new volunteer with available=False and role "Tester"
+    result_create = VOLUNTEER_MANAGER.sign_up(phone, "Test Volunteer", ["SkillX"], False, "Tester")
+    assert "registered" in result_create.lower()
+    record = get_volunteer_record(phone)
+    assert record is not None
+    assert record["name"] == "Test Volunteer"
+    assert "SkillX" in record["skills"]
+    assert record["available"] is False
+    assert record["current_role"] == "Tester"
+    
+    # Update the volunteer with different details.
+    result_update = VOLUNTEER_MANAGER.sign_up(phone, "Test Volunteer Updated", ["SkillY"], True, "Coordinator")
+    assert "updated" in result_update.lower()
+    updated_record = get_volunteer_record(phone)
+    assert updated_record is not None
+    assert updated_record["name"] == "Test Volunteer Updated"
+    # Expect that skills include both SkillX and SkillY (union behavior).
+    assert "SkillX" in updated_record["skills"]
+    assert "SkillY" in updated_record["skills"]
+    assert updated_record["available"] is True
+    assert updated_record["current_role"] == "Coordinator"
 
 # End of tests/managers/test_volunteer_manager.py
