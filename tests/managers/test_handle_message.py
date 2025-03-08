@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """
 tests/managers/test_handle_message.py - Tests for the handle_message function.
 Verifies that fuzzy matching correctly handles near-miss command inputs.
@@ -23,23 +24,7 @@ def make_parsed_message(body: str, sender: str = "+1234567890", group_id=None) -
         args=""
     )
 
-def dummy_test_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp=None) -> str:
-    """dummy test command – returns 'yes'."""
-    return "yes"
-
-@pytest.fixture(autouse=True)
-def register_dummy_plugin(monkeypatch):
-    # Inject a dummy plugin for fuzzy matching tests in the new format.
-    from plugins.manager import plugin_registry
-    plugin_registry["test"] = {
-        "function": dummy_test_command,
-        "aliases": ["test"],
-        "help_visible": True
-    }
-    yield
-    plugin_registry.pop("test", None)
-
-def test_handle_message_fuzzy_matching():
+def test_handle_message_fuzzy_matching(dummy_plugin):
     # Provide an input command with a small typo ("tset") that should fuzzy-match to "test".
     parsed = make_parsed_message("irrelevant body content", sender="+111")
     state_machine = BotStateMachine()
