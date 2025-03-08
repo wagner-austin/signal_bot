@@ -7,6 +7,7 @@ Uses a dedicated formatter to present resource records.
 import argparse
 from core.database.resources import add_resource, list_resources, remove_resource
 from cli.formatters import format_resource
+from cli.common import print_results
 
 def list_resources_cli():
     """
@@ -14,12 +15,7 @@ def list_resources_cli():
     Retrieves resource data and prints formatted output.
     """
     resources = list_resources()
-    if not resources:
-        print("No resources found.")
-        return
-    for res in resources:
-        output = format_resource(res)
-        print(output)
+    print_results(resources, format_resource, "No resources found.")
 
 def add_resource_cli(args: argparse.Namespace):
     """

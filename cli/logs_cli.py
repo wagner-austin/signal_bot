@@ -6,6 +6,7 @@ Retrieves log data from the business logic and uses a formatter for presentation
 
 from core.database.helpers import execute_sql
 from cli.formatters import format_log
+from cli.common import print_results
 
 def list_logs_cli():
     """
@@ -14,11 +15,6 @@ def list_logs_cli():
     """
     query = "SELECT * FROM CommandLogs ORDER BY timestamp DESC"
     rows = execute_sql(query, fetchall=True)
-    if not rows:
-        print("No command logs found.")
-        return
-    for row in rows:
-        output = format_log(row)
-        print(output)
+    print_results(rows, format_log, "No command logs found.")
 
 # End of cli/logs_cli.py

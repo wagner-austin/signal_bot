@@ -6,6 +6,7 @@ Retrieves task data using business logic and uses a dedicated formatter to prese
 
 from core.task_manager import list_tasks
 from cli.formatters import format_task
+from cli.common import print_results
 
 def list_tasks_cli():
     """
@@ -13,11 +14,6 @@ def list_tasks_cli():
     Uses a formatter to display tasks consistently.
     """
     tasks = list_tasks()
-    if not tasks:
-        print("No tasks found.")
-        return
-    for task in tasks:
-        output = format_task(task)
-        print(output)
+    print_results(tasks, format_task, "No tasks found.")
 
 # End of cli/tasks_cli.py

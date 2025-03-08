@@ -9,6 +9,7 @@ from core.database.volunteers import add_volunteer_record, get_all_volunteers
 from core.database.helpers import execute_sql
 from managers.volunteer.volunteer_common import normalize_name
 from cli.formatters import format_volunteer, format_deleted_volunteer
+from cli.common import print_results
 
 def list_volunteers_cli():
     """
@@ -20,8 +21,7 @@ def list_volunteers_cli():
         print("No volunteers found.")
         return
     for phone, data in volunteers.items():
-        output = format_volunteer(phone, data)
-        print(output)
+        print(format_volunteer(phone, data))
 
 def add_volunteer_cli(args: argparse.Namespace):
     """
@@ -43,11 +43,6 @@ def list_deleted_volunteers_cli():
     """
     query = "SELECT * FROM DeletedVolunteers ORDER BY deleted_at DESC"
     rows = execute_sql(query, fetchall=True)
-    if not rows:
-        print("No deleted volunteers found.")
-        return
-    for row in rows:
-        output = format_deleted_volunteer(row)
-        print(output)
+    print_results(rows, format_deleted_volunteer, "No deleted volunteers found.")
 
 # End of cli/volunteers_cli.py

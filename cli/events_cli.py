@@ -6,6 +6,7 @@ Provides functions to list events and list event speakers using a dedicated form
 
 from core.database.helpers import execute_sql
 from cli.formatters import format_event, format_event_speaker
+from cli.common import print_results
 
 def list_events_cli():
     """
@@ -14,12 +15,7 @@ def list_events_cli():
     """
     query = "SELECT * FROM Events ORDER BY created_at DESC"
     rows = execute_sql(query, fetchall=True)
-    if not rows:
-        print("No events found.")
-        return
-    for row in rows:
-        output = format_event(row)
-        print(output)
+    print_results(rows, format_event, "No events found.")
 
 def list_event_speakers_cli():
     """
@@ -28,11 +24,6 @@ def list_event_speakers_cli():
     """
     query = "SELECT * FROM EventSpeakers ORDER BY created_at DESC"
     rows = execute_sql(query, fetchall=True)
-    if not rows:
-        print("No event speakers found.")
-        return
-    for row in rows:
-        output = format_event_speaker(row)
-        print(output)
+    print_results(rows, format_event_speaker, "No event speakers found.")
 
 # End of cli/events_cli.py
