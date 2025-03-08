@@ -1,7 +1,8 @@
+#!/usr/bin/env python
 """
-tests/conftest.py – Pytest configuration, fixtures, and common setup.
+tests/conftest.py - Pytest configuration, fixtures, and common setup.
 Overrides DB_NAME for test isolation and provides a fixture to clear key database tables.
-Ensures that Volunteers, DeletedVolunteers, Resources, Events, EventSpeakers, and Tasks tables are emptied before and after tests.
+Ensures that Volunteers, DeletedVolunteers, Resources, Events, EventSpeakers, Tasks, and Donations tables are emptied before and after tests.
 """
 
 import os
@@ -33,7 +34,7 @@ def test_database():
 def clear_database_tables():
     """
     tests/conftest.py – Fixture to clear key tables (Volunteers, DeletedVolunteers, Resources,
-    Events, EventSpeakers, and Tasks) before and after tests.
+    Events, EventSpeakers, Tasks, and Donations) before and after tests.
     Ensures a clean database state to prevent data leakage between tests.
     """
     from core.database.connection import get_connection
@@ -46,6 +47,7 @@ def clear_database_tables():
         cursor.execute("DELETE FROM Events")
         cursor.execute("DELETE FROM EventSpeakers")
         cursor.execute("DELETE FROM Tasks")
+        cursor.execute("DELETE FROM Donations")
         conn.commit()
         conn.close()
     clear_tables()
