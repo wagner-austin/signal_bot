@@ -9,7 +9,8 @@ from typing import Optional
 from plugins.manager import plugin
 from core.state import BotStateMachine
 from managers.volunteer_manager import VOLUNTEER_MANAGER
-from core.metrics import get_uptime, messages_sent
+from core.metrics import get_uptime
+import core.metrics  # Import the module to access the dynamic messages_sent value
 
 @plugin('assign', canonical='assign')
 def assign_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
@@ -104,10 +105,12 @@ def status_command(args: str, sender: str, state_machine: BotStateMachine, msg_t
     """
     uptime_seconds = get_uptime()
     uptime_hours = uptime_seconds / 3600 if uptime_seconds > 0 else 0
-    mph = messages_sent if uptime_hours < 1 else messages_sent / uptime_hours
+    # Use the dynamic messages_sent value from core.metrics
+    sent = core.metrics.messages_sent
+    mph = sent if uptime_hours < 1 else sent / uptime_hours
     return (
         f"Status:\n"
-        f"Messages sent: {messages_sent}\n"
+        f"Messages sent: {sent}\n"
         f"Uptime: {uptime_seconds:.0f} seconds (~{uptime_hours:.2f} hours)\n"
         f"Messages per hour: {mph:.2f}\n"
         f"System: operational."
