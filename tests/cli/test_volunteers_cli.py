@@ -9,7 +9,7 @@ from tests.test_helpers import insert_record
 
 def test_add_and_list_volunteer():
     # Ensure no volunteers initially.
-    output = run_cli_command(["list-volunteers"])
+    output = run_cli_command(["list-volunteers"])["stdout"]
     assert "No volunteers found." in output
 
     # Add a volunteer.
@@ -20,11 +20,11 @@ def test_add_and_list_volunteer():
         "--skills", "Python,SQL",
         "--available", "1",
         "--role", "Coordinator"
-    ])
+    ])["stdout"]
     assert "Volunteer 'John Doe' added" in add_output
 
     # List volunteers and verify.
-    list_output = run_cli_command(["list-volunteers"])
+    list_output = run_cli_command(["list-volunteers"])["stdout"]
     assert "John Doe" in list_output
     # Phone numbers are visible via CLI.
     assert "+1111111111" in list_output
@@ -36,7 +36,7 @@ def test_list_deleted_volunteers():
         ("+2222222222", "Deleted Volunteer", "SkillA,SkillB", 0, "")
     )
 
-    output = run_cli_command(["list-deleted-volunteers"])
+    output = run_cli_command(["list-deleted-volunteers"])["stdout"]
     assert "Deleted Volunteer" in output
     assert "+2222222222" in output
 

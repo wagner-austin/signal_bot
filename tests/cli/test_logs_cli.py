@@ -14,7 +14,7 @@ def test_list_logs():
         ("+3333333333", "test", "arg1 arg2")
     )
 
-    output = run_cli_command(["list-logs"])
+    output = run_cli_command(["list-logs"])["stdout"]
     assert "test" in output
     assert "+3333333333" in output
 

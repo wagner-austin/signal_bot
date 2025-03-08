@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """
 tests/cli/test_events_cli.py - Tests for event-related CLI commands.
-Verifies event listing and event speakers functionalities.
+Verifies event listing and event speakers functionalities using robust output extraction.
 """
 
 from tests.cli.cli_test_helpers import run_cli_command
@@ -14,7 +14,7 @@ def test_list_events():
         ("Test Event", "2025-03-09", "2-4PM", "Test Location", "Test Description")
     )
 
-    output = run_cli_command(["list-events"])
+    output = run_cli_command(["list-events"])["stdout"]
     assert "Test Event" in output
     assert "2025-03-09" in output
 
@@ -25,7 +25,7 @@ def test_list_event_speakers():
         (1, "Speaker One", "Topic A")
     )
 
-    output = run_cli_command(["list-event-speakers"])
+    output = run_cli_command(["list-event-speakers"])["stdout"]
     assert "Speaker One" in output
     assert "Topic A" in output
 

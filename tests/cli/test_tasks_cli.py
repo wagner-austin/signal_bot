@@ -14,7 +14,7 @@ def test_list_tasks():
         ("Test Task", "+4444444444", "open")
     )
 
-    output = run_cli_command(["list-tasks"])
+    output = run_cli_command(["list-tasks"])["stdout"]
     assert "Test Task" in output
     # Since no volunteer exists for +4444444444, created_by_name should be "Unknown".
     assert "Unknown" in output
