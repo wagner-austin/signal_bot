@@ -1,11 +1,16 @@
 """
-core/event_manager.py - Event Manager for handling event CRUD operations and speaker assignments using repository pattern.
+core/event_manager.py --- Event Manager for handling event CRUD operations and speaker assignments.
 Provides functions for creating, updating, listing, retrieving, and deleting events, as well as assigning,
 listing, and removing speakers from events.
+Changes:
+ - Added an info-level log message upon successful event creation.
 """
 
 from typing import List, Dict, Any, Optional
+import logging
 from core.database.repository import EventRepository, EventSpeakerRepository
+
+logger = logging.getLogger(__name__)
 
 def create_event(title: str, date: str, time: str, location: str, description: str) -> int:
     repo = EventRepository()
@@ -16,7 +21,9 @@ def create_event(title: str, date: str, time: str, location: str, description: s
         "location": location,
         "description": description
     }
-    return repo.create(data)
+    new_id = repo.create(data)
+    logger.info(f"Event created with ID {new_id}, Title: '{title}'")
+    return new_id
 
 def update_event(event_id: int, **kwargs) -> None:
     repo = EventRepository()

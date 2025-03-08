@@ -1,14 +1,16 @@
 #!/usr/bin/env python
 """
-tests/managers/test_volunteer_operations.py - Tests for volunteer operations.
+tests/managers/test_volunteer_operations.py --- Tests for volunteer operations.
 Verifies sign_up, delete_volunteer, check_in, and registration without role functionalities,
 now covered with multiple parametrized inputs.
+Changes:
+ - Added a caplog assertion to ensure the volunteer deletion logs an info-level message.
 """
 
 import pytest
+import logging
 from managers.volunteer.volunteer_operations import sign_up, delete_volunteer, check_in
 from core.database.volunteers import get_volunteer_record
-
 
 @pytest.mark.parametrize(
     "phone, name, skills, available, current_role",
@@ -38,7 +40,6 @@ def test_sign_up_creates_volunteer(phone, name, skills, available, current_role)
     assert record["available"] == available
     assert record["current_role"] == current_role
 
-
 @pytest.mark.parametrize(
     "phone, name, skills",
     [
@@ -46,16 +47,22 @@ def test_sign_up_creates_volunteer(phone, name, skills, available, current_role)
         ("+40000000011", "To Be Deleted2", ["SkillX", "SkillY"]),
     ]
 )
-def test_delete_volunteer(phone, name, skills):
+def test_delete_volunteer(phone, name, skills, caplog):
     """
     Test deleting multiple volunteers in a single parameterized test.
+    Added caplog usage to ensure volunteer deletion logs an info message.
     """
     sign_up(phone, name, skills)
-    msg = delete_volunteer(phone)
+    with caplog.at_level(logging.INFO):
+        msg = delete_volunteer(phone)
     assert "deleted" in msg.lower()
     record = get_volunteer_record(phone)
     assert record is None
 
+    # Verify we logged an info-level message about deletion
+    assert any("deleted from the system" in rec.message for rec in caplog.records), (
+        "Expected an info-level log indicating volunteer record was deleted."
+    )
 
 @pytest.mark.parametrize(
     "phone, name, skills",
@@ -74,7 +81,6 @@ def test_check_in_volunteer(phone, name, skills):
     record = get_volunteer_record(phone)
     assert record["available"] is True
 
-
 @pytest.mark.parametrize(
     "phone, name, skills",
     [
@@ -92,7 +98,6 @@ def test_sign_up_with_empty_role(phone, name, skills):
     assert record is not None
     # Verify that current_role/preferred_role is None when an empty role is provided.
     assert record.get("current_role") is None
-
 
 @pytest.mark.parametrize(
     "phone",

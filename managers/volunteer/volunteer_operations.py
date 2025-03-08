@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 """
-managers/volunteer/volunteer_operations.py - Volunteer operations.
+managers/volunteer/volunteer_operations.py --- Volunteer operations.
 Provides functions for volunteer registration, check‑in, and deletion.
 Uses a centralized sign up method for consistent volunteer creation.
-Role assignment during registration is now optional—if no role is provided, the volunteer is registered without one.
+Changes:
+ - Added an info-level log message upon successful volunteer deletion.
 """
 
 import logging
@@ -67,6 +68,7 @@ def delete_volunteer(phone: str) -> str:
         return "You are not registered."
     add_deleted_volunteer_record(phone, record["name"], record.get("skills", []), record["available"], record.get("current_role"))
     delete_volunteer_record(phone)
+    logger.info(f"Volunteer record for {phone} has been deleted from the system.")
     return VOLUNTEER_DELETED
 
 def check_in(phone: str) -> str:

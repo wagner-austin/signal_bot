@@ -1,19 +1,30 @@
 #!/usr/bin/env python
 """
-tests/core/test_event_manager.py – Test for core/event_manager.py: Verify event CRUD and speaker management functions.
+tests/core/test_event_manager.py --- Test for core/event_manager.py
+Verifies event CRUD and speaker management functions.
+Changes:
+ - Added a caplog assertion to ensure event creation logs an info-level message.
 """
+
 import pytest
+import logging
 from core.event_manager import (
     create_event, update_event, list_events, get_event,
     delete_event, assign_speaker, list_speakers, remove_speaker
 )
 
-def test_create_and_get_event():
-    event_id = create_event("Unit Test Event", "2025-03-09", "2-4PM", "Test Venue", "Test Description")
+def test_create_and_get_event(caplog):
+    with caplog.at_level(logging.INFO):
+        event_id = create_event("Unit Test Event", "2025-03-09", "2-4PM", "Test Venue", "Test Description")
     assert event_id > 0
     event = get_event(event_id)
     assert event is not None
     assert event.get("title") == "Unit Test Event"
+
+    # Confirm we logged an info-level message about event creation
+    assert any("Event created with ID" in rec.message for rec in caplog.records), (
+        "Expected an info-level log indicating event was created."
+    )
 
 def test_update_event():
     event_id = create_event("Old Event", "2025-03-09", "2-4PM", "Test Venue", "Old Description")

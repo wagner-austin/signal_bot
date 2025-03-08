@@ -1,14 +1,17 @@
 #!/usr/bin/env python
 """
-tests/core/test_database_backup.py - Tests for database backup and restore functionality.
+tests/core/test_database_backup.py --- Tests for database backup and restore functionality.
 Verifies that backups are created, listed, cleaned up per retention policy, that restore functionality works,
 and now ensures that multiple backups in the same second do not produce filename collisions.
+Changes:
+ - Added an assertion for an info-level log message to confirm successful backup creation is logged.
 """
 
 import os
 import shutil
 import sqlite3
 import pytest
+import logging
 from unittest.mock import patch
 from core.database.backup import (
     create_backup, list_backups, cleanup_backups,
@@ -17,17 +20,22 @@ from core.database.backup import (
 from core.database.connection import get_connection
 from core.config import DB_NAME
 
-def test_create_backup():
+def test_create_backup(caplog):
     # Ensure no backups initially
     if os.path.exists(BACKUP_DIR):
         shutil.rmtree(BACKUP_DIR)
     try:
-        backup_path = create_backup()
+        with caplog.at_level(logging.INFO):
+            backup_path = create_backup()
         # The creation may return an empty string if it failed
         assert backup_path != "", "Expected a valid backup path string."
         assert os.path.exists(backup_path)
         backups = list_backups()
         assert len(backups) == 1
+        # Assert that an info-level log about backup creation is present
+        assert any("Backup created at:" in rec.message for rec in caplog.records), (
+            "Expected an info-level log about successful backup creation."
+        )
     finally:
         if os.path.exists(BACKUP_DIR):
             shutil.rmtree(BACKUP_DIR)

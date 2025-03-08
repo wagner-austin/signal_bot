@@ -1,11 +1,10 @@
 #!/usr/bin/env python
 """
-core/database/backup.py - Database backup and restore utilities with retention and periodic scheduling.
+core/database/backup.py --- Database backup and restore utilities with retention and periodic scheduling.
 Provides functions to create a backup snapshot of the current database, automatically clean up old backups
 using a configurable retention count, and schedule periodic backups using a configurable interval.
-Backups are saved in the 'backups' folder with a timestamp appended.
-Error handling added for directory creation failures, a file signature check for valid SQLite on restore,
-and logic to avoid filename collisions if multiple backups occur in the same second.
+Changes:
+ - Added an info-level log message upon successful backup creation.
 """
 
 import os
@@ -57,6 +56,7 @@ def create_backup() -> str:
     try:
         shutil.copyfile(DB_NAME, backup_path)
         cleanup_backups(max_backups=BACKUP_RETENTION_COUNT)
+        logger.info(f"Backup created at: {backup_path}")
         return backup_path
     except Exception as e:
         logger.warning(f"Failed to create backup file at '{backup_path}'. Error: {e}")
