@@ -1,6 +1,7 @@
+#!/usr/bin/env python
 """
 managers/message_handler.py - Handles incoming messages and dispatches commands.
-Separates pending flows (registration, deletion, and event creation) from normal command processing.
+Encapsulates pending flows (registration, deletion, and event creation) with consolidated pending state logic.
 """
 
 import logging
@@ -36,56 +37,87 @@ def _get_confirmation_message(sender: str, registered_format: str, default_messa
     else:
         return default_message
 
-class DeletionPendingHandler:
+class BasePendingHandler:
+    """
+    BasePendingHandler - Consolidates common pending state logic.
+    
+    Provides utility methods for checking, retrieving, and clearing pending actions.
+    """
+    def __init__(self, pending_actions, has_fn, get_fn, clear_fn):
+        """
+        Initialize the BasePendingHandler.
+        
+        Args:
+            pending_actions: The global pending actions object.
+            has_fn: Function to check for pending state (e.g., pending_actions.has_registration).
+            get_fn: Function to retrieve the pending state (e.g., pending_actions.get_registration) or None if not needed.
+            clear_fn: Function to clear the pending state (e.g., pending_actions.clear_registration).
+        """
+        self.pending_actions = pending_actions
+        self.has_fn = has_fn
+        self.get_fn = get_fn
+        self.clear_fn = clear_fn
+
+    def has_pending(self, sender: str) -> bool:
+        return self.has_fn(sender)
+
+    def get_pending(self, sender: str):
+        return self.get_fn(sender) if self.get_fn is not None else None
+
+    def clear_pending(self, sender: str) -> None:
+        self.clear_fn(sender)
+
+class DeletionPendingHandler(BasePendingHandler):
     """
     DeletionPendingHandler - Handles pending deletion responses.
     """
     def __init__(self, pending_actions, volunteer_manager) -> None:
-        self.pending_actions = pending_actions
+        super().__init__(pending_actions,
+                         pending_actions.has_deletion,
+                         pending_actions.get_deletion,
+                         pending_actions.clear_deletion)
         self.volunteer_manager = volunteer_manager
 
     def process_deletion_response(self, parsed: ParsedMessage, sender: str) -> Optional[str]:
-        """
-        Processes a deletion response using pending deletion state.
-        """
-        if not self.pending_actions.has_deletion(sender):
+        if not self.has_pending(sender):
             return None
-        state = self.pending_actions.get_deletion(sender)
+        state = self.get_pending(sender)
         user_input = parsed.body.strip().lower() if parsed.body else ""
         if state == "initial":
             if user_input in {"yes", "y", "yea", "sure"}:
+                # Set new state without using the base since it's a specialized update.
                 self.pending_actions.set_deletion(sender, "confirm")
                 return DELETION_CONFIRM_PROMPT
             else:
                 confirmation = _get_confirmation_message(sender, ALREADY_REGISTERED, DELETION_CANCELED)
-                self.pending_actions.clear_deletion(sender)
+                self.clear_pending(sender)
                 return confirmation
         elif state == "confirm":
             if parsed.body.strip() == "DELETE":
                 confirmation = self.volunteer_manager.delete_volunteer(sender)
-                self.pending_actions.clear_deletion(sender)
+                self.clear_pending(sender)
                 return confirmation
             else:
                 confirmation = _get_confirmation_message(sender, ALREADY_REGISTERED, DELETION_CANCELED)
-                self.pending_actions.clear_deletion(sender)
+                self.clear_pending(sender)
                 return confirmation
         return None
 
-class RegistrationPendingHandler:
+class RegistrationPendingHandler(BasePendingHandler):
     """
     RegistrationPendingHandler - Handles pending registration/edit responses.
     """
     def __init__(self, pending_actions, volunteer_manager) -> None:
-        self.pending_actions = pending_actions
+        super().__init__(pending_actions,
+                         pending_actions.has_registration,
+                         pending_actions.get_registration,
+                         pending_actions.clear_registration)
         self.volunteer_manager = volunteer_manager
 
     def process_registration_response(self, parsed: ParsedMessage, sender: str) -> Optional[str]:
-        """
-        Processes a registration or edit response using the pending registration state.
-        """
-        if not self.pending_actions.has_registration(sender):
+        if not self.has_pending(sender):
             return None
-        mode = self.pending_actions.get_registration(sender)
+        mode = self.get_pending(sender)
         name_input = parsed.body.strip() if parsed.body else ""
         if mode == "edit" and name_input.lower() in SKIP_VALUES:
             confirmation = _get_confirmation_message(sender, EDIT_CANCELED_WITH_NAME, EDIT_CANCELED)
@@ -95,32 +127,28 @@ class RegistrationPendingHandler:
         else:
             final_name = name_input
             confirmation = self.volunteer_manager.sign_up(sender, final_name, [])
-        self.pending_actions.clear_registration(sender)
+        self.clear_pending(sender)
         return confirmation
 
-class EventCreationPendingHandler:
+class EventCreationPendingHandler(BasePendingHandler):
     """
     EventCreationPendingHandler - Handles pending event creation responses.
     
-    If a sender is in a pending event creation state, processes the reply to either create
-    the event or cancel the process.
+    Processes a reply to either create the event or cancel the process.
     """
     def __init__(self, pending_actions) -> None:
-        self.pending_actions = pending_actions
+        super().__init__(pending_actions,
+                         pending_actions.has_event_creation,
+                         None,  # No state retrieval needed for event creation.
+                         pending_actions.clear_event_creation)
 
     def process_event_creation_response(self, parsed: ParsedMessage, sender: str) -> Optional[str]:
-        """
-        Processes a pending event creation response.
-        
-        Returns:
-            str: Confirmation message if event is created or cancellation message.
-        """
         from core.event_manager import create_event
-        if not self.pending_actions.has_event_creation(sender):
+        if not self.has_pending(sender):
             return None
         user_input = parsed.body.strip() if parsed.body else ""
         if user_input.lower() in SKIP_VALUES:
-            self.pending_actions.clear_event_creation(sender)
+            self.clear_pending(sender)
             return "Event creation cancelled."
         try:
             parts = {}
@@ -129,13 +157,13 @@ class EventCreationPendingHandler:
                 parts[key.strip().lower()] = value.strip()
             required_fields = ["title", "date", "time", "location", "description"]
             if not all(field in parts for field in required_fields):
-                self.pending_actions.clear_event_creation(sender)
+                self.clear_pending(sender)
                 return "Missing one or more required fields. Event creation cancelled."
             event_id = create_event(parts["title"], parts["date"], parts["time"], parts["location"], parts["description"])
-            self.pending_actions.clear_event_creation(sender)
+            self.clear_pending(sender)
             return f"Event '{parts['title']}' created successfully with ID {event_id}."
         except Exception as e:
-            self.pending_actions.clear_event_creation(sender)
+            self.clear_pending(sender)
             return f"Error parsing event details: {str(e)}"
 
 def handle_message(parsed: ParsedMessage, sender: str, state_machine: BotStateMachine, pending_actions, volunteer_manager, msg_timestamp: Optional[int] = None) -> str:
