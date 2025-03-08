@@ -1,33 +1,30 @@
 #!/usr/bin/env python
 """
 cli/resources_cli.py - CLI tools for resource-related operations.
-Provides functions to list, add, and remove resource records.
+Uses a dedicated formatter to present resource records.
 """
 
 import argparse
 from core.database.resources import add_resource, list_resources, remove_resource
+from cli.formatters import format_resource
 
 def list_resources_cli():
     """
     list_resources_cli - List all resource records.
-    Displays ID, category, title, URL, and creation timestamp.
+    Retrieves resource data and prints formatted output.
     """
     resources = list_resources()
     if not resources:
         print("No resources found.")
         return
     for res in resources:
-        print(f"ID: {res['id']}")
-        print(f"Category: {res['category']}")
-        print(f"Title: {res['title'] if res['title'] else 'N/A'}")
-        print(f"URL: {res['url']}")
-        print(f"Created At: {res['created_at']}")
-        print("-" * 40)
+        output = format_resource(res)
+        print(output)
 
 def add_resource_cli(args: argparse.Namespace):
     """
     add_resource_cli - Add a new resource record.
-    Requires category, URL, and an optional title.
+    Uses business logic to add the resource and then displays a confirmation message.
     """
     category = args.category
     url = args.url
