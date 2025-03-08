@@ -2,9 +2,11 @@
 """
 tests/managers/test_volunteer_manager.py - Tests for aggregated volunteer management functionalities.
 Verifies that operations like sign‑up, check‑in, deletion, status retrieval, and role management work correctly.
+Now includes concurrency testing for multiple sign-ups on the same phone number.
 """
 
 import pytest
+import concurrent.futures
 from managers.volunteer_manager import VOLUNTEER_MANAGER
 from core.database import get_volunteer_record
 
@@ -94,12 +96,73 @@ def test_sign_up_with_availability_and_role(phone, volunteer_name, skill_list, i
     updated_record = get_volunteer_record(phone)
     assert updated_record is not None
     assert updated_record["name"] == volunteer_name + " Updated"
-    # Check that old and new skills are present (union).
+    # Since we union the old and new skills:
     for skl in (skill_list + new_skill):
         assert skl in updated_record["skills"]
-    # Invert the availability (since we toggled).
+    # Invert the availability
     assert updated_record["available"] == (not is_available)
     # Role remains the same
     assert updated_record["current_role"] == role
+
+
+def test_concurrent_sign_up_same_user():
+    """
+    Test concurrent sign-ups using the same phone number, with different names and skills.
+    Verifies that the final record merges all skills (union) and ends up with whichever name
+    was written last, ensuring no partial merges or errors under concurrency.
+    """
+    phone = "+10000000042"
+
+    # Prepare a fresh record if it exists
+    existing = get_volunteer_record(phone)
+    if existing:
+        VOLUNTEER_MANAGER.delete_volunteer(phone)
+
+    # Each thread uses a different (Name, [Skills...]) tuple
+    concurrency_data = [
+        ("ConcurrentOne", ["SkillA"]),
+        ("ConcurrentTwo", ["SkillB", "SkillC"]),
+        ("ConcurrentThree", ["SkillB", "SkillX"]),
+        ("ConcurrentFour", ["SkillA", "SkillD"]),
+        ("ConcurrentFive", ["SkillZ"]),
+    ]
+
+    def sign_up_task(name, skills):
+        return VOLUNTEER_MANAGER.sign_up(phone, name, skills, True, None)
+
+    # Run sign_up calls in parallel threads
+    with concurrent.futures.ThreadPoolExecutor(max_workers=len(concurrency_data)) as executor:
+        futures = [
+            executor.submit(sign_up_task, name, skills)
+            for (name, skills) in concurrency_data
+        ]
+        results = [f.result() for f in concurrent.futures.as_completed(futures)]
+
+    # Check sign-up results (not strictly necessary, but confirm no obvious error)
+    for res in results:
+        # Should all say "registered" or "updated"
+        assert any(word in res.lower() for word in ["registered", "updated", "volunteer"])
+
+    # Check final DB record
+    final_record = get_volunteer_record(phone)
+    assert final_record is not None, "Expected a final volunteer record after concurrency sign-ups."
+
+    # The final name should match whichever sign-up call wrote last
+    # (we don't know exactly which thread finishes last, but it must be one of them)
+    possible_names = {cd[0] for cd in concurrency_data}
+    assert final_record["name"] in possible_names, (
+        f"Final name '{final_record['name']}' must be from among: {possible_names}"
+    )
+
+    # The final skills should be the union of all skill sets provided
+    merged_skills = set()
+    for _, skill_list in concurrency_data:
+        merged_skills.update(skill_list)
+
+    # Ensure all are present
+    for skl in merged_skills:
+        assert skl in final_record["skills"], (
+            f"Final record lacks skill '{skl}' from concurrency sign-up set."
+        )
 
 # End of tests/managers/test_volunteer_manager.py
