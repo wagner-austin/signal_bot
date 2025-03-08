@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 """
-tests/conftest.py - Pytest configuration, fixtures, and common setup.
-Overrides DB_NAME for test isolation, clears key database tables,
-and provides a fixture for dummy plugin registration.
+tests/conftest.py - Consolidated test fixtures and common setup for database isolation, CLI simulation, and plugin registration.
+This module overrides DB_NAME for test isolation, clears key database tables, and provides common fixtures including a unified CLI runner.
 """
 
 import os
@@ -17,7 +16,7 @@ os.environ["DB_NAME"] = temp_db_path
 @pytest.fixture(scope="session", autouse=True)
 def test_database():
     """
-    tests/conftest.py – Creates and initializes a temporary database for testing.
+    tests/conftest.py - Creates and initializes a temporary database for testing.
     The DB_NAME environment variable is set to a temporary file for isolation.
     After tests, the temporary database file is removed and DB_NAME is unset.
     """
@@ -33,7 +32,7 @@ def test_database():
 @pytest.fixture(autouse=True)
 def clear_database_tables():
     """
-    tests/conftest.py – Fixture to clear key tables (Volunteers, DeletedVolunteers, Resources,
+    tests/conftest.py - Fixture to clear key tables (Volunteers, DeletedVolunteers, Resources,
     Events, EventSpeakers, Tasks, and Donations) before and after tests.
     Ensures a clean database state to prevent data leakage between tests.
     """
@@ -69,5 +68,14 @@ def dummy_plugin():
     plugin_registry["test"] = dummy_plugin_data
     yield dummy_plugin_data
     plugin_registry.pop("test", None)
+
+@pytest.fixture
+def cli_runner():
+    """
+    tests/conftest.py - Fixture for CLI command simulation.
+    Provides a unified helper to simulate CLI command invocations of cli_tools.py.
+    """
+    from tests.cli.cli_test_helpers import run_cli_command
+    yield run_cli_command
 
 # End of tests/conftest.py
