@@ -2,41 +2,19 @@
 """
 core/database/volunteers.py - Volunteer-related database operations.
 Provides functions to manage volunteer records, including adding, updating, retrieving, and deleting volunteers,
-and handles conversion of skills lists to comma-separated strings.
+and handles conversion of skills lists using centralized serialization utilities.
 Now also stores and retrieves the preferred_role field.
 """
 
 from typing import Dict, Any, Optional, List
 from .helpers import execute_sql
+from core.serialization_utils import serialize_list, deserialize_list
 
-def serialize_skills(skills: List[str]) -> str:
-    """
-    serialize_skills - Converts a list of skills into a comma-separated string.
-    
-    Args:
-        skills (List[str]): The list of skills.
-        
-    Returns:
-        str: A comma-separated string of skills.
-    """
-    return ",".join(skills)
-
-def deserialize_skills(skills_str: Optional[str]) -> List[str]:
-    """
-    deserialize_skills - Converts a comma-separated skills string into a list of trimmed skill names.
-    
-    Args:
-        skills_str (Optional[str]): The string containing skills separated by commas.
-    
-    Returns:
-        List[str]: A list of individual skill names.
-    """
-    if not skills_str:
-        return []
-    return [skill.strip() for skill in skills_str.split(",") if skill.strip()]
-
+# Aliases for skills serialization utilities
+serialize_skills = serialize_list
+deserialize_skills = deserialize_list
 # For backwards compatibility
-parse_skills = deserialize_skills
+parse_skills = deserialize_list
 
 def get_all_volunteers() -> Dict[str, Dict[str, Any]]:
     """
