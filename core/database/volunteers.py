@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 """
-core/database/volunteers.py - Volunteer-related database operations using repository pattern.
-Provides functions to manage volunteer records, utilizing the VolunteerRepository for CRUD operations.
+core/database/volunteers.py - Volunteer-related database operations.
+Provides functions to manage volunteer records using the repository pattern.
+This module now uses consistent role fields by updating and retrieving the 'preferred_role' column.
 """
 
 from typing import Dict, Any, Optional, List
@@ -62,7 +63,8 @@ def update_volunteer_record(phone: str, display_name: str, skills: list, availab
         "name": display_name,
         "skills": skills_str,
         "available": int(available),
-        "current_role": current_role
+        "current_role": current_role,
+        "preferred_role": current_role  # Update preferred_role along with current_role for consistency
     }
     repo.update(phone, data)
 
