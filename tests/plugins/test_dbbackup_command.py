@@ -2,6 +2,7 @@
 """
 tests/plugins/test_dbbackup_command.py - Tests for dbbackup command plugin.
 Verifies subcommands: create, list, and restore, including invalid restore scenarios.
+Also tests an unrecognized subcommand returns "Invalid subcommand."
 """
 
 import os
@@ -45,5 +46,15 @@ def test_dbbackup_restore_invalid():
     """
     response = dbbackup_command("restore nosuchfile.db", "+dummy", None, msg_timestamp=123)
     assert "Backup file 'nosuchfile.db' not found." in response
+
+# ---------------------------------------------------------------------
+# NEW TEST: Subcommand not found
+# ---------------------------------------------------------------------
+def test_dbbackup_invalid_subcommand():
+    """
+    Test that an invalid subcommand prints 'Invalid subcommand.'
+    """
+    response = dbbackup_command("something_invalid", "+dummy", None, msg_timestamp=123)
+    assert "Invalid subcommand." in response
 
 # End of tests/plugins/test_dbbackup_command.py

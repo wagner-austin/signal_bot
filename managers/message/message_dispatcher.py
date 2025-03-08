@@ -24,6 +24,7 @@ def dispatch_message(parsed: "ParsedMessage", sender: str, state_machine: BotSta
     """
     if logger is None:
         logger = logging.getLogger(__name__)
+
     if parsed.group_id is None:
         from managers.message.pending_handlers import EventCreationPendingHandler, DeletionPendingHandler, RegistrationPendingHandler
         event_response = EventCreationPendingHandler(pending_actions).process_event_creation_response(parsed, sender)
@@ -50,9 +51,16 @@ def dispatch_message(parsed: "ParsedMessage", sender: str, state_machine: BotSta
                 return ""
         try:
             response = plugin_func(args, sender, state_machine, msg_timestamp=msg_timestamp)
+            # NEW: If the plugin returns a non-string, log a warning and default to empty string
+            if not isinstance(response, str):
+                logger.warning(f"Plugin '{command}' returned a non-string result of type {type(response).__name__}. Converting to empty string.")
+                response = ""
             return response
         except Exception as e:
-            logger.exception(f"Error executing plugin for command '{command}' with args '{args}' from sender '{sender}': {e}")
+            logger.exception(
+                f"Error executing plugin for command '{command}' with args '{args}' "
+                f"from sender '{sender}': {e}"
+            )
             return "An internal error occurred while processing your command. Please try again later."
     return ""
 
