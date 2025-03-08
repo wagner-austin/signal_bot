@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """
 core/database/migrations.py - Database migrations management.
 Provides a simple migration framework to automatically update the database schema.
@@ -77,10 +78,23 @@ def migration_2() -> None:
     )
     """, commit=True)
 
+def migration_3() -> None:
+    """
+    migration_3 - Add preferred_role column to Volunteers table for volunteer role management.
+    """
+    with db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("PRAGMA table_info(Volunteers)")
+        columns = [row["name"] for row in cursor.fetchall()]
+        if "preferred_role" not in columns:
+            cursor.execute("ALTER TABLE Volunteers ADD COLUMN preferred_role TEXT")
+            conn.commit()
+
 # List of migrations: each tuple is (migration_version, migration_function)
 MIGRATIONS = [
     (1, migration_1),
     (2, migration_2),
+    (3, migration_3),
 ]
 
 def run_migrations() -> None:
