@@ -4,19 +4,15 @@ tests/cli/test_tasks_cli.py - Tests for task-related CLI commands.
 Verifies that tasks can be listed via the CLI.
 """
 
-from core.database.connection import get_connection
 from tests.cli.cli_test_helpers import run_cli_command
+from tests.test_helpers import insert_record
 
 def test_list_tasks():
-    # Insert a task record manually.
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute(
+    # Insert a task record manually using helper.
+    insert_record(
         "INSERT INTO Tasks (description, created_by, status) VALUES (?, ?, ?)",
         ("Test Task", "+4444444444", "open")
     )
-    conn.commit()
-    conn.close()
 
     output = run_cli_command(["list-tasks"])
     assert "Test Task" in output

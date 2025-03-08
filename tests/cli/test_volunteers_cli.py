@@ -4,8 +4,8 @@ tests/cli/test_volunteers_cli.py - Tests for volunteer-related CLI commands.
 Verifies volunteer addition, listing, and deletion functionalities.
 """
 
-from core.database.connection import get_connection
 from tests.cli.cli_test_helpers import run_cli_command
+from tests.test_helpers import insert_record
 
 def test_add_and_list_volunteer():
     # Ensure no volunteers initially.
@@ -30,15 +30,11 @@ def test_add_and_list_volunteer():
     assert "+1111111111" in list_output
 
 def test_list_deleted_volunteers():
-    # Insert a deleted volunteer record manually.
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute(
+    # Insert a deleted volunteer record manually using helper.
+    insert_record(
         "INSERT INTO DeletedVolunteers (phone, name, skills, available, current_role) VALUES (?, ?, ?, ?, ?)",
         ("+2222222222", "Deleted Volunteer", "SkillA,SkillB", 0, "")
     )
-    conn.commit()
-    conn.close()
 
     output = run_cli_command(["list-deleted-volunteers"])
     assert "Deleted Volunteer" in output
