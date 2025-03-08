@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-backup.py - Database backup and restore utilities with retention and periodic scheduling.
+core/database/backup.py - Database backup and restore utilities with retention and periodic scheduling.
 Provides functions to create a backup snapshot of the current database, automatically clean up old backups
 using a configurable retention count, and schedule periodic backups using a configurable interval.
 Backups are saved in the 'backups' folder with a timestamp appended.
@@ -54,6 +54,12 @@ def cleanup_backups(max_backups: int = BACKUP_RETENTION_COUNT) -> None:
     """
     if not os.path.exists(BACKUP_DIR):
         return
+
+    # If max_backups is zero or negative, remove all backups.
+    if max_backups <= 0:
+        logger.warning(f"Received non-positive max_backups={max_backups}. Removing all backups.")
+        max_backups = 0
+
     backups = [f for f in os.listdir(BACKUP_DIR) if f.endswith(".db")]
     backups.sort()  # Sorted by filename (timestamp order)
     while len(backups) > max_backups:

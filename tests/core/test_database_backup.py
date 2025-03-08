@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 """
-test_database_backup.py - Tests for database backup and restore functionality.
+tests/core/test_database_backup.py - Tests for database backup and restore functionality.
 Verifies that backups are created, listed, cleaned up per retention policy, and that restore functionality works.
-Also tests error handling for backup directory creation (mocking os.makedirs to raise OSError).
+Now includes edge-case tests for zero or negative retention.
 """
 
 import os
@@ -91,6 +91,47 @@ def test_restore_backup():
         row = cursor.fetchone()
         conn.close()
         assert row is not None and row["value"] == "original"
+    finally:
+        if os.path.exists(BACKUP_DIR):
+            shutil.rmtree(BACKUP_DIR)
+
+@pytest.mark.parametrize("retention_value", [0, -1])
+def test_cleanup_backups_zero_or_negative_retention(retention_value):
+    """
+    Ensures that when max_backups <= 0, the function removes all backups.
+    Also checks that a warning is logged if retention_value is zero or negative.
+    """
+    try:
+        # Clean up the backup folder first
+        if os.path.exists(BACKUP_DIR):
+            shutil.rmtree(BACKUP_DIR)
+        os.makedirs(BACKUP_DIR)
+
+        # Create some dummy backups
+        for i in range(5):
+            filename = f"edgecase_backup_{i}.db"
+            with open(os.path.join(BACKUP_DIR, filename), "w") as f:
+                f.write("dummy content")
+
+        # Confirm 5 backups are present
+        initial_backups = list_backups()
+        assert len(initial_backups) == 5
+
+        # We'll patch the logger to check warnings
+        with patch("core.database.backup.logger.warning") as mock_logger:
+            cleanup_backups(max_backups=retention_value)
+
+        # After cleanup, should have zero backups left
+        final_backups = list_backups()
+        assert len(final_backups) == 0, (
+            f"Expected no backups left for max_backups={retention_value}, found {final_backups}."
+        )
+
+        # Check that a warning was logged for negative or zero
+        if retention_value <= 0:
+            mock_logger.assert_called_once()
+            call_args, _ = mock_logger.call_args
+            assert "Removing all backups" in call_args[0]
     finally:
         if os.path.exists(BACKUP_DIR):
             shutil.rmtree(BACKUP_DIR)
