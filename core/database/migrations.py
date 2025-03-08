@@ -63,10 +63,24 @@ def migration_1() -> None:
     )
     """, commit=True)
 
+def migration_2() -> None:
+    """
+    Migration 2: Create Resources table for storing resource links.
+    """
+    execute_sql("""
+    CREATE TABLE IF NOT EXISTS Resources (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        category TEXT,
+        title TEXT,
+        url TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+    """, commit=True)
+
 # List of migrations: each tuple is (migration_version, migration_function)
 MIGRATIONS = [
     (1, migration_1),
-    # Future migrations can be added here as (2, migration_2), (3, migration_3), etc.
+    (2, migration_2),
 ]
 
 def run_migrations() -> None:

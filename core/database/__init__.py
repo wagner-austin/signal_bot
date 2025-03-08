@@ -16,5 +16,6 @@ from .volunteers import (
     remove_deleted_volunteer_record,
 )
 from .logs import log_command
+from .resources import add_resource, list_resources, remove_resource
 
 # End of core/database/__init__.py
