@@ -1,11 +1,21 @@
 #!/usr/bin/env python
 """
-tests/plugins/test_volunteer_commands.py - Tests for volunteer command plugins.
-Verifies that volunteer registration, deletion, search, and skill addition commands work correctly.
+test_volunteer_commands.py
+--------------------------
+Tests volunteer command plugins for normal usage: register, edit, delete, etc.
+Negative or edge-case volunteer tests are either in their own specific modules or covered
+in test_plugin_negatives.py if more severe. 
 """
 
 import pytest
-from plugins.commands.volunteer import register_command, edit_command, delete_command, skills_command, find_command, add_skills_command
+from plugins.commands.volunteer import (
+    register_command,
+    edit_command,
+    delete_command,
+    skills_command,
+    find_command,
+    add_skills_command
+)
 from core.state import BotStateMachine
 from core.database.volunteers import get_volunteer_record
 
@@ -23,7 +33,7 @@ def test_volunteer_register_existing():
     state_machine = BotStateMachine()
     register_command("Existing User", phone, state_machine, msg_timestamp=123)
     response = register_command("Any Name", phone, state_machine, msg_timestamp=123)
-    # Updated expectation to match the actual message format
+    # This is a normal "already registered" path, not a fatal error.
     assert "you are registered as" in response.lower()
 
 def test_volunteer_edit_command_interactive():
@@ -31,7 +41,6 @@ def test_volunteer_edit_command_interactive():
     state_machine = BotStateMachine()
     register_command("Initial Name", phone, state_machine, msg_timestamp=123)
     response = edit_command("", phone, state_machine, msg_timestamp=123)
-    # Should prompt with edit prompt.
     assert "edit" in response.lower()
 
 def test_volunteer_delete_command():
@@ -49,10 +58,10 @@ def test_volunteer_skills_command():
     assert "currently has skills" in response.lower()
 
 def test_volunteer_find_command():
-    # Assume volunteer exists
     phone = "+80000000006"
     register_command("Find Me", phone, BotStateMachine(), msg_timestamp=123)
     response = find_command("find", "+dummy", BotStateMachine(), msg_timestamp=123)
+    # Usually just returns a string describing no volunteers match, or a list. 
     assert isinstance(response, str)
 
 def test_volunteer_add_skills_command():
@@ -61,4 +70,4 @@ def test_volunteer_add_skills_command():
     response = add_skills_command("Python, Testing", phone, BotStateMachine(), msg_timestamp=123)
     assert "registered" in response.lower() or "updated" in response.lower()
 
-# End of tests/plugins/test_volunteer_commands.py
+# End of tests/plugins/commands/test_volunteer_commands.py

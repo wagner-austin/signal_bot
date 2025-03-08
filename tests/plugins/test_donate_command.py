@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 """
-tests/plugins/test_donate_command.py - Tests for the donate command plugin.
-Verifies that the donate_command function handles cash, in-kind, and register subcommands appropriately.
+test_donate_command.py
+----------------------
+Tests the donate command plugin for normal donation paths (cash, in-kind, register).
+Negative/edge donation tests are now in test_plugin_negatives.py.
 """
 
 from plugins.commands.donate import donate_command
@@ -12,7 +14,6 @@ def test_donate_cash():
     sender = "+1010101010"
     args = "100 Donation for community event"
     response = donate_command(args, sender, state_machine, msg_timestamp=123)
-    # Check that response indicates a donation was logged with an ID.
     assert "Donation logged with ID" in response
 
 def test_donate_in_kind():
@@ -29,19 +30,4 @@ def test_donate_register():
     response = donate_command(args, sender, state_machine, msg_timestamp=123)
     assert "Donation logged with ID" in response
 
-def test_donate_invalid_amount():
-    state_machine = BotStateMachine()
-    sender = "+4040404040"
-    args = "abc Invalid amount test"
-    response = donate_command(args, sender, state_machine, msg_timestamp=123)
-    # Expect an error message about invalid donation amount.
-    assert "Invalid donation amount" in response
-
-def test_donate_usage_instructions():
-    state_machine = BotStateMachine()
-    sender = "+5050505050"
-    args = ""
-    response = donate_command(args, sender, state_machine, msg_timestamp=123)
-    assert "Usage:" in response
-
-# End of tests/plugins/test_donate_command.py
+# End of tests/plugins/commands/test_donate_command.py
