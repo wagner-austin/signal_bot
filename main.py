@@ -8,6 +8,7 @@ Optionally runs the test suite if the --test flag is provided.
 
 import sys
 import asyncio
+import os
 from core.logger_setup import setup_logging
 
 setup_logging()
@@ -31,6 +32,11 @@ async def main() -> None:
     
     # Schedule periodic backups in the background using configurable interval and retention count.
     asyncio.create_task(start_periodic_backups(interval_seconds=BACKUP_INTERVAL, max_backups=BACKUP_RETENTION_COUNT))
+    
+    # Fast exit if environment variable is set (used by tests to avoid infinite loop).
+    if os.environ.get("FAST_EXIT_FOR_TESTS") == "1":
+        logger.info("FAST_EXIT_FOR_TESTS is set, stopping early for test.")
+        return
     
     service = SignalBotService()
     await service.run()
