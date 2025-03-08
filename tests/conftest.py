@@ -1,6 +1,7 @@
 """
 tests/conftest.py – Pytest configuration, fixtures, and common setup.
 Overrides DB_NAME for test isolation and provides a clear_volunteers fixture.
+Also clears Resources table for test isolation.
 """
 
 import os
@@ -31,13 +32,14 @@ def test_database():
 @pytest.fixture(autouse=True)
 def clear_volunteers():
     """
-    tests/conftest.py – Fixture to clear Volunteers and DeletedVolunteers tables before and after tests.
+    tests/conftest.py – Fixture to clear Volunteers, DeletedVolunteers, and Resources tables before and after tests.
     """
     from core.database.connection import get_connection
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("DELETE FROM Volunteers")
     cursor.execute("DELETE FROM DeletedVolunteers")
+    cursor.execute("DELETE FROM Resources")
     conn.commit()
     conn.close()
     yield
@@ -45,6 +47,7 @@ def clear_volunteers():
     cursor = conn.cursor()
     cursor.execute("DELETE FROM Volunteers")
     cursor.execute("DELETE FROM DeletedVolunteers")
+    cursor.execute("DELETE FROM Resources")
     conn.commit()
     conn.close()
 
