@@ -1,10 +1,13 @@
+#!/usr/bin/env python
 """
 tests/core/test_logger_setup.py - Tests for the logging setup in core/logger_setup.py.
-Verifies that calling setup_logging() correctly configures the root logger.
+Verifies that calling setup_logging() correctly configures the root logger,
+supports configuration overrides, and produces output matching formatting expectations.
 """
 
 import logging
 import pytest
+import re
 from core.logger_setup import setup_logging
 
 @pytest.fixture(autouse=True)
@@ -42,5 +45,29 @@ def test_logging_output_format(capsys):
     # Expect the output to contain the log level "INFO" and our message.
     assert "INFO" in captured.err
     assert "Test message" in captured.err
+
+def test_custom_formatter_override(capsys):
+    """
+    test_custom_formatter_override - Verifies that custom formatter overrides produce expected output.
+    """
+    custom_config = {
+        "formatters": {
+            "default": {
+                "format": "CUSTOM: %(message)s"
+            }
+        },
+        "root": {
+            "level": "INFO",
+            "handlers": ["console"]
+        }
+    }
+    setup_logging(custom_config)
+    logger = logging.getLogger("custom_test_logger")
+    logger.info("My custom message")
+    captured = capsys.readouterr()
+    # The expected output should match exactly (allowing for a newline).
+    expected_output = "CUSTOM: My custom message"
+    # Remove trailing newline and any surrounding whitespace.
+    assert captured.err.strip() == expected_output
 
 # End of tests/core/test_logger_setup.py
