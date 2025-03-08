@@ -2,7 +2,7 @@
 """
 tests/core/test_periodic_backup.py - Tests for periodic backup scheduling.
 Verifies that the periodic backup function creates backups at defined intervals in an adaptive manner.
-Uses a dedicated async context manager to override asyncio.sleep for faster test execution.
+Uses a common async helper to override asyncio.sleep for faster test execution.
 Ensures that backup files are cleaned up reliably even if the test fails.
 """
 
@@ -11,31 +11,8 @@ import os
 import shutil
 import time
 import pytest
-from contextlib import asynccontextmanager
+from tests.async_helpers import override_async_sleep
 from core.database.backup import start_periodic_backups, list_backups, BACKUP_DIR
-
-@asynccontextmanager
-async def override_async_sleep(monkeypatch, scale=0.01):
-    """
-    override_async_sleep - Temporarily overrides asyncio.sleep to scale down sleep duration.
-    
-    Args:
-        monkeypatch: Pytest monkeypatch fixture.
-        scale (float): Factor to scale down the sleep duration.
-        
-    Yields:
-        None. Ensures that asyncio.sleep is restored after usage.
-    """
-    original_sleep = asyncio.sleep
-
-    async def fast_sleep(seconds):
-        return await original_sleep(seconds * scale)
-
-    monkeypatch.setattr(asyncio, "sleep", fast_sleep)
-    try:
-        yield
-    finally:
-        monkeypatch.setattr(asyncio, "sleep", original_sleep)
 
 @pytest.mark.asyncio
 async def test_periodic_backup_once(monkeypatch):
