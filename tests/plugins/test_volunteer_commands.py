@@ -1,6 +1,7 @@
+#!/usr/bin/env python
 """
 tests/plugins/test_volunteer_commands.py - Tests for volunteer command plugins.
-Verifies that volunteer registration, modification, and new commands (find, add skills) work correctly.
+Verifies that volunteer registration, deletion, search, and skill addition commands work correctly.
 """
 
 import pytest
@@ -9,7 +10,7 @@ from core.state import BotStateMachine
 from core.database import get_volunteer_record, get_all_volunteers
 from core.database.volunteers import add_volunteer_record
 
-def test_register_command_new_user():
+def test_volunteer_register_new_user():
     phone = "+20000000001"
     state_machine = BotStateMachine()
     response = register_command("Alice Smith", phone, state_machine, msg_timestamp=123)
@@ -18,7 +19,7 @@ def test_register_command_new_user():
     assert record is not None
     assert record.get("name").lower() == "alice smith"
 
-def test_register_command_existing_user():
+def test_volunteer_register_existing_user():
     phone = "+20000000003"
     state_machine = BotStateMachine()
     response = register_command("Alice Smith", phone, state_machine, msg_timestamp=123)
@@ -26,14 +27,14 @@ def test_register_command_existing_user():
     response2 = register_command("", phone, state_machine, msg_timestamp=123)
     assert "you are registered as" in response2.lower()
 
-def test_delete_command():
+def test_volunteer_delete_command():
     phone = "+20000000004"
     state_machine = BotStateMachine()
     register_command("Bob Brown", phone, state_machine, msg_timestamp=123)
     response = delete_command("", phone, state_machine, msg_timestamp=123)
     assert "delete your registration" in response.lower()
 
-def test_find_command():
+def test_volunteer_find_command():
     # Add two volunteer records with different skills.
     phone1 = "+30000000001"
     add_volunteer_record(phone1, "Volunteer One", ["skillA", "skillB"], True, None)
@@ -44,7 +45,7 @@ def test_find_command():
     response = find_command("skillC", "+dummy", None, msg_timestamp=123)
     assert "Volunteer Two" in response and "Volunteer One" not in response
 
-def test_add_skills_command():
+def test_volunteer_add_skills_command():
     phone = "+30000000003"
     add_volunteer_record(phone, "Volunteer Three", ["skillX"], True, None)
     response = add_skills_command("skillY, skillZ", phone, None, msg_timestamp=123)

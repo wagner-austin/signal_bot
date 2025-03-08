@@ -7,7 +7,7 @@ Verifies volunteer addition, listing, and deletion functionalities.
 from tests.cli.cli_test_helpers import run_cli_command
 from tests.test_helpers import insert_record
 
-def test_add_and_list_volunteer():
+def test_volunteer_cli_add_and_list():
     # Ensure no volunteers initially.
     output = run_cli_command(["list-volunteers"])["stdout"]
     assert "No volunteers found." in output
@@ -29,7 +29,7 @@ def test_add_and_list_volunteer():
     # Phone numbers are visible via CLI.
     assert "+1111111111" in list_output
 
-def test_list_deleted_volunteers():
+def test_volunteer_cli_list_deleted():
     # Insert a deleted volunteer record manually using helper.
     insert_record(
         "INSERT INTO DeletedVolunteers (phone, name, skills, available, current_role) VALUES (?, ?, ?, ?, ?)",
