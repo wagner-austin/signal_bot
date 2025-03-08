@@ -21,7 +21,8 @@ def test_volunteer_cli_add_and_list():
         "--available", "1",
         "--role", "Coordinator"
     ])["stdout"]
-    assert "Volunteer 'John Doe' added" in add_output
+    # Updated expected message to match central sign up output.
+    assert "New volunteer 'John Doe' registered" in add_output
 
     # List volunteers and verify.
     list_output = run_cli_command(["list-volunteers"])["stdout"]
