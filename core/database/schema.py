@@ -1,13 +1,16 @@
 """
 core/database/schema.py - Database schema initialization.
-Creates tables for volunteers, command logs, and deleted volunteers using a context manager for connection handling.
+Creates base tables for volunteers, command logs, and deleted volunteers.
+Automatically runs migrations to update the schema with new changes.
 """
 
 from .connection import db_connection
+from .migrations import run_migrations
 
 def init_db() -> None:
     """
-    Initialize the database by creating necessary tables if they do not exist.
+    Initialize the database by creating necessary base tables if they do not exist,
+    then run any pending migrations to update the schema.
     """
     with db_connection() as conn:
         cursor = conn.cursor()
@@ -40,5 +43,7 @@ def init_db() -> None:
         )
         """)
         conn.commit()
+    # Run migrations to update or add new tables/columns as needed.
+    run_migrations()
 
 # End of core/database/schema.py
