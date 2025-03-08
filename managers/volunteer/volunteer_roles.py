@@ -84,16 +84,6 @@ def assign_role(phone: str, role: str) -> str:
     return f"Your preferred role has been set to '{role}'."
 
 def switch_role(phone: str, role: str) -> str:
-    """
-    switch_role - Switches the volunteer's current preferred role to a new role.
-    
-    Args:
-        phone (str): Volunteer phone number.
-        role (str): New role to assign.
-    
-    Returns:
-        str: Message indicating the role switch or an error.
-    """
     record = get_volunteer_record(phone)
     if not record:
         return "You are not registered."
@@ -109,20 +99,10 @@ def switch_role(phone: str, role: str) -> str:
     return message + result
 
 def unassign_role(phone: str) -> str:
-    """
-    unassign_role - Clears the volunteer's preferred role.
-    
-    Args:
-        phone (str): Volunteer phone number.
-    
-    Returns:
-        str: Confirmation message.
-    """
     record = get_volunteer_record(phone)
     if not record:
         return "You are not registered."
-    if not record.get("preferred_role"):
-        return "You do not have a role assigned."
+    # Always update role to None, regardless of current value.
     update_volunteer_role(phone, None)
     return "Your preferred role has been cleared."
 
