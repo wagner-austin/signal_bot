@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-managers/volunteer/volunteer_operations.py - Volunteer operations.
+managers/volunteer_operations.py - Volunteer operations.
 Provides functions for volunteer registration, check‑in, and deletion.
 Uses a centralized sign up method for consistent volunteer creation.
 """
@@ -27,7 +27,7 @@ def sign_up(phone: str, name: str, skills: List[str], available: bool = True, cu
         name (str): Volunteer full name.
         skills (List[str]): List of skills.
         available (bool): Availability status; defaults to True.
-        current_role (Optional[str]): Current role; defaults to None.
+        current_role (Optional[str]): Current role; if provided, will update the record.
     
     Returns:
         str: Confirmation message.
@@ -38,7 +38,9 @@ def sign_up(phone: str, name: str, skills: List[str], available: bool = True, cu
         current_skills = set(record.get("skills", []))
         updated_skills = list(current_skills.union(skills))
         updated_name = normalize_name(updated_name, phone)
-        update_volunteer_record(phone, updated_name, updated_skills, available, record.get("current_role"))
+        # Update current_role if provided; otherwise keep existing.
+        new_role = current_role if current_role is not None else record.get("current_role")
+        update_volunteer_record(phone, updated_name, updated_skills, available, new_role)
         return VOLUNTEER_UPDATED.format(name=updated_name)
     else:
         remove_deleted_volunteer_record(phone)
@@ -80,4 +82,4 @@ def check_in(phone: str) -> str:
         return VOLUNTEER_CHECKED_IN.format(name=normalize_name(record['name'], phone))
     return "Volunteer not found."
 
-# End of managers/volunteer/volunteer_operations.py
+# End of managers/volunteer_operations.py
