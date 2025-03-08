@@ -11,6 +11,7 @@ from .resource import *
 from .role import *
 from .speaker import *
 from .system import *
+from .task import *
 from .theme import *
 from .volunteer import *
 

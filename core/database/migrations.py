@@ -90,11 +90,27 @@ def migration_3() -> None:
             cursor.execute("ALTER TABLE Volunteers ADD COLUMN preferred_role TEXT")
             conn.commit()
 
+def migration_4() -> None:
+    """
+    migration_4 - Create Tasks table for managing shared to-do items.
+    """
+    execute_sql("""
+    CREATE TABLE IF NOT EXISTS Tasks (
+        task_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        description TEXT,
+        created_by TEXT,
+        assigned_to TEXT,
+        status TEXT DEFAULT 'open',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+    """, commit=True)
+
 # List of migrations: each tuple is (migration_version, migration_function)
 MIGRATIONS = [
     (1, migration_1),
     (2, migration_2),
     (3, migration_3),
+    (4, migration_4),
 ]
 
 def run_migrations() -> None:
