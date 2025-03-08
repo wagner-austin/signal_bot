@@ -1,14 +1,16 @@
 #!/usr/bin/env python
 """
 cli_tools.py - Database CLI Tools for manual inspection and modification.
-Provides command-line utilities to view database content (volunteers, events, command logs)
-and manually add volunteer records.
-
+Provides command-line utilities to view database content (volunteers, events, command logs, resources)
+and manually add, remove, or list resource records, along with volunteer records.
 Usage Examples:
   python cli_tools.py list-volunteers
   python cli_tools.py add-volunteer --phone +1234567890 --name "John Doe" --skills "Python, SQL" --available 1 --role "Coordinator"
   python cli_tools.py list-events
   python cli_tools.py list-logs
+  python cli_tools.py list-resources
+  python cli_tools.py add-resource --category "Linktree" --url "https://linktr.ee/50501oc" --title "Official Linktree"
+  python cli_tools.py remove-resource --id 3
 """
 
 import os
@@ -22,11 +24,11 @@ if project_root not in sys.path:
 import argparse
 from core.database.helpers import execute_sql
 from core.database.volunteers import add_volunteer_record, get_all_volunteers
+from core.database.resources import add_resource, list_resources, remove_resource
 
 def list_volunteers() -> None:
     """
     List all volunteer records in the database.
-    
     Prints details such as phone, name, skills, availability, and current role for each volunteer.
     """
     volunteers = get_all_volunteers()
@@ -45,11 +47,7 @@ def list_volunteers() -> None:
 def add_volunteer(args: argparse.Namespace) -> None:
     """
     Manually add a new volunteer record to the database.
-    
     Uses command-line arguments to create a new volunteer entry.
-    
-    Args:
-        args (argparse.Namespace): Parsed command-line arguments containing phone, name, skills, availability, and role.
     """
     phone = args.phone
     name = args.name
@@ -62,7 +60,6 @@ def add_volunteer(args: argparse.Namespace) -> None:
 def list_events() -> None:
     """
     List all events in the database.
-    
     Retrieves and prints event details such as event_id, title, date, time, location, and description.
     """
     query = "SELECT * FROM Events ORDER BY created_at DESC"
@@ -82,7 +79,6 @@ def list_events() -> None:
 def list_logs() -> None:
     """
     List all command logs in the database.
-    
     Retrieves and prints details of command logs including id, sender, command, arguments, and timestamp.
     """
     query = "SELECT * FROM CommandLogs ORDER BY timestamp DESC"
@@ -98,15 +94,52 @@ def list_logs() -> None:
         print(f"Timestamp: {row['timestamp']}")
         print("-" * 40)
 
+def list_resources_cli() -> None:
+    """
+    List all resource records in the database.
+    Optionally can filter by category if provided.
+    """
+    resources = list_resources()
+    if not resources:
+        print("No resources found.")
+        return
+    for res in resources:
+        print(f"ID: {res['id']}")
+        print(f"Category: {res['category']}")
+        print(f"Title: {res['title'] if res['title'] else 'N/A'}")
+        print(f"URL: {res['url']}")
+        print(f"Created At: {res['created_at']}")
+        print("-" * 40)
+
+def add_resource_cli(args: argparse.Namespace) -> None:
+    """
+    Manually add a new resource record to the database.
+    """
+    category = args.category
+    url = args.url
+    title = args.title if args.title else ""
+    resource_id = add_resource(category, url, title)
+    print(f"Resource added with ID {resource_id}.")
+
+def remove_resource_cli(args: argparse.Namespace) -> None:
+    """
+    Remove a resource record from the database by its ID.
+    """
+    resource_id = args.id
+    remove_resource(resource_id)
+    print(f"Resource with ID {resource_id} removed.")
+
 def main() -> None:
     """
     Parse command-line arguments and execute the corresponding database CLI action.
-    
     Available commands include:
       - list-volunteers: List all volunteer records.
       - add-volunteer: Manually add a new volunteer record.
       - list-events: List all events.
       - list-logs: List all command logs.
+      - list-resources: List all resource records.
+      - add-resource: Manually add a new resource record.
+      - remove-resource: Remove a resource record by its ID.
     """
     parser = argparse.ArgumentParser(description="Database CLI Tools for inspection and manual modification.")
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
@@ -128,6 +161,19 @@ def main() -> None:
     # Sub-command: list logs
     subparsers.add_parser("list-logs", help="List all command logs in the database")
     
+    # Sub-command: list resources
+    subparsers.add_parser("list-resources", help="List all resource records in the database")
+    
+    # Sub-command: add resource
+    parser_add_res = subparsers.add_parser("add-resource", help="Manually add a resource record to the database")
+    parser_add_res.add_argument("--category", required=True, help="Resource category (e.g., Flyers, Videos, Linktree)")
+    parser_add_res.add_argument("--url", required=True, help="URL of the resource")
+    parser_add_res.add_argument("--title", default="", help="Title or description of the resource (optional)")
+    
+    # Sub-command: remove resource
+    parser_remove_res = subparsers.add_parser("remove-resource", help="Remove a resource record by its ID")
+    parser_remove_res.add_argument("--id", type=int, required=True, help="ID of the resource to remove")
+    
     args = parser.parse_args()
     
     if args.command == "list-volunteers":
@@ -138,6 +184,12 @@ def main() -> None:
         list_events()
     elif args.command == "list-logs":
         list_logs()
+    elif args.command == "list-resources":
+        list_resources_cli()
+    elif args.command == "add-resource":
+        add_resource_cli(args)
+    elif args.command == "remove-resource":
+        remove_resource_cli(args)
     else:
         parser.print_help()
 
