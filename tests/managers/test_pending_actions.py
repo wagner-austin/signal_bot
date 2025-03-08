@@ -1,8 +1,14 @@
 #!/usr/bin/env python
 """
-test_pending_actions.py - Tests for the PendingActions class.
+tests/managers/test_pending_actions.py
+--------------------------------------
+Tests for the PendingActions class.
 Ensures that pending registration, deletion, and event creation states
 are properly managed, including concurrent access using thread pools.
+
+NEW/CHANGED:
+  - Added test_concurrent_edit_registration to simulate multiple threads
+    setting an 'edit' registration for the same user concurrently.
 """
 
 import pytest
@@ -173,5 +179,29 @@ def test_concurrent_event_creation_clear(pending_actions):
     for res in results:
         assert res is False
     assert not pending_actions.has_event_creation(sender)
+
+
+# -----------------------------------------------------------------
+# NEW TEST: Concurrent "edit" registrations for the same user
+# -----------------------------------------------------------------
+
+def test_concurrent_edit_registration(pending_actions):
+    """
+    Tests that multiple threads trying to set an 'edit' registration for the same sender
+    do not produce any race conditions or partial states.
+    """
+    sender = "+9999999998"
+    modes = ["edit1", "edit2", "edit3", "edit4"]
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+        futures = [executor.submit(concurrent_set_registration, pending_actions, sender, mode) for mode in modes]
+        results = [f.result() for f in concurrent.futures.as_completed(futures)]
+
+    # Ensure each concurrency call returns one of the modes
+    for result in results:
+        assert result in modes
+
+    # The final registration mode for the sender must be one of the 'editN'.
+    final_mode = pending_actions.get_registration(sender)
+    assert final_mode in modes
 
 # End of tests/managers/test_pending_actions.py

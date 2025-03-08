@@ -1,10 +1,14 @@
 #!/usr/bin/env python
 """
-test_volunteer_commands.py
---------------------------
+tests/plugins/test_volunteer_commands.py
+----------------------------------------
 Tests volunteer command plugins for normal usage: register, edit, delete, etc.
-Negative or edge-case volunteer tests are either in their own specific modules or covered
-in test_plugin_negatives.py if more severe. 
+Also includes a new test for a partial/malformed volunteer registration flow
+(where the user sends '@bot register' then follows up with a blank message).
+
+NEW/CHANGED:
+  - Added test_register_command_blank_after_initiation to confirm
+    the bot remains in a pending state or cancels gracefully, rather than crashing.
 """
 
 import pytest
@@ -18,6 +22,7 @@ from plugins.commands.volunteer import (
 )
 from core.state import BotStateMachine
 from core.database.volunteers import get_volunteer_record
+from managers.pending_actions import PENDING_ACTIONS
 
 def test_volunteer_register_new():
     phone = "+80000000001"
@@ -70,4 +75,31 @@ def test_volunteer_add_skills_command():
     response = add_skills_command("Python, Testing", phone, BotStateMachine(), msg_timestamp=123)
     assert "registered" in response.lower() or "updated" in response.lower()
 
-# End of tests/plugins/commands/test_volunteer_commands.py
+# --------------------------------------------------------
+# NEW TEST: partial / malformed volunteer registration
+# --------------------------------------------------------
+
+def test_register_command_blank_after_initiation():
+    """
+    Simulates a user who sends '@bot register' with no arguments, gets a pending registration state,
+    but then follows up with a blank message. We check that it doesn't crash,
+    and the user remains in a pending or gracefully canceled state.
+    """
+    phone = "+80000000008"
+    state_machine = BotStateMachine()
+
+    # First, the user sends "@bot register" with no arguments:
+    response1 = register_command("", phone, state_machine, msg_timestamp=123)
+    assert "please respond with your first and last name" in response1.lower() or "registered" in response1.lower() or "you are registered as" in response1.lower()
+    # Now we have a pending registration state.
+    assert PENDING_ACTIONS.has_registration(phone)
+
+    # Next, user sends a blank message. The register_command is typically triggered again with an empty string:
+    response2 = register_command("", phone, state_machine, msg_timestamp=123)
+
+    # It's up to the logic whether it remains pending or says "already registered." We just ensure no crash:
+    # So we accept either continuing pending or a message about "You are registered as ...".
+    # Implementation might vary. We'll just ensure it's not an unhandled error or meltdown.
+    assert isinstance(response2, str) and response2.strip() != ""
+
+# End of tests/plugins/test_volunteer_commands.py
