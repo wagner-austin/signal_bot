@@ -3,6 +3,8 @@
 managers/volunteer/volunteer_queries.py - Volunteer query functions.
 Provides functions to retrieve volunteer status, search for available volunteers,
 and list available skills.
+Changes:
+ - find_available_volunteer now checks skill ignoring case. 
 """
 
 from typing import Optional, List
@@ -28,7 +30,7 @@ def volunteer_status() -> str:
 
 def find_available_volunteer(skill: str) -> Optional[str]:
     """
-    find_available_volunteer - Finds the first available volunteer with the specified skill.
+    find_available_volunteer - Finds the first available volunteer with the specified skill (case-insensitive).
     
     Args:
         skill (str): The required skill.
@@ -38,7 +40,9 @@ def find_available_volunteer(skill: str) -> Optional[str]:
     """
     volunteers = get_all_volunteers()
     for phone, data in volunteers.items():
-        if skill in data.get("skills", []) and data.get("available") and data.get("current_role") is None:
+        # do case-insensitive skill check
+        volunteer_skills = [s.lower() for s in data.get("skills", [])]
+        if skill.lower() in volunteer_skills and data.get("available") and data.get("current_role") is None:
             return normalize_name(data.get("name", phone), phone)
     return None
 
