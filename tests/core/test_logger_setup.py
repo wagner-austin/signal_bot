@@ -1,14 +1,13 @@
 #!/usr/bin/env python
 """
-tests/core/test_logger_setup.py - Tests for the logging setup in core/logger_setup.py.
-Verifies that calling setup_logging() correctly configures the root logger,
-supports configuration overrides, and produces output matching formatting expectations.
+tests/core/test_logger_setup.py - Unit tests for logger setup.
+Tests default configuration, overrides, output formatting, and merge_dicts functionality.
 """
 
 import logging
 import pytest
 import re
-from core.logger_setup import setup_logging
+from core.logger_setup import setup_logging, merge_dicts
 
 @pytest.fixture(autouse=True)
 def reset_logging():
@@ -69,5 +68,12 @@ def test_custom_formatter_override(capsys):
     expected_output = "CUSTOM: My custom message"
     # Remove trailing newline and any surrounding whitespace.
     assert captured.err.strip() == expected_output
+
+def test_merge_dicts():
+    base = {"a": 1, "b": {"c": 2}}
+    overrides = {"b": {"d": 3}, "e": 4}
+    merged = merge_dicts(base.copy(), overrides)
+    expected = {"a": 1, "b": {"c": 2, "d": 3}, "e": 4}
+    assert merged == expected
 
 # End of tests/core/test_logger_setup.py
