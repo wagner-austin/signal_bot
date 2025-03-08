@@ -1,6 +1,6 @@
 """
 managers/message_handler.py - Handles incoming messages and dispatches commands.
-Refactored into separate handlers for registration/edit and deletion flows.
+Separates pending flows (registration, deletion, and event creation) from normal command processing.
 """
 
 import logging
@@ -11,20 +11,20 @@ from core.state import BotStateMachine
 from parsers.message_parser import ParsedMessage
 from core.messages import (
     DELETION_CONFIRM_PROMPT, ALREADY_REGISTERED, DELETION_CANCELED,
-    EDIT_CANCELED, EDIT_CANCELED_WITH_NAME
+    EDIT_PROMPT, EDIT_CANCELED, EDIT_CANCELED_WITH_NAME
 )
-from core.constants import SKIP_VALUES  # Consolidated constant
+from core.constants import SKIP_VALUES
 
 logger = logging.getLogger(__name__)
 
 def _get_confirmation_message(sender: str, registered_format: str, default_message: str) -> str:
     """
-    _get_confirmation_message - Helper function to fetch the volunteer record and generate a confirmation message.
+    _get_confirmation_message - Fetches the volunteer record and generates a confirmation message.
     
     Args:
         sender (str): The sender's phone number.
-        registered_format (str): A format string expecting a 'name' parameter.
-        default_message (str): A default message if no volunteer record is found.
+        registered_format (str): Format string expecting a 'name' parameter.
+        default_message (str): Default message if no record is found.
         
     Returns:
         str: The formatted confirmation message.
@@ -39,8 +39,6 @@ def _get_confirmation_message(sender: str, registered_format: str, default_messa
 class DeletionPendingHandler:
     """
     DeletionPendingHandler - Handles pending deletion responses.
-    
-    Separates deletion flow from registration logic for clarity and easier testing.
     """
     def __init__(self, pending_actions, volunteer_manager) -> None:
         self.pending_actions = pending_actions
@@ -48,13 +46,7 @@ class DeletionPendingHandler:
 
     def process_deletion_response(self, parsed: ParsedMessage, sender: str) -> Optional[str]:
         """
-        process_deletion_response - Processes a deletion response using the pending deletion state.
-        
-        Args:
-            parsed (ParsedMessage): The parsed message.
-            sender (str): The sender's identifier.
-        Returns:
-            Optional[str]: The deletion confirmation or cancellation message if processed.
+        Processes a deletion response using pending deletion state.
         """
         if not self.pending_actions.has_deletion(sender):
             return None
@@ -82,8 +74,6 @@ class DeletionPendingHandler:
 class RegistrationPendingHandler:
     """
     RegistrationPendingHandler - Handles pending registration/edit responses.
-    
-    Splits out registration and edit flow from deletion, making logic more modular.
     """
     def __init__(self, pending_actions, volunteer_manager) -> None:
         self.pending_actions = pending_actions
@@ -91,13 +81,7 @@ class RegistrationPendingHandler:
 
     def process_registration_response(self, parsed: ParsedMessage, sender: str) -> Optional[str]:
         """
-        process_registration_response - Processes a registration or edit response using the pending registration state.
-        
-        Args:
-            parsed (ParsedMessage): The parsed message.
-            sender (str): The sender's identifier.
-        Returns:
-            Optional[str]: The confirmation message if processed.
+        Processes a registration or edit response using the pending registration state.
         """
         if not self.pending_actions.has_registration(sender):
             return None
@@ -114,25 +98,56 @@ class RegistrationPendingHandler:
         self.pending_actions.clear_registration(sender)
         return confirmation
 
+class EventCreationPendingHandler:
+    """
+    EventCreationPendingHandler - Handles pending event creation responses.
+    
+    If a sender is in a pending event creation state, processes the reply to either create
+    the event or cancel the process.
+    """
+    def __init__(self, pending_actions) -> None:
+        self.pending_actions = pending_actions
+
+    def process_event_creation_response(self, parsed: ParsedMessage, sender: str) -> Optional[str]:
+        """
+        Processes a pending event creation response.
+        
+        Returns:
+            str: Confirmation message if event is created or cancellation message.
+        """
+        from core.event_manager import create_event
+        if not self.pending_actions.has_event_creation(sender):
+            return None
+        user_input = parsed.body.strip() if parsed.body else ""
+        if user_input.lower() in SKIP_VALUES:
+            self.pending_actions.clear_event_creation(sender)
+            return "Event creation cancelled."
+        try:
+            parts = {}
+            for part in user_input.split(","):
+                key, value = part.split(":", 1)
+                parts[key.strip().lower()] = value.strip()
+            required_fields = ["title", "date", "time", "location", "description"]
+            if not all(field in parts for field in required_fields):
+                self.pending_actions.clear_event_creation(sender)
+                return "Missing one or more required fields. Event creation cancelled."
+            event_id = create_event(parts["title"], parts["date"], parts["time"], parts["location"], parts["description"])
+            self.pending_actions.clear_event_creation(sender)
+            return f"Event '{parts['title']}' created successfully with ID {event_id}."
+        except Exception as e:
+            self.pending_actions.clear_event_creation(sender)
+            return f"Error parsing event details: {str(e)}"
+
 def handle_message(parsed: ParsedMessage, sender: str, state_machine: BotStateMachine, pending_actions, volunteer_manager, msg_timestamp: Optional[int] = None) -> str:
     """
-    handle_message - Processes an incoming message and executes the corresponding plugin command if available.
-    
-    Additionally, if a sender is in a pending deletion or registration/edit state (private message),
-    the respective response is handled via the separated PendingStateHandlers.
-    
-    Args:
-        parsed (ParsedMessage): The parsed message details.
-        sender (str): The sender's identifier.
-        state_machine (BotStateMachine): The bot's state machine instance.
-        pending_actions: Instance managing pending actions.
-        volunteer_manager: Instance managing volunteer operations.
-        msg_timestamp (Optional[int]): The message timestamp.
-    Returns:
-        str: The response from the executed plugin command, or a pending state response.
+    Processes an incoming message, handling pending responses and executing the appropriate plugin command.
     """
     # Only process pending responses for private chats
     if parsed.group_id is None:
+        # Handle pending event creation first
+        event_response = EventCreationPendingHandler(pending_actions).process_event_creation_response(parsed, sender)
+        if event_response is not None:
+            return event_response
         deletion_response = DeletionPendingHandler(pending_actions, volunteer_manager).process_deletion_response(parsed, sender)
         if deletion_response is not None:
             return deletion_response
@@ -159,5 +174,5 @@ def handle_message(parsed: ParsedMessage, sender: str, state_machine: BotStateMa
             logger.exception(f"[handle_message] Error executing plugin for command '{command}' with args '{args}' from sender '{sender}': {e}")
             return f"An error occurred while processing the command '{command}': {e}"
     return ""
-    
+
 # End of managers/message_handler.py
