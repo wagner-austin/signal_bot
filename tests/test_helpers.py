@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 """
-tests/test_helpers.py - Helper functions for database operations in tests.
-Provides common functions for inserting test records, fetching results, and cleaning up tables.
+tests/test_helpers.py - Consolidated helper functions for database operations in tests.
+This module provides common functions for inserting test records, fetching results, and cleaning up tables.
+All tests requiring database operations should import these functions to avoid code duplication and ensure consistency.
 """
 
 from core.database.connection import get_connection
@@ -13,7 +14,7 @@ def insert_record(query, params):
     Args:
         query (str): The SQL query to execute.
         params (tuple): Parameters for the SQL query.
-    
+        
     Returns:
         int: The last inserted row id.
     """
@@ -32,7 +33,7 @@ def fetch_one(query, params=()):
     Args:
         query (str): The SQL query to execute.
         params (tuple, optional): Parameters for the SQL query.
-    
+        
     Returns:
         sqlite3.Row: The first row of the result set.
     """
