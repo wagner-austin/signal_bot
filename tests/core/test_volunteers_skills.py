@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """
 tests/core/test_volunteers_skills.py - Tests for skill conversion functions in core/database/volunteers.py.
 Ensures that skills are properly serialized to a comma-separated string and deserialized back to a list.
@@ -29,5 +30,19 @@ def test_serialize_then_deserialize():
     serialized = serialize_skills(skills)
     deserialized = deserialize_skills(serialized)
     assert deserialized == skills
+
+# -------------------------------
+# Additional Negative / Boundary Tests
+# -------------------------------
+
+def test_deserialize_list_special_characters():
+    """
+    Verifies that skills containing special characters are preserved without error.
+    """
+    serialized = "Skill!, ???, 123$%^,   Spaces   "
+    result = deserialize_skills(serialized)
+    # We expect them preserved exactly (trimming only outer whitespace on each token).
+    # So "   Spaces   " becomes "Spaces" as typical.
+    assert result == ["Skill!", "???", "123$%^", "Spaces"]
 
 # End of tests/core/test_volunteers_skills.py

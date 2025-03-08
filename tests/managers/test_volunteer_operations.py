@@ -49,4 +49,17 @@ def test_sign_up_with_empty_role():
     # Verify that preferred_role is None when an empty role is provided.
     assert record.get("preferred_role") is None
 
+# -------------------------------
+# Additional Negative / Boundary Test
+# -------------------------------
+
+def test_delete_unregistered_volunteer():
+    """
+    Confirm that attempting to delete a volunteer who is not registered
+    returns a user-friendly message and does not cause errors.
+    """
+    phone = "+40000000005"
+    msg = delete_volunteer(phone)
+    assert msg == "You are not registered."
+
 # End of tests/managers/test_volunteer_operations.py
