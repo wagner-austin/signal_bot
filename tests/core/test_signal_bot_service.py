@@ -46,8 +46,8 @@ async def test_signal_bot_service_run(monkeypatch):
 @pytest.mark.asyncio
 async def test_signal_bot_service_run_shutdown_command(monkeypatch):
     """
-    Test that sending a single '@bot shutdown' message causes the bot to transition to SHUTTING_DOWN
-    and exit the run loop.
+    Test that sending a single '@bot shutdown' message causes the bot to transition
+    to SHUTTING_DOWN and exit the run loop.
     """
     # We'll override receive_messages to simulate a single shutdown message, then no more.
     messages_list = [
@@ -78,5 +78,48 @@ async def test_signal_bot_service_run_shutdown_command(monkeypatch):
 
     # Confirm the state is SHUTTING_DOWN.
     assert state_machine.current_state == BotState.SHUTTING_DOWN
+
+
+@pytest.mark.asyncio
+async def test_signal_bot_service_run_shutdown_no_extraneous_polls(monkeypatch):
+    """
+    Test that after receiving '@bot shutdown', the bot transitions to SHUTTING_DOWN
+    and does NOT poll again. We track how many times receive_messages is called
+    and expect exactly 1 call.
+    """
+    call_count = 0
+
+    async def dummy_receive_messages(logger=None):
+        nonlocal call_count
+        call_count += 1
+        # On the first call, simulate a shutdown message.
+        if call_count == 1:
+            return [
+                "Envelope\nfrom: +2222222222\nBody: @bot shutdown\nTimestamp: 1777777777\n"
+            ]
+        # If we ever get here, it's a failure: the loop shouldn't poll a second time.
+        return ["ShouldNeverHappen"]
+
+    # Override sleeps so the test doesn't block.
+    monkeypatch.setattr(asyncio, "sleep", fast_sleep)
+    # Patch out signal-cli calls.
+    async def dummy_run_signal_cli(args, stdin_input=None):
+        return ""
+    monkeypatch.setattr("core.signal_client.async_run_signal_cli", dummy_run_signal_cli)
+    # Patch to use our dummy message reception.
+    monkeypatch.setattr("core.signal_client.receive_messages", dummy_receive_messages)
+
+    state_machine = BotStateMachine()
+    service = SignalBotService(state_machine=state_machine)
+
+    await service.run()
+
+    # Confirm we only polled once, then stopped.
+    assert call_count == 1, (
+        f"Expected receive_messages to be called once, but got {call_count} calls."
+    )
+    assert state_machine.current_state == BotState.SHUTTING_DOWN, (
+        "The state machine should be in SHUTTING_DOWN after handling '@bot shutdown'."
+    )
 
 # End of tests/core/test_signal_bot_service.py
