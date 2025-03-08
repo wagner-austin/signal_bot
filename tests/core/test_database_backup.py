@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 """
 tests/core/test_database_backup.py - Tests for database backup and restore functionality.
-Verifies that backups are created, listed, cleaned up per retention policy, and that restore functionality works.
-Now includes edge-case tests for zero/negative retention and invalid/corrupted backups.
+Verifies that backups are created, listed, cleaned up per retention policy, that restore functionality works,
+and now ensures that multiple backups in the same second do not produce filename collisions.
 """
 
 import os
@@ -179,6 +179,41 @@ def test_restore_corrupted_backup():
         mock_warning.assert_called_once()
         call_args, _ = mock_warning.call_args
         assert "invalid or corrupted" in call_args[0].lower()
+    finally:
+        if os.path.exists(BACKUP_DIR):
+            shutil.rmtree(BACKUP_DIR)
+
+def test_frequent_backups_same_second():
+    """
+    Ensures that multiple create_backup calls in the same second do not collide on filename generation.
+    We expect each call to produce a unique .db file in BACKUP_DIR.
+    """
+    try:
+        if os.path.exists(BACKUP_DIR):
+            shutil.rmtree(BACKUP_DIR)
+        os.makedirs(BACKUP_DIR)
+
+        # Call create_backup multiple times quickly
+        created_paths = []
+        for _ in range(5):
+            path = create_backup()
+            assert path, "Expected a valid backup path."
+            created_paths.append(path)
+
+        # Confirm we have 5 distinct backups
+        backups = list_backups()
+        assert len(backups) == 5, (
+            f"Expected 5 distinct backups in the same second, found: {backups}"
+        )
+
+        # Check that the backups match exactly the 5 created
+        # Filenames in 'backups' are sorted, so we can just match the count.
+        # If there's any duplication, we won't get 5 unique files.
+        created_filenames = set(os.path.basename(p) for p in created_paths)
+        backups_set = set(backups)
+        assert created_filenames == backups_set, (
+            "The created backup filenames do not match the files in the directory."
+        )
     finally:
         if os.path.exists(BACKUP_DIR):
             shutil.rmtree(BACKUP_DIR)

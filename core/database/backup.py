@@ -4,7 +4,8 @@ core/database/backup.py - Database backup and restore utilities with retention a
 Provides functions to create a backup snapshot of the current database, automatically clean up old backups
 using a configurable retention count, and schedule periodic backups using a configurable interval.
 Backups are saved in the 'backups' folder with a timestamp appended.
-Error handling added for directory creation failures, and a file signature check for valid SQLite on restore.
+Error handling added for directory creation failures, a file signature check for valid SQLite on restore,
+and logic to avoid filename collisions if multiple backups occur in the same second.
 """
 
 import os
@@ -18,6 +19,23 @@ logger = logging.getLogger(__name__)
 
 # Define the backups directory relative to the DB_NAME location.
 BACKUP_DIR = os.path.join(os.path.dirname(DB_NAME), "backups")
+
+def _generate_backup_filename() -> str:
+    """
+    Generates a unique backup filename using the current date-time second.
+    If multiple backups occur in the same second, appends a numeric suffix.
+    """
+    base_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    suffix = 0
+    while True:
+        filename = f"backup_{base_timestamp}"
+        if suffix:
+            filename += f"_{suffix}"
+        filename += ".db"
+        fullpath = os.path.join(BACKUP_DIR, filename)
+        if not os.path.exists(fullpath):
+            return filename
+        suffix += 1
 
 def create_backup() -> str:
     """
@@ -33,8 +51,7 @@ def create_backup() -> str:
         logger.warning(f"Failed to create backup directory '{BACKUP_DIR}'. Error: {e}")
         return ""  # Return an empty string to indicate failure or skip.
 
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    backup_filename = f"backup_{timestamp}.db"
+    backup_filename = _generate_backup_filename()
     backup_path = os.path.join(BACKUP_DIR, backup_filename)
 
     try:
