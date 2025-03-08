@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 """
-managers/volunteer_operations.py - Volunteer operations.
+managers/volunteer/volunteer_operations.py - Volunteer operations.
 Provides functions for volunteer registration, check‑in, and deletion.
 Uses a centralized sign up method for consistent volunteer creation.
+Role assignment during registration is now optional—if no role is provided, the volunteer is registered without one.
 """
 
 import logging
@@ -19,15 +20,15 @@ logger = logging.getLogger(__name__)
 
 def sign_up(phone: str, name: str, skills: List[str], available: bool = True, current_role: Optional[str] = None) -> str:
     """
-    managers/volunteer/volunteer_operations.py - sign_up
-    Registers a new volunteer or updates an existing one using a centralized method.
+    sign_up - Registers a new volunteer or updates an existing one using a centralized method.
     
     Args:
         phone (str): Volunteer phone number.
         name (str): Volunteer full name.
         skills (List[str]): List of skills.
         available (bool): Availability status; defaults to True.
-        current_role (Optional[str]): Current role; if provided, will update the record.
+        current_role (Optional[str]): Role provided during registration.
+                                      If omitted or empty, no role is assigned.
     
     Returns:
         str: Confirmation message.
@@ -39,14 +40,16 @@ def sign_up(phone: str, name: str, skills: List[str], available: bool = True, cu
         updated_skills = list(current_skills.union(skills))
         updated_name = normalize_name(updated_name, phone)
         # Update current_role if provided; otherwise keep existing.
-        new_role = current_role if current_role is not None else record.get("current_role")
+        new_role = current_role if current_role is not None and current_role.strip() != "" else record.get("current_role")
         update_volunteer_record(phone, updated_name, updated_skills, available, new_role)
         return VOLUNTEER_UPDATED.format(name=updated_name)
     else:
         remove_deleted_volunteer_record(phone)
         final_name = "Anonymous" if name.lower() == "skip" or name.strip() == "" else name
         final_name = normalize_name(final_name, phone)
-        add_volunteer_record(phone, final_name, skills, available, current_role)
+        # Only assign role if a non-empty role string is provided.
+        role_to_set = current_role.strip() if current_role and current_role.strip() != "" else None
+        add_volunteer_record(phone, final_name, skills, available, role_to_set, role_to_set)
         return NEW_VOLUNTEER_REGISTERED.format(name=final_name)
 
 def delete_volunteer(phone: str) -> str:
@@ -82,4 +85,4 @@ def check_in(phone: str) -> str:
         return VOLUNTEER_CHECKED_IN.format(name=normalize_name(record['name'], phone))
     return "Volunteer not found."
 
-# End of managers/volunteer_operations.py
+# End of managers/volunteer/volunteer_operations.py
