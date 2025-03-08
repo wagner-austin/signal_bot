@@ -1,12 +1,8 @@
 #!/usr/bin/env python
 """
-managers/volunteer_manager.py - Aggregated volunteer management.
+managers/volunteer/volunteer_manager.py - Aggregated volunteer management.
 Provides a unified interface for volunteer operations, queries, role management, and volunteer assignment.
-This module re-exports functions from:
-    - volunteer_operations.py (sign_up, delete_volunteer, check_in)
-    - volunteer_queries.py (volunteer_status, find_available_volunteer, get_all_skills)
-    - volunteer_roles.py (list_roles, assign_role, switch_role, unassign_role)
-Additionally, it adds an assign_volunteer method for automatic assignment.
+This module now uses a centralized sign up method that supports availability and role updates.
 """
 
 from typing import Optional
@@ -18,8 +14,8 @@ from managers.volunteer.volunteer_common import normalize_name  # Corrected impo
 
 class VolunteerManager:
     # Operations
-    def sign_up(self, phone: str, name: str, skills: list) -> str:
-        return sign_up(phone, name, skills)
+    def sign_up(self, phone: str, name: str, skills: list, available: bool = True, current_role: Optional[str] = None) -> str:
+        return sign_up(phone, name, skills, available, current_role)
     
     def delete_volunteer(self, phone: str) -> str:
         return delete_volunteer(phone)
@@ -67,4 +63,4 @@ class VolunteerManager:
 
 VOLUNTEER_MANAGER = VolunteerManager()
 
-# End of managers/volunteer_manager.py
+# End of managers/volunteer/volunteer_manager.py
