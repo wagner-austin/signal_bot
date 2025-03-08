@@ -1,18 +1,7 @@
 #!/usr/bin/env python
 """
-plugins/commands/event.py - Event command plugins.
-Provides commands for listing events, creating (plan), updating (edit), deleting (remove), 
-and managing speakers.
-Usage examples:
-  "@bot event"                           - List upcoming events.
-  "@bot plan event Title: <title>, Date: <date>, Time: <time>, Location: <location>, Description: <description>"
-                                         - Create a new event.
-  "@bot edit event EventID: <id>, <key>:<value>, [<key>:<value>, ...]"
-                                         - Update an existing event.
-  "@bot remove event EventID: <id>"
-                                         - Delete an event.
-  "@bot speakers" or "@bot speakers <event title>"
-                                         - List speakers for an event.
+plugins/commands/event.py - Event command plugins for creating and managing events with consistent error handling.
+Provides commands for listing events, planning (creating), editing, removing events, and listing speakers.
 """
 
 from typing import Optional
@@ -20,6 +9,9 @@ from plugins.manager import plugin
 from core.state import BotStateMachine
 from parsers.argument_parser import parse_key_value_args, split_args
 from core.event_manager import list_events, create_event, update_event, delete_event, list_speakers
+import logging
+
+logger = logging.getLogger(__name__)
 
 @plugin('event', canonical='event')
 def event_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
@@ -57,13 +49,14 @@ def plan_event_command(args: str, sender: str, state_machine: BotStateMachine, m
         return "Event creation cancelled."
     try:
         details = parse_key_value_args(args)
-    except ValueError as ve:
-        return f"Error parsing event details: {str(ve)}"
-    required = ["title", "date", "time", "location", "description"]
-    if not all(field in details for field in required):
-        return "Missing one or more required fields. Required fields: Title, Date, Time, Location, Description."
-    event_id = create_event(details["title"], details["date"], details["time"], details["location"], details["description"])
-    return f"Event '{details['title']}' created successfully with ID {event_id}."
+        required = ["title", "date", "time", "location", "description"]
+        if not all(field in details for field in required):
+            return "Missing one or more required fields. Event creation cancelled."
+        event_id = create_event(details["title"], details["date"], details["time"], details["location"], details["description"])
+        return f"Event '{details['title']}' created successfully with ID {event_id}."
+    except Exception as e:
+        logger.exception("Error parsing event details in plan_event_command.")
+        return "An internal error occurred while creating the event. Please try again later."
 
 @plugin('edit event', canonical='edit event')
 def edit_event_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
@@ -77,8 +70,8 @@ def edit_event_command(args: str, sender: str, state_machine: BotStateMachine, m
         return "Usage: @bot edit event EventID: <id>, <key>:<value>, [<key>:<value>, ...]"
     try:
         details = parse_key_value_args(args)
-    except ValueError as ve:
-        return f"Error parsing event details: {str(ve)}"
+    except Exception as e:
+        return f"Error parsing event details: {str(e)}"
     event_id = None
     update_fields = {}
     for key, value in details.items():
@@ -107,8 +100,8 @@ def remove_event_command(args: str, sender: str, state_machine: BotStateMachine,
         return "Usage: @bot remove event EventID: <id> or Title: <event title>"
     try:
         details = parse_key_value_args(args)
-    except ValueError as ve:
-        return f"Error parsing event details: {str(ve)}"
+    except Exception as e:
+        return f"Error parsing event details: {str(e)}"
     event_id = None
     if "eventid" in details:
         try:

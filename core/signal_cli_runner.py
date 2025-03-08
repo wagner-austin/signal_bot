@@ -1,7 +1,7 @@
+#!/usr/bin/env python
 """
-core/signal_cli_runner.py - Module for running signal-cli commands asynchronously with STDIN support.
-Provides standardized error handling for asynchronous subprocess calls using a decorator.
-This module now passes message content via STDIN using the --message-from-stdin flag.
+core/signal_cli_runner.py - Asynchronous runner for signal-cli commands with standardized error handling.
+Provides functions to run signal-cli commands via subprocess, wrapping errors in a unified SignalCLIError.
 """
 
 import asyncio
@@ -22,9 +22,9 @@ class SignalCLIError(Exception):
 
 def _log_and_raise(func_name: str, error_msg: str, exception: Exception, full_args: List[str]) -> None:
     """
-    _log_and_raise - Logs an error message with context and raises a SignalCLIError.
+    core/signal_cli_runner.py - _log_and_raise: Logs an error message with context and raises a SignalCLIError with a standardized prefix.
     """
-    full_msg = f"[{func_name}] {error_msg} | Args: {full_args} | Exception: {exception}"
+    full_msg = f"[{func_name}] SignalCLIError: {error_msg} | Args: {full_args} | Exception: {exception}"
     logger.exception(full_msg)
     raise SignalCLIError(full_msg) from exception
 

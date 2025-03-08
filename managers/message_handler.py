@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """
-managers/message_handler.py - Handles incoming messages and dispatches commands.
-Encapsulates pending flows (registration, deletion, and event creation) with consolidated pending state logic.
+managers/message_handler.py - Handles incoming messages and dispatches commands with standardized error handling.
+Encapsulates pending flows (registration, deletion, and event creation) and executes plugin commands.
 """
 
 import logging
@@ -40,19 +40,9 @@ def _get_confirmation_message(sender: str, registered_format: str, default_messa
 class BasePendingHandler:
     """
     BasePendingHandler - Consolidates common pending state logic.
-    
     Provides utility methods for checking, retrieving, and clearing pending actions.
     """
     def __init__(self, pending_actions, has_fn, get_fn, clear_fn):
-        """
-        Initialize the BasePendingHandler.
-        
-        Args:
-            pending_actions: The global pending actions object.
-            has_fn: Function to check for pending state (e.g., pending_actions.has_registration).
-            get_fn: Function to retrieve the pending state (e.g., pending_actions.get_registration) or None if not needed.
-            clear_fn: Function to clear the pending state (e.g., pending_actions.clear_registration).
-        """
         self.pending_actions = pending_actions
         self.has_fn = has_fn
         self.get_fn = get_fn
@@ -85,7 +75,6 @@ class DeletionPendingHandler(BasePendingHandler):
         user_input = parsed.body.strip().lower() if parsed.body else ""
         if state == "initial":
             if user_input in {"yes", "y", "yea", "sure"}:
-                # Set new state without using the base since it's a specialized update.
                 self.pending_actions.set_deletion(sender, "confirm")
                 return DELETION_CONFIRM_PROMPT
             else:
@@ -133,7 +122,6 @@ class RegistrationPendingHandler(BasePendingHandler):
 class EventCreationPendingHandler(BasePendingHandler):
     """
     EventCreationPendingHandler - Handles pending event creation responses.
-    
     Processes a reply to either create the event or cancel the process.
     """
     def __init__(self, pending_actions) -> None:
@@ -163,8 +151,9 @@ class EventCreationPendingHandler(BasePendingHandler):
             self.clear_pending(sender)
             return f"Event '{parts['title']}' created successfully with ID {event_id}."
         except Exception as e:
+            logger.exception("Error parsing event details in process_event_creation_response.")
             self.clear_pending(sender)
-            return f"Error parsing event details: {str(e)}"
+            return "An internal error occurred while creating the event. Please try again later."
 
 def handle_message(parsed: ParsedMessage, sender: str, state_machine: BotStateMachine, pending_actions, volunteer_manager, msg_timestamp: Optional[int] = None) -> str:
     """
@@ -198,9 +187,9 @@ def handle_message(parsed: ParsedMessage, sender: str, state_machine: BotStateMa
         try:
             response = plugin_func(args, sender, state_machine, msg_timestamp=msg_timestamp)
             return response
-        except (ValueError, TypeError, AttributeError) as e:
-            logger.exception(f"[handle_message] Error executing plugin for command '{command}' with args '{args}' from sender '{sender}': {e}")
-            return f"An error occurred while processing the command '{command}': {e}"
+        except Exception as e:
+            logger.exception(f"Error executing plugin for command '{command}' with args '{args}' from sender '{sender}': {e}")
+            return "An internal error occurred while processing your command. Please try again later."
     return ""
 
 # End of managers/message_handler.py
