@@ -2,7 +2,7 @@
 """
 tests/core/test_database_backup.py - Tests for database backup and restore functionality.
 Verifies that backups are created, listed, cleaned up per retention policy, and that restore functionality works.
-Now includes edge-case tests for zero or negative retention.
+Now includes edge-case tests for zero/negative retention and invalid/corrupted backups.
 """
 
 import os
@@ -10,7 +10,10 @@ import shutil
 import sqlite3
 import pytest
 from unittest.mock import patch
-from core.database.backup import create_backup, list_backups, cleanup_backups, restore_backup, BACKUP_DIR
+from core.database.backup import (
+    create_backup, list_backups, cleanup_backups,
+    restore_backup, BACKUP_DIR
+)
 from core.database.connection import get_connection
 from core.config import DB_NAME
 
@@ -148,5 +151,36 @@ def test_create_backup_makedirs_failure(os_error):
         # Expect an empty string to signal the backup was skipped or failed gracefully.
         assert backup_path == "", "create_backup should return an empty string on directory creation failure."
     assert not os.path.exists(BACKUP_DIR), "Backup directory should not exist after a forced failure."
+
+def test_restore_corrupted_backup():
+    """
+    Test that restoring from a zero-byte or otherwise invalid backup file returns False
+    and logs a warning about an invalid or corrupted file.
+    """
+    try:
+        if os.path.exists(BACKUP_DIR):
+            shutil.rmtree(BACKUP_DIR)
+        os.makedirs(BACKUP_DIR)
+
+        # Create a zero-byte backup file
+        corrupted_filename = "corrupted_backup.db"
+        corrupted_path = os.path.join(BACKUP_DIR, corrupted_filename)
+        with open(corrupted_path, "wb") as f:
+            pass  # zero bytes
+
+        # Attempt to restore from the corrupted backup
+        with patch("core.database.backup.logger.warning") as mock_warning:
+            result = restore_backup(corrupted_filename)
+
+        # Confirm it returns False
+        assert result is False, "Expected restore_backup to return False for corrupted DB file."
+
+        # Confirm a warning was logged
+        mock_warning.assert_called_once()
+        call_args, _ = mock_warning.call_args
+        assert "invalid or corrupted" in call_args[0].lower()
+    finally:
+        if os.path.exists(BACKUP_DIR):
+            shutil.rmtree(BACKUP_DIR)
 
 # End of tests/core/test_database_backup.py

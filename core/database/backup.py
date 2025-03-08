@@ -4,7 +4,7 @@ core/database/backup.py - Database backup and restore utilities with retention a
 Provides functions to create a backup snapshot of the current database, automatically clean up old backups
 using a configurable retention count, and schedule periodic backups using a configurable interval.
 Backups are saved in the 'backups' folder with a timestamp appended.
-Error handling added for directory creation failures.
+Error handling added for directory creation failures, and a file signature check for valid SQLite on restore.
 """
 
 import os
@@ -85,6 +85,7 @@ def list_backups() -> list:
 def restore_backup(backup_filename: str) -> bool:
     """
     Restore the database from a specified backup file.
+    Uses a minimal signature check to confirm it's valid SQLite.
 
     Args:
         backup_filename (str): The name of the backup file (found in the backups folder).
@@ -95,7 +96,25 @@ def restore_backup(backup_filename: str) -> bool:
     backup_path = os.path.join(BACKUP_DIR, backup_filename)
     if not os.path.exists(backup_path):
         return False
-    shutil.copyfile(backup_path, DB_NAME)
+
+    # Check for valid SQLite signature in first 16 bytes: "SQLite format 3\000"
+    try:
+        with open(backup_path, "rb") as f:
+            header = f.read(16)
+        if not header.startswith(b"SQLite format 3\000"):
+            logger.warning(f"Cannot restore from backup '{backup_filename}': invalid or corrupted SQLite file.")
+            return False
+    except Exception as e:
+        logger.warning(f"Cannot restore from backup '{backup_filename}': error reading file. Error: {e}")
+        return False
+
+    # If valid signature, proceed with the restore
+    try:
+        shutil.copyfile(backup_path, DB_NAME)
+    except Exception as e:
+        logger.warning(f"Failed to restore backup '{backup_filename}' to '{DB_NAME}'. Error: {e}")
+        return False
+
     return True
 
 async def start_periodic_backups(interval_seconds: int = BACKUP_INTERVAL, max_backups: int = BACKUP_RETENTION_COUNT) -> None:
