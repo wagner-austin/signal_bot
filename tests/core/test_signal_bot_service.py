@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """
 tests/core/test_signal_bot_service.py - Tests for the SignalBotService run loop.
 Simulates a short run loop using a custom state machine and bypasses sleep delays for faster tests.
@@ -40,5 +41,42 @@ async def test_signal_bot_service_run(monkeypatch):
     await service.run()
     # After run, the state should be SHUTTING_DOWN.
     assert dummy_state_machine.current_state == BotState.SHUTTING_DOWN
+
+
+@pytest.mark.asyncio
+async def test_signal_bot_service_run_shutdown_command(monkeypatch):
+    """
+    Test that sending a single '@bot shutdown' message causes the bot to transition to SHUTTING_DOWN
+    and exit the run loop.
+    """
+    # We'll override receive_messages to simulate a single shutdown message, then no more.
+    messages_list = [
+        "Envelope\nfrom: +1111111111\nBody: @bot shutdown\nTimestamp: 1666666666\n"
+    ]
+
+    async def dummy_receive_messages(logger=None):
+        if messages_list:
+            return [messages_list.pop(0)]
+        return []
+
+    # Also override asyncio.sleep so the loop doesn't block.
+    monkeypatch.setattr(asyncio, "sleep", fast_sleep)
+
+    # Patch out the real async_run_signal_cli to avoid calling signal-cli.bat
+    async def dummy_run_signal_cli(args, stdin_input=None):
+        # Return a mock success response
+        return ""
+
+    monkeypatch.setattr("core.signal_client.async_run_signal_cli", dummy_run_signal_cli)
+    monkeypatch.setattr("core.signal_client.receive_messages", dummy_receive_messages)
+
+    state_machine = BotStateMachine()
+    service = SignalBotService(state_machine=state_machine)
+
+    # Running the service should process our single shutdown command and then stop.
+    await service.run()
+
+    # Confirm the state is SHUTTING_DOWN.
+    assert state_machine.current_state == BotState.SHUTTING_DOWN
 
 # End of tests/core/test_signal_bot_service.py
