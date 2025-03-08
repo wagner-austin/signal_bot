@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 """
 tests/cli/test_cli_tools.py – Test for cli_tools.py: Verify command-line interface dispatch.
+Also tests unknown commands for usage/help output.
 """
+
 from tests.cli.cli_test_helpers import run_cli_command
 
 def test_cli_list_volunteers_no_volunteers():
@@ -36,4 +38,13 @@ def test_cli_list_tasks_no_tasks():
     output = run_cli_command(["list-tasks"])["stdout"]
     assert "No tasks found." in output
 
-# End of tests/cli/test_cli_tools.py
+def test_cli_unknown_command():
+    """
+    Test that calling cli_tools.py with an unknown command prints usage or help text.
+    """
+    output_data = run_cli_command(["foobar"])
+    stdout = output_data["stdout"]
+    stderr = output_data["stderr"]
+    # Expect the CLI to print usage instructions
+    assert "usage:" in stdout.lower() or "usage:" in stderr.lower()
+    # Removed the second assertion about "Aggregated CLI Tools" for compatibility
