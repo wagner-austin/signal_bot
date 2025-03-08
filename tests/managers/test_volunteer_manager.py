@@ -1,6 +1,7 @@
+#!/usr/bin/env python
 """
-tests/managers/test_volunteer_manager.py - Tests for volunteer management functionalities.
-Verifies that operations like sign‑up, check‑in, deletion, and status retrieval work correctly using parameterized tests.
+tests/managers/test_volunteer_manager.py - Tests for aggregated volunteer management functionalities.
+Verifies that operations like sign‑up, check‑in, deletion, status retrieval, and role management work correctly.
 """
 
 import pytest
@@ -49,5 +50,38 @@ def test_volunteer_status_empty():
     # If no volunteer exists, volunteer_status should return an empty string.
     status = VOLUNTEER_MANAGER.volunteer_status()
     assert status == ""
+
+# --- New tests for role management ---
+
+def test_assign_role_without_required_skills():
+    phone = "+10000000004"
+    # Sign up with a skill that doesn't meet "greeter" requirements.
+    VOLUNTEER_MANAGER.sign_up(phone, "Test Role", ["some skill"])
+    response = VOLUNTEER_MANAGER.assign_role(phone, "greeter")
+    assert "do not have the necessary skills" in response.lower()
+
+def test_assign_role_with_required_skills():
+    phone = "+10000000005"
+    # Sign up with required skills for "greeter": "communication", "interpersonal"
+    VOLUNTEER_MANAGER.sign_up(phone, "Test Greeter", ["communication", "interpersonal"])
+    response = VOLUNTEER_MANAGER.assign_role(phone, "greeter")
+    assert "preferred role has been set" in response.lower()
+
+def test_switch_role():
+    phone = "+10000000006"
+    # Sign up with skills that satisfy both "greeter" and "speaker coordinator" roles.
+    VOLUNTEER_MANAGER.sign_up(phone, "Test Switch", ["communication", "interpersonal", "organizational"])
+    # Assign "greeter" first.
+    assign_response = VOLUNTEER_MANAGER.assign_role(phone, "greeter")
+    # Now switch to "speaker coordinator" which requires "organizational", "communication".
+    switch_response = VOLUNTEER_MANAGER.switch_role(phone, "speaker coordinator")
+    assert ("switching" in switch_response.lower() or "preferred role has been set" in switch_response.lower())
+
+def test_unassign_role():
+    phone = "+10000000007"
+    VOLUNTEER_MANAGER.sign_up(phone, "Test Unassign", ["communication", "interpersonal"])
+    VOLUNTEER_MANAGER.assign_role(phone, "greeter")
+    unassign_response = VOLUNTEER_MANAGER.unassign_role(phone)
+    assert "cleared" in unassign_response.lower()
 
 # End of tests/managers/test_volunteer_manager.py
