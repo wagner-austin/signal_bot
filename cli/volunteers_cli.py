@@ -35,7 +35,12 @@ def add_volunteer_cli(args: argparse.Namespace):
     phone = args.phone
     name = args.name
     skills = [s.strip() for s in args.skills.split(",")] if args.skills else []
-    available = bool(int(args.available))
+    # Updated to gracefully handle invalid integer for --available
+    try:
+        available = bool(int(args.available))
+    except ValueError:
+        # Raise to be caught in cli_tools.py for a consistent error message
+        raise ValueError("--available must be 0 or 1.")
     current_role = args.role if args.role else None
     message = sign_up(phone, name, skills, available, current_role)
     print(message)

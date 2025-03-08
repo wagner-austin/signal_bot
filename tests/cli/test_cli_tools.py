@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """
 tests/cli/test_cli_tools.py – Test for cli_tools.py: Verify command-line interface dispatch.
-Also tests unknown commands for usage/help output.
+Also tests unknown commands for usage/help output, including edge cases and invalid flags.
 """
 
 from tests.cli.cli_test_helpers import run_cli_command
@@ -47,4 +47,52 @@ def test_cli_unknown_command():
     stderr = output_data["stderr"]
     # Expect the CLI to print usage instructions
     assert "usage:" in stdout.lower() or "usage:" in stderr.lower()
-    # Removed the second assertion about "Aggregated CLI Tools" for compatibility
+
+# -------------------------------
+# New Negative / Edge Case Tests
+# -------------------------------
+
+def test_cli_add_volunteer_missing_phone():
+    """
+    Verify usage/help is displayed when --phone is missing (argparse enforced).
+    """
+    output_data = run_cli_command([
+        "add-volunteer",
+        "--name", "NoPhone"
+    ])
+    stderr = output_data["stderr"].lower()
+    # Argparse error typically prints to stderr
+    assert "usage:" in stderr
+    assert "the following arguments are required: --phone" in stderr
+
+def test_cli_add_volunteer_missing_name():
+    """
+    Verify usage/help is displayed when --name is missing (argparse enforced).
+    """
+    output_data = run_cli_command([
+        "add-volunteer",
+        "--phone", "+9999999999"
+    ])
+    stderr = output_data["stderr"].lower()
+    assert "usage:" in stderr
+    assert "the following arguments are required: --name" in stderr
+
+def test_cli_add_volunteer_invalid_available():
+    """
+    Check that invalid availability (not 0 or 1) prints an error.
+    """
+    output_data = run_cli_command([
+        "add-volunteer",
+        "--phone", "+2222222222",
+        "--name", "BadAvail",
+        "--skills", "None",
+        "--available", "xyz"  # invalid
+    ])
+    stdout = output_data["stdout"].lower()
+    stderr = output_data["stderr"].lower()
+
+    # We expect our custom error message or usage to appear
+    # The code in cli_tools.py catches ValueError and prints the message.
+    assert "error parsing --available value:" in stdout or "error parsing --available value:" in stderr
+
+# End of tests/cli/test_cli_tools.py

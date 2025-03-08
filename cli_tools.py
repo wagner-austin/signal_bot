@@ -2,7 +2,7 @@
 """
 cli_tools.py - Aggregated CLI Tools Facade.
 Provides a unified command-line interface to perform various database operations.
-Dispatches commands to specialized modules in the cli folder.
+
 Usage Examples:
   python cli_tools.py list-volunteers
   python cli_tools.py add-volunteer --phone +1234567890 --name "John Doe" --skills "Python, SQL" --available 1 --role "Coordinator"
@@ -23,6 +23,7 @@ from cli.events_cli import list_events_cli, list_event_speakers_cli
 from cli.logs_cli import list_logs_cli
 from cli.resources_cli import list_resources_cli, add_resource_cli, remove_resource_cli
 from cli.tasks_cli import list_tasks_cli
+
 
 def main():
     """
@@ -69,7 +70,12 @@ def main():
     if args.command == "list-volunteers":
         list_volunteers_cli()
     elif args.command == "add-volunteer":
-        add_volunteer_cli(args)
+        # Minor addition: handle invalid --available input gracefully
+        try:
+            # In add_volunteer_cli we now catch the ValueError if parsing fails
+            add_volunteer_cli(args)
+        except ValueError as ve:
+            print(f"Error parsing --available value: {ve}")
     elif args.command == "list-deleted-volunteers":
         list_deleted_volunteers_cli()
     elif args.command == "list-events":
@@ -88,6 +94,7 @@ def main():
         list_tasks_cli()
     else:
         parser.print_help()
+
 
 if __name__ == "__main__":
     main()
