@@ -1,8 +1,9 @@
+#!/usr/bin/env python
 """
 core/database/volunteers.py - Volunteer-related database operations.
 Provides functions to manage volunteer records, including adding, updating, retrieving, and deleting volunteers,
-using a general-purpose SQL execution helper to reduce duplication.
-Also includes utility functions for converting skills lists to comma-separated strings and vice versa.
+and handles conversion of skills lists to comma-separated strings.
+Now also stores and retrieves the preferred_role field.
 """
 
 from typing import Dict, Any, Optional, List
@@ -47,11 +48,13 @@ def get_all_volunteers() -> Dict[str, Dict[str, Any]]:
     rows = execute_sql("SELECT * FROM Volunteers", fetchall=True)
     volunteers = {}
     for row in rows:
+        preferred_role = row["preferred_role"] if "preferred_role" in row.keys() else None
         volunteers[row["phone"]] = {
             "name": row["name"],
             "skills": deserialize_skills(row["skills"]),
             "available": bool(row["available"]),
-            "current_role": row["current_role"]
+            "current_role": row["current_role"],
+            "preferred_role": preferred_role
         }
     return volunteers
 
@@ -67,15 +70,17 @@ def get_volunteer_record(phone: str) -> Optional[Dict[str, Any]]:
     """
     row = execute_sql("SELECT * FROM Volunteers WHERE phone = ?", (phone,), fetchone=True)
     if row:
+        preferred_role = row["preferred_role"] if "preferred_role" in row.keys() else None
         return {
             "name": row["name"],
             "skills": deserialize_skills(row["skills"]),
             "available": bool(row["available"]),
-            "current_role": row["current_role"]
+            "current_role": row["current_role"],
+            "preferred_role": preferred_role
         }
     return None
 
-def add_volunteer_record(phone: str, display_name: str, skills: list, available: bool, current_role: Optional[str]) -> None:
+def add_volunteer_record(phone: str, display_name: str, skills: list, available: bool, current_role: Optional[str], preferred_role: Optional[str] = None) -> None:
     """
     Add a new volunteer record to the database.
     
@@ -85,11 +90,12 @@ def add_volunteer_record(phone: str, display_name: str, skills: list, available:
         skills (list): List of skills.
         available (bool): Availability status.
         current_role (Optional[str]): Current assigned role.
+        preferred_role (Optional[str]): Preferred role.
     """
     skills_str = serialize_skills(skills)
     execute_sql(
-        "INSERT OR REPLACE INTO Volunteers (phone, name, skills, available, current_role) VALUES (?, ?, ?, ?, ?)",
-        (phone, display_name, skills_str, int(available), current_role),
+        "INSERT OR REPLACE INTO Volunteers (phone, name, skills, available, current_role, preferred_role) VALUES (?, ?, ?, ?, ?, ?)",
+        (phone, display_name, skills_str, int(available), current_role, preferred_role),
         commit=True
     )
 
@@ -124,7 +130,7 @@ def delete_volunteer_record(phone: str) -> None:
     """
     execute_sql("DELETE FROM Volunteers WHERE phone = ?", (phone,), commit=True)
 
-def add_deleted_volunteer_record(phone: str, name: str, skills: list, available: bool, current_role: Optional[str]) -> None:
+def add_deleted_volunteer_record(phone: str, name: str, skills: list, available: bool, current_role: Optional[str], preferred_role: Optional[str] = None) -> None:
     """
     Add a volunteer record to the DeletedVolunteers (trash) table.
     
@@ -134,11 +140,12 @@ def add_deleted_volunteer_record(phone: str, name: str, skills: list, available:
         skills (list): List of skills.
         available (bool): Availability status.
         current_role (Optional[str]): Current assigned role.
+        preferred_role (Optional[str]): Preferred role.
     """
     skills_str = serialize_skills(skills)
     execute_sql(
-        "INSERT OR REPLACE INTO DeletedVolunteers (phone, name, skills, available, current_role) VALUES (?, ?, ?, ?, ?)",
-        (phone, name, skills_str, int(available), current_role),
+        "INSERT OR REPLACE INTO DeletedVolunteers (phone, name, skills, available, current_role, preferred_role) VALUES (?, ?, ?, ?, ?, ?)",
+        (phone, name, skills_str, int(available), current_role, preferred_role),
         commit=True
     )
 
