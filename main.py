@@ -1,25 +1,36 @@
+#!/usr/bin/env python
 """
 main.py - Main entry point for the Signal bot.
-Initializes logging, metrics, and the database, then starts the SignalBotService.
+Initializes logging, metrics, and the database, creates an automatic backup on startup,
+schedules periodic backups (every hour by default), and then starts the SignalBotService.
 Optionally runs the test suite if the --test flag is provided.
 """
 
 import sys
 import asyncio
-from core.logger_setup import setup_logging  # Use logger setup directly
+from core.logger_setup import setup_logging
 
 setup_logging()
 
-import core.database        # Import the database module
-import core.metrics         # Initialize metrics tracking (starts timer)
+import core.database
+import core.metrics
 import logging
 from core.signal_bot_service import SignalBotService
+from core.database.backup import create_backup, start_periodic_backups
 
 logger = logging.getLogger(__name__)
 
 async def main() -> None:
     # Initialize the SQLite database (creates tables if they do not exist)
     core.database.init_db()
+    
+    # Create an automatic backup at startup
+    backup_path = create_backup()
+    logger.info(f"Startup backup created at: {backup_path}")
+    
+    # Schedule periodic backups in the background (e.g., every hour)
+    asyncio.create_task(start_periodic_backups(interval_seconds=3600, max_backups=10))
+    
     service = SignalBotService()
     await service.run()
 
