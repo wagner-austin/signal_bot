@@ -4,21 +4,29 @@ plugins/commands/event.py - Event command plugins for creating and managing even
 Provides commands for listing events, planning (creating), editing, removing events, and listing speakers.
 """
 
-from typing import Optional
+import logging
+from typing import Optional, Dict, Any
 from plugins.manager import plugin
 from core.state import BotStateMachine
 from parsers.argument_parser import parse_key_value_args, split_args
 from core.event_manager import list_events, create_event, update_event, delete_event, list_speakers
-import logging
 
 logger = logging.getLogger(__name__)
+
 
 @plugin('event', canonical='event')
 def event_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
-    event - Lists all upcoming events.
-    
-    Usage: "@bot event"
+    event - List all upcoming events.
+
+    Parameters:
+        args (str): Unused; no arguments required.
+        sender (str): Sender's phone number.
+        state_machine (BotStateMachine): The bot's state machine.
+        msg_timestamp (Optional[int]): Optional timestamp of the message.
+
+    Returns:
+        str: A formatted list of upcoming events or a message if none are found.
     """
     events = list_events()
     if not events:
@@ -28,17 +36,20 @@ def event_command(args: str, sender: str, state_machine: BotStateMachine, msg_ti
         response += f"ID {event.get('event_id')}: {event.get('title')} on {event.get('date')} at {event.get('time')} - {event.get('location')}\n"
     return response.strip()
 
+
 @plugin('plan event', canonical='plan event')
 def plan_event_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
-    plan event - Creates a new event interactively or immediately.
-    
-    Usage:
-      "@bot plan event" 
-         - Returns instructions for event creation.
-      "@bot plan event Title: <title>, Date: <date>, Time: <time>, Location: <location>, Description: <description>" 
-         - Creates the event immediately.
-      If the reply is "skip" or "cancel", the creation is aborted.
+    plan event - Create a new event either interactively or immediately.
+
+    Parameters:
+        args (str): Event details in key:value pairs separated by commas (or empty for interactive instructions).
+        sender (str): Sender's phone number.
+        state_machine (BotStateMachine): The bot's state machine.
+        msg_timestamp (Optional[int]): Optional message timestamp.
+
+    Returns:
+        str: Instructions for event creation or a confirmation message if the event is created.
     """
     if not args.strip():
         return ("Plan Event:\n\n"
@@ -48,32 +59,39 @@ def plan_event_command(args: str, sender: str, state_machine: BotStateMachine, m
     if args.strip().lower() in {"skip", "cancel"}:
         return "Event creation cancelled."
     try:
-        details = parse_key_value_args(args)
+        details: Dict[str, Any] = parse_key_value_args(args)
         required = ["title", "date", "time", "location", "description"]
         if not all(field in details for field in required):
             return "Missing one or more required fields. Event creation cancelled."
-        event_id = create_event(details["title"], details["date"], details["time"], details["location"], details["description"])
+        event_id: int = create_event(details["title"], details["date"], details["time"], details["location"], details["description"])
         return f"Event '{details['title']}' created successfully with ID {event_id}."
     except Exception as e:
         logger.exception("Error parsing event details in plan_event_command.")
         return "An internal error occurred while creating the event. Please try again later."
 
+
 @plugin('edit event', canonical='edit event')
 def edit_event_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
-    edit event - Updates an existing event.
-    
-    Usage: "@bot edit event EventID: <id>, <key>:<value>, [<key>:<value>, ...]"
-    Only provided fields will be updated.
+    edit event - Update an existing event.
+
+    Parameters:
+        args (str): Event update details in key:value pairs (must include EventID).
+        sender (str): Sender's phone number.
+        state_machine (BotStateMachine): The bot's state machine.
+        msg_timestamp (Optional[int]): Optional message timestamp.
+
+    Returns:
+        str: Confirmation message upon successful update or an error message.
     """
     if not args.strip():
         return "Usage: @bot edit event EventID: <id>, <key>:<value>, [<key>:<value>, ...]"
     try:
-        details = parse_key_value_args(args)
+        details: Dict[str, Any] = parse_key_value_args(args)
     except Exception as e:
         return f"Error parsing event details: {str(e)}"
-    event_id = None
-    update_fields = {}
+    event_id: Optional[int] = None
+    update_fields: Dict[str, Any] = {}
     for key, value in details.items():
         if key == "eventid":
             try:
@@ -89,20 +107,28 @@ def edit_event_command(args: str, sender: str, state_machine: BotStateMachine, m
     update_event(event_id, **update_fields)
     return f"Event with ID {event_id} updated successfully."
 
+
 @plugin('remove event', canonical='remove event')
 def remove_event_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
-    remove event - Deletes an existing event.
-    
-    Usage: "@bot remove event EventID: <id> or Title: <event title>"
+    remove event - Delete an existing event.
+
+    Parameters:
+        args (str): Event identifier details (EventID or Title).
+        sender (str): Sender's phone number.
+        state_machine (BotStateMachine): The bot's state machine.
+        msg_timestamp (Optional[int]): Optional message timestamp.
+
+    Returns:
+        str: Confirmation message upon removal or an error message.
     """
     if not args.strip():
         return "Usage: @bot remove event EventID: <id> or Title: <event title>"
     try:
-        details = parse_key_value_args(args)
+        details: Dict[str, Any] = parse_key_value_args(args)
     except Exception as e:
         return f"Error parsing event details: {str(e)}"
-    event_id = None
+    event_id: Optional[int] = None
     if "eventid" in details:
         try:
             event_id = int(details["eventid"])
@@ -121,16 +147,22 @@ def remove_event_command(args: str, sender: str, state_machine: BotStateMachine,
     delete_event(event_id)
     return f"Event with ID {event_id} removed successfully."
 
+
 @plugin('speakers', canonical='speakers')
 def speakers_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
-    speakers - Lists speakers for an event.
-    
-    Usage:
-      "@bot speakers" to list speakers for the latest event, or 
-      "@bot speakers <event title>" to list speakers for a specific event.
+    speakers - List speakers for an event.
+
+    Parameters:
+        args (str): Optional event title to filter speakers; if empty, uses the latest event.
+        sender (str): Sender's phone number.
+        state_machine (BotStateMachine): The bot's state machine.
+        msg_timestamp (Optional[int]): Optional message timestamp.
+
+    Returns:
+        str: A formatted list of speakers for the specified event or a message if none are found.
     """
-    event_found = None
+    event_found: Optional[Dict[str, Any]] = None
     if args.strip():
         events = list_events()
         for event in events:
