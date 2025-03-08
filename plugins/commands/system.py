@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 """
-plugins/commands/system.py - System command plugins.
-Provides system-level commands such as assign, test, shutdown, info,
-weekly update, theme, plan theme, and status.
+plugins/commands/system.py --- System command plugins.
+Provides system-level commands such as assign, test, shutdown, info, weekly update, theme, plan theme, and status.
 """
 
 from typing import Optional
@@ -32,14 +31,20 @@ def plugin_test_command(args: str, sender: str, state_machine: BotStateMachine, 
     test - Test command for verifying bot response.
     Expected format: "@bot test"
     """
+    if args.strip():
+        return "Usage: @bot test"
     return "yes"
 
 @plugin('shutdown', canonical='shutdown')
 def shutdown_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
     shutdown - Shut down the bot gracefully.
-    Expected format: "@bot shutdown"
+    If extra arguments are provided, returns usage.
+
+    Usage: "@bot shutdown"
     """
+    if args.strip():
+        return "Usage: @bot shutdown"
     state_machine.shutdown()
     return "Bot is shutting down."
 
@@ -49,6 +54,8 @@ def info_command(args: str, sender: str, state_machine: BotStateMachine, msg_tim
     info - Provides a brief overview of the 50501 OC Grassroots Movement.
     Usage: "@bot info"
     """
+    if args.strip():
+        return "Usage: @bot info"
     return (
         "50501 OC Grassroots Movement is dedicated to upholding the Constitution and ending executive overreach. \n\n"
         "Our objective is to foster peaceful, visible, and sustained community engagement through nonviolent protest. "
@@ -61,6 +68,8 @@ def weekly_update_command(args: str, sender: str, state_machine: BotStateMachine
     weekly update - Provides a summary of Trump's actions and Democrat advances this week.
     Usage: "@bot weekly update"
     """
+    if args.strip():
+        return "Usage: @bot weekly update"
     return (
         "Weekly Update:\n\n"
         "Trump Actions:\n"
@@ -78,6 +87,8 @@ def theme_command(args: str, sender: str, state_machine: BotStateMachine, msg_ti
     theme - Displays the important theme for this week.
     Usage: "@bot theme"
     """
+    if args.strip():
+        return "Usage: @bot theme"
     return (
         "This Week's Theme:\n\n"
         "General - Focusing on grassroots organization, community empowerment, and challenging executive overreach.\n"
@@ -90,6 +101,8 @@ def plan_theme_command(args: str, sender: str, state_machine: BotStateMachine, m
     plan theme - Walks you through adding the theme for this week.
     Usage: "@bot plan theme"
     """
+    if args.strip():
+        return "Usage: @bot plan theme"
     return (
         "Plan Theme:\n\n"
         "To set this week's theme, please reply with a message in the following format:\n"
@@ -103,6 +116,8 @@ def status_command(args: str, sender: str, state_machine: BotStateMachine, msg_t
     status - Displays system status including messages per hour, total messages sent, uptime, and overall system status.
     Usage: "@bot status"
     """
+    if args.strip():
+        return "Usage: @bot status"
     uptime_seconds = get_uptime()
     uptime_hours = uptime_seconds / 3600 if uptime_seconds > 0 else 0
     # Use the dynamic messages_sent value from core.metrics

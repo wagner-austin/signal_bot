@@ -1,31 +1,36 @@
 #!/usr/bin/env python
 """
-test_plugin_negatives.py
+tests/plugins/test_plugin_negatives.py
 ------------------------
 Centralized negative/edge-case tests for various plugin commands:
-- event command: partial/invalid fields
-- task command: missing volunteer name, invalid numeric inputs
-- donate command: invalid donation amounts, usage instructions
-- role command: failing skill checks
-- etc.
+ - event command partial/invalid fields
+ - task command missing arguments
+ - donate command invalid amounts or usage
+ - role command failing skill checks
+ - resource command usage checks
+ - system commands with extra arguments
 """
 
 import pytest
-from core.state import BotStateMachine
+from core.state import BotStateMachine, BotState
 from plugins.commands.event import plan_event_command, edit_event_command, remove_event_command
 from plugins.commands.task import task_command
 from plugins.commands.donate import donate_command
 from plugins.commands.role import role_command
+from plugins.commands.resource import resource_command
+from plugins.commands.system import shutdown_command
 from managers.volunteer.volunteer_operations import sign_up
 from managers.volunteer.volunteer_roles import get_volunteer_record
 
-####################################
-# EVENT COMMAND NEGATIVES
-####################################
 
 @pytest.fixture
 def state_machine():
     return BotStateMachine()
+
+
+####################################
+# EVENT COMMAND NEGATIVES
+####################################
 
 def test_event_command_no_args(state_machine):
     response = plan_event_command("", "+dummy", state_machine)
@@ -118,16 +123,33 @@ def test_donate_command_usage_instructions(state_machine):
 # ROLE COMMAND NEGATIVES
 ####################################
 
-def call_role_command(args, sender, sm):
-    return role_command(args, sender, sm, msg_timestamp=123)
-
 def test_role_command_set_failure(state_machine):
     sender = "+70000000012"
     # Register volunteer without required skills for "emcee" (needs public speaking, communication)
     sign_up(sender, "Role Tester 2", ["interpersonal"], True, None)
-    response = call_role_command("set emcee", sender, state_machine)
+    response = role_command("set emcee", sender, state_machine, msg_timestamp=123)
     assert "do not have the necessary skills" in response.lower()
     record = get_volunteer_record(sender)
     assert record.get("preferred_role") is None
+
+
+####################################
+# RESOURCE COMMAND NEGATIVES / USAGE
+####################################
+
+def test_resource_command_no_args(state_machine):
+    response = resource_command("", "+dummy", state_machine, msg_timestamp=123)
+    assert "Usage:" in response
+
+
+####################################
+# SYSTEM COMMANDS ERROR STATES
+####################################
+
+def test_shutdown_command_with_extra_args(state_machine):
+    response = shutdown_command("somethingInvalid", "+dummy", state_machine, msg_timestamp=123)
+    assert "Usage: @bot shutdown" in response
+    # The bot state should remain RUNNING since we refused to shut down
+    assert state_machine.current_state == BotState.RUNNING
 
 # End of tests/plugins/test_plugin_negatives.py
