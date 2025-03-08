@@ -1,15 +1,20 @@
 #!/usr/bin/env python
 """
-plugins/commands/event.py - Event command plugins for creating and managing events with consistent error handling.
-Provides commands for listing events, planning (creating), editing, removing events, and listing speakers.
+plugins/commands/event.py
+-------------------------
+Event command plugins for creating and managing events, including planning,
+editing, and removing events, as well as listing speakers. Handles partial or
+invalid inputs and returns informative error messages.
 """
 
 import logging
 from typing import Optional, Dict, Any
 from plugins.manager import plugin
 from core.state import BotStateMachine
-from parsers.argument_parser import parse_key_value_args, split_args
-from core.event_manager import list_events, create_event, update_event, delete_event, list_speakers
+from parsers.argument_parser import parse_key_value_args
+from core.event_manager import (
+    list_events, create_event, update_event, delete_event, get_event, list_speakers
+)
 
 logger = logging.getLogger(__name__)
 
@@ -42,20 +47,25 @@ def plan_event_command(args: str, sender: str, state_machine: BotStateMachine, m
     """
     plan event - Create a new event either interactively or immediately.
 
-    Parameters:
-        args (str): Event details in key:value pairs separated by commas (or empty for interactive instructions).
-        sender (str): Sender's phone number.
-        state_machine (BotStateMachine): The bot's state machine.
-        msg_timestamp (Optional[int]): Optional message timestamp.
+    If args are empty, it returns instructions for interactive creation.
+    Otherwise, expects comma-separated key:value pairs. Required fields:
+      - Title
+      - Date
+      - Time
+      - Location
+      - Description
 
-    Returns:
-        str: Instructions for event creation or a confirmation message if the event is created.
+    Usage:
+        @bot plan event
+        @bot plan event Title: My Title, Date: 2025-12-31, Time: 2PM, Location: Park, Description: Outdoor gathering
     """
     if not args.strip():
-        return ("Plan Event:\n\n"
-                "Please reply with event details in the following format:\n"
-                "Title: <title>, Date: <date>, Time: <time>, Location: <location>, Description: <description>\n"
-                "Or reply with 'skip' to cancel event creation.")
+        return (
+            "Plan Event:\n\n"
+            "Please reply with event details in the following format:\n"
+            "Title: <title>, Date: <date>, Time: <time>, Location: <location>, Description: <description>\n"
+            "Or reply with 'skip' to cancel event creation."
+        )
     if args.strip().lower() in {"skip", "cancel"}:
         return "Event creation cancelled."
     try:
@@ -63,7 +73,13 @@ def plan_event_command(args: str, sender: str, state_machine: BotStateMachine, m
         required = ["title", "date", "time", "location", "description"]
         if not all(field in details for field in required):
             return "Missing one or more required fields. Event creation cancelled."
-        event_id: int = create_event(details["title"], details["date"], details["time"], details["location"], details["description"])
+        event_id: int = create_event(
+            details["title"],
+            details["date"],
+            details["time"],
+            details["location"],
+            details["description"]
+        )
         return f"Event '{details['title']}' created successfully with ID {event_id}."
     except Exception as e:
         logger.exception("Error parsing event details in plan_event_command.")
@@ -75,14 +91,11 @@ def edit_event_command(args: str, sender: str, state_machine: BotStateMachine, m
     """
     edit event - Update an existing event.
 
-    Parameters:
-        args (str): Event update details in key:value pairs (must include EventID).
-        sender (str): Sender's phone number.
-        state_machine (BotStateMachine): The bot's state machine.
-        msg_timestamp (Optional[int]): Optional message timestamp.
+    Expects comma-separated key:value pairs, one of which must be "EventID: <id>".
+    Example:
+      @bot edit event EventID: 3, title: New Title, location: Some Venue
 
-    Returns:
-        str: Confirmation message upon successful update or an error message.
+    Returns a confirmation message upon successful update or an error if invalid.
     """
     if not args.strip():
         return "Usage: @bot edit event EventID: <id>, <key>:<value>, [<key>:<value>, ...]"
@@ -90,6 +103,7 @@ def edit_event_command(args: str, sender: str, state_machine: BotStateMachine, m
         details: Dict[str, Any] = parse_key_value_args(args)
     except Exception as e:
         return f"Error parsing event details: {str(e)}"
+
     event_id: Optional[int] = None
     update_fields: Dict[str, Any] = {}
     for key, value in details.items():
@@ -100,10 +114,15 @@ def edit_event_command(args: str, sender: str, state_machine: BotStateMachine, m
                 return "Invalid EventID provided."
         else:
             update_fields[key] = value
+
     if event_id is None:
         return "EventID is required for updating an event."
+    existing_event = get_event(event_id)
+    if not existing_event:
+        return f"No event found with ID {event_id} to edit."
     if not update_fields:
         return "No update fields provided."
+
     update_event(event_id, **update_fields)
     return f"Event with ID {event_id} updated successfully."
 
@@ -113,14 +132,15 @@ def remove_event_command(args: str, sender: str, state_machine: BotStateMachine,
     """
     remove event - Delete an existing event.
 
-    Parameters:
-        args (str): Event identifier details (EventID or Title).
-        sender (str): Sender's phone number.
-        state_machine (BotStateMachine): The bot's state machine.
-        msg_timestamp (Optional[int]): Optional message timestamp.
+    Accepts comma-separated key:value pairs with either:
+      - EventID: <id>
+      - Title: <event title>
 
-    Returns:
-        str: Confirmation message upon removal or an error message.
+    Example:
+      @bot remove event EventID: 5
+      @bot remove event Title: Some Event
+
+    Returns a confirmation message upon removal or an error message.
     """
     if not args.strip():
         return "Usage: @bot remove event EventID: <id> or Title: <event title>"
@@ -128,6 +148,7 @@ def remove_event_command(args: str, sender: str, state_machine: BotStateMachine,
         details: Dict[str, Any] = parse_key_value_args(args)
     except Exception as e:
         return f"Error parsing event details: {str(e)}"
+
     event_id: Optional[int] = None
     if "eventid" in details:
         try:
@@ -136,16 +157,22 @@ def remove_event_command(args: str, sender: str, state_machine: BotStateMachine,
             return "Invalid EventID provided."
     elif "title" in details:
         events = list_events()
-        for event in events:
-            if event.get("title", "").lower() == details["title"].lower():
-                event_id = event.get("event_id")
+        for ev in events:
+            if ev.get("title", "").lower() == details["title"].lower():
+                event_id = ev.get("event_id")
                 break
         if event_id is None:
             return f"No event found with title '{details['title']}'."
     else:
         return "Please provide either EventID or Title to remove an event."
-    delete_event(event_id)
-    return f"Event with ID {event_id} removed successfully."
+
+    if event_id is not None:
+        existing = get_event(event_id)
+        if not existing:
+            return f"No event found with ID {event_id}."
+        delete_event(event_id)
+        return f"Event with ID {event_id} removed successfully."
+    return "No valid event identifier provided."
 
 
 @plugin('speakers', canonical='speakers')
@@ -153,21 +180,15 @@ def speakers_command(args: str, sender: str, state_machine: BotStateMachine, msg
     """
     speakers - List speakers for an event.
 
-    Parameters:
-        args (str): Optional event title to filter speakers; if empty, uses the latest event.
-        sender (str): Sender's phone number.
-        state_machine (BotStateMachine): The bot's state machine.
-        msg_timestamp (Optional[int]): Optional message timestamp.
-
-    Returns:
-        str: A formatted list of speakers for the specified event or a message if none are found.
+    If args is empty, lists speakers for the latest event. If args is an event title,
+    lists speakers for that specific event. If no events are found, returns a message.
     """
     event_found: Optional[Dict[str, Any]] = None
     if args.strip():
         events = list_events()
-        for event in events:
-            if event.get("title", "").lower() == args.strip().lower():
-                event_found = event
+        for ev in events:
+            if ev.get("title", "").lower() == args.strip().lower():
+                event_found = ev
                 break
         if event_found is None:
             return f"No event found with title '{args.strip()}'."
@@ -176,6 +197,7 @@ def speakers_command(args: str, sender: str, state_machine: BotStateMachine, msg
         if not events:
             return "No upcoming events found."
         event_found = events[0]
+
     speakers = list_speakers(event_found.get("event_id"))
     if not speakers:
         return f"No speakers assigned for event '{event_found.get('title')}'."

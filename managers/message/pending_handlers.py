@@ -1,15 +1,22 @@
 #!/usr/bin/env python
 """
-managers/message/pending_handlers.py - Pending action handlers for deletion, registration, and event creation.
-Provides specialized handlers that extend BasePendingHandler.
+managers/message/pending_handlers.py
+------------------------------------
+Handlers for interactive pending actions: deletion, registration, and event creation.
+They use the global PendingActions state, which is concurrency-safe.
+Now includes a note on concurrency: multiple users may concurrently plan events,
+delete registrations, or register with partial inputs. The logic here is designed to
+handle concurrency via the thread-safe PendingActions structure.
 """
 
 import logging
 from typing import Any, Optional
 from managers.message.base_pending_handler import BasePendingHandler
 from parsers.message_parser import ParsedMessage
-from core.messages import (DELETION_CONFIRM_PROMPT, ALREADY_REGISTERED,
-                           DELETION_CANCELED, EDIT_PROMPT, EDIT_CANCELED, EDIT_CANCELED_WITH_NAME)
+from core.messages import (
+    DELETION_CONFIRM_PROMPT, ALREADY_REGISTERED,
+    DELETION_CANCELED, EDIT_PROMPT, EDIT_CANCELED, EDIT_CANCELED_WITH_NAME
+)
 from core.constants import SKIP_VALUES
 
 logger = logging.getLogger(__name__)
@@ -17,6 +24,10 @@ logger = logging.getLogger(__name__)
 class DeletionPendingHandler(BasePendingHandler):
     """
     DeletionPendingHandler - Handles pending deletion responses.
+
+    Concurrency:
+        Multiple threads or users can concurrently set or clear deletion states in PendingActions.
+        This handler checks the existing state carefully before proceeding.
     """
     def __init__(self, pending_actions: Any, volunteer_manager: Any) -> None:
         super().__init__(pending_actions,
@@ -59,9 +70,14 @@ class DeletionPendingHandler(BasePendingHandler):
                 return confirmation
         return None
 
+
 class RegistrationPendingHandler(BasePendingHandler):
     """
     RegistrationPendingHandler - Handles pending registration and edit responses.
+
+    Concurrency:
+        Multiple users can concurrently initiate or edit registrations.
+        The underlying PendingActions ensures thread-safe state transitions.
     """
     def __init__(self, pending_actions: Any, volunteer_manager: Any) -> None:
         super().__init__(pending_actions,
@@ -94,9 +110,15 @@ class RegistrationPendingHandler(BasePendingHandler):
         self.clear_pending(sender)
         return confirmation
 
+
 class EventCreationPendingHandler(BasePendingHandler):
     """
     EventCreationPendingHandler - Handles pending event creation responses.
+
+    Concurrency:
+        Multiple users can concurrently call event creation. The pending actions
+        for each sender are distinct, preventing data overlap. However, partial
+        or invalid inputs from many users at once should be handled gracefully.
     """
     def __init__(self, pending_actions: Any) -> None:
         super().__init__(pending_actions,
@@ -127,7 +149,10 @@ class EventCreationPendingHandler(BasePendingHandler):
             if not all(field in parts for field in required_fields):
                 self.clear_pending(sender)
                 return "Missing one or more required fields. Event creation cancelled."
-            event_id = create_event(parts["title"], parts["date"], parts["time"], parts["location"], parts["description"])
+            event_id = create_event(
+                parts["title"], parts["date"], parts["time"],
+                parts["location"], parts["description"]
+            )
             self.clear_pending(sender)
             return f"Event '{parts['title']}' created successfully with ID {event_id}."
         except Exception as e:
