@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 """
 plugins/commands/event.py - Event command plugins.
-Refactored to use core/event_manager for event CRUD operations.
 Provides commands for listing events, creating (plan), updating (edit), deleting (remove), 
 and managing speakers.
 Usage examples:
@@ -20,15 +19,15 @@ from typing import Optional
 from plugins.manager import plugin
 from core.state import BotStateMachine
 from parsers.argument_parser import parse_key_value_args, split_args
+from core.event_manager import list_events, create_event, update_event, delete_event, list_speakers
 
 @plugin('event', canonical='event')
-def event_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int]=None) -> str:
+def event_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
     event - Lists all upcoming events.
     
     Usage: "@bot event"
     """
-    from core.event_manager import list_events
     events = list_events()
     if not events:
         return "No upcoming events found."
@@ -38,7 +37,7 @@ def event_command(args: str, sender: str, state_machine: BotStateMachine, msg_ti
     return response.strip()
 
 @plugin('plan event', canonical='plan event')
-def plan_event_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int]=None) -> str:
+def plan_event_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
     plan event - Creates a new event interactively or immediately.
     
@@ -63,12 +62,11 @@ def plan_event_command(args: str, sender: str, state_machine: BotStateMachine, m
     required = ["title", "date", "time", "location", "description"]
     if not all(field in details for field in required):
         return "Missing one or more required fields. Required fields: Title, Date, Time, Location, Description."
-    from core.event_manager import create_event
     event_id = create_event(details["title"], details["date"], details["time"], details["location"], details["description"])
     return f"Event '{details['title']}' created successfully with ID {event_id}."
 
 @plugin('edit event', canonical='edit event')
-def edit_event_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int]=None) -> str:
+def edit_event_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
     edit event - Updates an existing event.
     
@@ -95,12 +93,11 @@ def edit_event_command(args: str, sender: str, state_machine: BotStateMachine, m
         return "EventID is required for updating an event."
     if not update_fields:
         return "No update fields provided."
-    from core.event_manager import update_event
     update_event(event_id, **update_fields)
     return f"Event with ID {event_id} updated successfully."
 
 @plugin('remove event', canonical='remove event')
-def remove_event_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int]=None) -> str:
+def remove_event_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
     remove event - Deletes an existing event.
     
@@ -119,7 +116,6 @@ def remove_event_command(args: str, sender: str, state_machine: BotStateMachine,
         except ValueError:
             return "Invalid EventID provided."
     elif "title" in details:
-        from core.event_manager import list_events
         events = list_events()
         for event in events:
             if event.get("title", "").lower() == details["title"].lower():
@@ -129,12 +125,11 @@ def remove_event_command(args: str, sender: str, state_machine: BotStateMachine,
             return f"No event found with title '{details['title']}'."
     else:
         return "Please provide either EventID or Title to remove an event."
-    from core.event_manager import delete_event
     delete_event(event_id)
     return f"Event with ID {event_id} removed successfully."
 
 @plugin('speakers', canonical='speakers')
-def speakers_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int]=None) -> str:
+def speakers_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
     speakers - Lists speakers for an event.
     
@@ -142,7 +137,6 @@ def speakers_command(args: str, sender: str, state_machine: BotStateMachine, msg
       "@bot speakers" to list speakers for the latest event, or 
       "@bot speakers <event title>" to list speakers for a specific event.
     """
-    from core.event_manager import list_events, list_speakers
     event_found = None
     if args.strip():
         events = list_events()

@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """
 plugins/commands/system.py - System command plugins.
 Provides system-level commands such as assign, test, shutdown, info,
@@ -8,6 +9,7 @@ from typing import Optional
 from plugins.manager import plugin
 from core.state import BotStateMachine
 from managers.volunteer_manager import VOLUNTEER_MANAGER
+from core.metrics import get_uptime, messages_sent
 
 @plugin('assign', canonical='assign')
 def assign_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
@@ -100,14 +102,9 @@ def status_command(args: str, sender: str, state_machine: BotStateMachine, msg_t
     status - Displays system status including messages per hour, total messages sent, uptime, and overall system status.
     Usage: "@bot status"
     """
-    from core.metrics import get_uptime, messages_sent
     uptime_seconds = get_uptime()
     uptime_hours = uptime_seconds / 3600 if uptime_seconds > 0 else 0
-    # Ensure messages per hour is not greater than the total messages sent.
-    if uptime_hours < 1:
-        mph = messages_sent
-    else:
-        mph = messages_sent / uptime_hours
+    mph = messages_sent if uptime_hours < 1 else messages_sent / uptime_hours
     return (
         f"Status:\n"
         f"Messages sent: {messages_sent}\n"
