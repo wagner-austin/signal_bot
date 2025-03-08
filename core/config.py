@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """
 core/config.py - Centralized configuration for the Signal bot.
 Loads configuration settings from environment variables with default values.
@@ -25,5 +26,11 @@ ENABLE_BOT_PREFIX: bool = os.environ.get("ENABLE_BOT_PREFIX", "true").lower() in
 
 # Database name for SQLite, defaulting to "bot_data.db" if not set.
 DB_NAME: str = os.environ.get("DB_NAME", "bot_data.db")
+
+# Backup interval in seconds (default 3600 seconds = 1 hour)
+BACKUP_INTERVAL: int = int(os.environ.get("BACKUP_INTERVAL", "3600"))
+
+# Number of backup snapshots to retain (default 5)
+BACKUP_RETENTION_COUNT: int = int(os.environ.get("BACKUP_RETENTION_COUNT", "5"))
 
 # End of core/config.py
