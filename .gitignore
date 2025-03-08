@@ -10,3 +10,6 @@ bot_data.db
 
 # Exclude environment variable files
 .env
+
+# Exclude backup files
+backups/
