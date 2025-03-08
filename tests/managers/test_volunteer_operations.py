@@ -5,6 +5,7 @@ Verifies sign_up, delete_volunteer, check_in, and registration without role func
 now covered with multiple parametrized inputs.
 Changes:
  - Added a caplog assertion to ensure the volunteer deletion logs an info-level message.
+ - NEW TEST: sign_up invalid/empty phone scenario.
 """
 
 import pytest
@@ -112,5 +113,27 @@ def test_delete_unregistered_volunteer(phone):
     """
     msg = delete_volunteer(phone)
     assert msg == "You are not registered."
+
+# ---------------------------------------------------------------------------
+# NEW TEST FOR INVALID / EMPTY PHONE
+# ---------------------------------------------------------------------------
+@pytest.mark.parametrize(
+    "invalid_phone",
+    [
+        "",               # empty
+        "abc",            # not numeric
+        "+1 234567",      # space in middle
+        "+1234567890123456",  # 16 digits (beyond the 15 max)
+        "123456"          # 6 digits (less than the 7 required)
+    ]
+)
+def test_sign_up_invalid_phone(invalid_phone):
+    """
+    Test that sign_up returns an error message if phone is invalid or empty.
+    """
+    name = "Invalid Phone"
+    skills = ["SkillX"]
+    msg = sign_up(invalid_phone, name, skills, True, None)
+    assert "Invalid phone number format" in msg
 
 # End of tests/managers/test_volunteer_operations.py

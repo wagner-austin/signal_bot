@@ -5,9 +5,11 @@ Provides functions for volunteer registration, check‑in, and deletion.
 Uses a centralized sign up method for consistent volunteer creation.
 Changes:
  - Added an info-level log message upon successful volunteer deletion.
+ - Added a phone format validation in sign_up to guard against empty/invalid phone input.
 """
 
 import logging
+import re
 from typing import List, Optional
 from core.database import (
     get_volunteer_record, add_volunteer_record, update_volunteer_record,
@@ -19,12 +21,15 @@ from core.skill_config import AVAILABLE_SKILLS
 
 logger = logging.getLogger(__name__)
 
+# A basic phone regex that allows optional leading '+' and 7-15 digits.
+PHONE_REGEX = re.compile(r'^\+?\d{7,15}$')
+
 def sign_up(phone: str, name: str, skills: List[str], available: bool = True, current_role: Optional[str] = None) -> str:
     """
     sign_up - Registers a new volunteer or updates an existing one using a centralized method.
     
     Args:
-        phone (str): Volunteer phone number.
+        phone (str): Volunteer phone number (expected E.164 format, e.g., +1234567).
         name (str): Volunteer full name.
         skills (List[str]): List of skills.
         available (bool): Availability status; defaults to True.
@@ -32,8 +37,12 @@ def sign_up(phone: str, name: str, skills: List[str], available: bool = True, cu
                                       If omitted or empty, no role is assigned.
     
     Returns:
-        str: Confirmation message.
+        str: Confirmation message or an error message if phone is invalid.
     """
+    # Basic check for empty/invalid phone
+    if not phone or not PHONE_REGEX.match(phone):
+        return "Error: Invalid phone number format. Please provide a valid phone (e.g., +1234567890)."
+
     record = get_volunteer_record(phone)
     if record:
         updated_name = record["name"] if name.lower() == "skip" else name
