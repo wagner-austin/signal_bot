@@ -15,5 +15,6 @@ from .task import *
 from .theme import *
 from .volunteer import *
 from .donate import *
+from .dbstats import *
 
 # End of plugins/commands/__init__.py
