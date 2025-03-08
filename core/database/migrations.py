@@ -3,10 +3,15 @@
 core/database/migrations.py - Database migrations management.
 Provides a simple migration framework to automatically update the database schema.
 Tracks the current schema version in a dedicated SchemaVersion table and applies new migrations as needed.
+Now includes logic to skip migrations if the existing DB version is newer than our known migrations,
+to avoid unintended downgrades.
 """
 
+import logging
 from .helpers import execute_sql
 from .connection import db_connection
+
+logger = logging.getLogger(__name__)
 
 def get_current_version() -> int:
     """
@@ -35,6 +40,9 @@ def update_version(new_version: int) -> None:
     Args:
         new_version (int): The new schema version to set.
     """
+    # Ensure the SchemaVersion table is present (and possibly initialized).
+    # This avoids OperationalError if the table doesn't exist yet.
+    _ = get_current_version()
     query = "UPDATE SchemaVersion SET version = ?"
     execute_sql(query, (new_version,), commit=True)
 
@@ -145,8 +153,20 @@ MIGRATIONS = [
 def run_migrations() -> None:
     """
     run_migrations - Run all pending migrations based on the current schema version.
+    If the current version is newer than the highest known version in MIGRATIONS,
+    we log a warning and skip to avoid unintended downgrades.
     """
     current_version = get_current_version()
+    max_version = max(version for version, _ in MIGRATIONS)
+
+    # If DB is already at a version higher than we know, skip migrations to avoid downgrade.
+    if current_version > max_version:
+        logger.warning(
+            f"Detected DB schema version {current_version} which is newer than the code's "
+            f"max known migration ({max_version}). Skipping migrations to prevent downgrade."
+        )
+        return
+
     for version, migration in MIGRATIONS:
         if version > current_version:
             migration()
