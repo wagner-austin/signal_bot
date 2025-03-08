@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 """
 tests/cli/test_resources_cli.py - Tests for resource-related CLI commands.
-Verifies resource addition, listing, and removal functionalities.
+Verifies resource addition, listing, and removal functionalities using robust extraction for resource IDs.
 """
 
+import re
 from tests.cli.cli_test_helpers import run_cli_command
 
 def test_list_resources_and_add_remove_resource():
@@ -24,9 +25,10 @@ def test_list_resources_and_add_remove_resource():
     list_output = run_cli_command(["list-resources"])
     assert "Official Linktree" in list_output
 
-    # Extract resource ID from the add_output.
-    parts = add_output.strip().split()
-    resource_id = parts[-1].strip(".")
+    # Extract resource ID from the add_output using regex.
+    match = re.search(r"Resource added with ID (\d+)", add_output)
+    assert match is not None, "Resource ID not found in add_output"
+    resource_id = match.group(1)
 
     # Remove the resource.
     remove_output = run_cli_command([
