@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 """
 tests/managers/test_volunteer_operations.py - Tests for volunteer operations.
-Verifies sign_up, delete_volunteer, and check_in functionalities.
+Verifies sign_up, delete_volunteer, check_in, and registration without role functionalities.
 """
+
 import pytest
 from managers.volunteer.volunteer_operations import sign_up, delete_volunteer, check_in
 from core.database.volunteers import get_volunteer_record
@@ -13,7 +14,7 @@ def test_sign_up_creates_volunteer():
     record = get_volunteer_record(phone)
     if record:
         delete_volunteer(phone)
-    msg = sign_up(phone, "Test Volunteer Ops", ["TestSkill"], True, "Tester")
+    msg = sign_up(phone, "Test Volunteer Ops", ["Skill1"], True, "Tester")
     assert "registered" in msg.lower()
     record = get_volunteer_record(phone)
     assert record is not None
@@ -34,5 +35,18 @@ def test_check_in_volunteer():
     assert "checked in" in msg.lower()
     record = get_volunteer_record(phone)
     assert record["available"] is True
+
+def test_sign_up_with_empty_role():
+    """
+    Test that if an empty string is provided as the role,
+    the volunteer is registered without any role assigned.
+    """
+    phone = "+40000000004"
+    msg = sign_up(phone, "No Role Volunteer", ["SkillA"], True, "")
+    assert "registered" in msg.lower()
+    record = get_volunteer_record(phone)
+    assert record is not None
+    # Verify that preferred_role is None when an empty role is provided.
+    assert record.get("preferred_role") is None
 
 # End of tests/managers/test_volunteer_operations.py

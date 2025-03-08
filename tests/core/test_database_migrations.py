@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 """
 tests/core/test_database_migrations.py - Tests for database migrations.
-Verifies that running migrations creates the necessary tables and updates the schema version.
+Verifies that running migrations creates the necessary tables, updates the schema version,
+and ensures that the DeletedVolunteers table has the new preferred_role column.
 """
 
 import os
@@ -51,5 +52,17 @@ def test_run_migrations_creates_tables_and_updates_version():
     # Some tables (like Volunteers, CommandLogs, DeletedVolunteers, SchemaVersion) may also exist.
     for table in expected_tables:
         assert table in tables
+
+def test_deleted_volunteers_has_preferred_role_column():
+    """
+    Test that the DeletedVolunteers table has a 'preferred_role' column after migrations.
+    """
+    run_migrations()  # Ensure migrations are applied
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("PRAGMA table_info(DeletedVolunteers)")
+    columns = [row["name"] for row in cursor.fetchall()]
+    conn.close()
+    assert "preferred_role" in columns, "DeletedVolunteers table should have a 'preferred_role' column."
 
 # End of tests/core/test_database_migrations.py
