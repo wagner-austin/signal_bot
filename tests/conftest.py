@@ -1,7 +1,7 @@
 """
 tests/conftest.py – Pytest configuration, fixtures, and common setup.
-Overrides DB_NAME for test isolation and provides a clear_volunteers fixture.
-Also clears Resources table for test isolation.
+Overrides DB_NAME for test isolation and provides a fixture to clear key database tables.
+Ensures that Volunteers, DeletedVolunteers, Resources, Events, EventSpeakers, and Tasks tables are emptied before and after tests.
 """
 
 import os
@@ -30,25 +30,26 @@ def test_database():
     os.environ.pop("DB_NAME", None)
 
 @pytest.fixture(autouse=True)
-def clear_volunteers():
+def clear_database_tables():
     """
-    tests/conftest.py – Fixture to clear Volunteers, DeletedVolunteers, and Resources tables before and after tests.
+    tests/conftest.py – Fixture to clear key tables (Volunteers, DeletedVolunteers, Resources,
+    Events, EventSpeakers, and Tasks) before and after tests.
+    Ensures a clean database state to prevent data leakage between tests.
     """
     from core.database.connection import get_connection
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM Volunteers")
-    cursor.execute("DELETE FROM DeletedVolunteers")
-    cursor.execute("DELETE FROM Resources")
-    conn.commit()
-    conn.close()
+    def clear_tables():
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM Volunteers")
+        cursor.execute("DELETE FROM DeletedVolunteers")
+        cursor.execute("DELETE FROM Resources")
+        cursor.execute("DELETE FROM Events")
+        cursor.execute("DELETE FROM EventSpeakers")
+        cursor.execute("DELETE FROM Tasks")
+        conn.commit()
+        conn.close()
+    clear_tables()
     yield
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM Volunteers")
-    cursor.execute("DELETE FROM DeletedVolunteers")
-    cursor.execute("DELETE FROM Resources")
-    conn.commit()
-    conn.close()
+    clear_tables()
 
 # End of tests/conftest.py
