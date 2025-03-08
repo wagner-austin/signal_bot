@@ -1,7 +1,9 @@
+#!/usr/bin/env python
 """
 core/database/schema.py - Database schema initialization.
 Creates base tables for volunteers, command logs, and deleted volunteers.
 Automatically runs migrations to update the schema with new changes.
+Now includes the preferred_role column in Volunteers and DeletedVolunteers.
 """
 
 from .connection import db_connection
@@ -20,7 +22,8 @@ def init_db() -> None:
             name TEXT,
             skills TEXT,
             available INTEGER,
-            current_role TEXT
+            current_role TEXT,
+            preferred_role TEXT
         )
         """)
         cursor.execute("""
@@ -39,6 +42,7 @@ def init_db() -> None:
             skills TEXT,
             available INTEGER,
             current_role TEXT,
+            preferred_role TEXT,
             deleted_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
         """)
