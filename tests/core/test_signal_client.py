@@ -1,5 +1,7 @@
+#!/usr/bin/env python
 """
 tests/core/test_signal_client.py - Tests for signal client functionalities.
+Verifies that send_message constructs CLI flags correctly by asserting directly on the argument list.
 """
 
 import pytest
@@ -27,8 +29,9 @@ async def test_direct_reply_in_group_chat(dummy_async_run_signal_cli):
         reply_quote_timestamp="123",
         reply_quote_message="original"
     )
-    args_str = " ".join(calls[0])
-    assert "-g" in args_str and "--quote-author" in args_str
+    # Assert directly on the list of arguments.
+    assert "-g" in calls[0]
+    assert "--quote-author" in calls[0]
 
 @pytest.mark.asyncio
 async def test_indirect_reply_in_private_chat(dummy_async_run_signal_cli):
@@ -37,7 +40,8 @@ async def test_indirect_reply_in_private_chat(dummy_async_run_signal_cli):
         to_number="+111",
         message="Private message"
     )
-    args_str = " ".join(calls[0])
-    assert "-g" not in args_str and "--quote-author" not in args_str
+    # Assert directly on the list of arguments.
+    assert "-g" not in calls[0]
+    assert "--quote-author" not in calls[0]
 
 # End of tests/core/test_signal_client.py
