@@ -105,12 +105,28 @@ def migration_4() -> None:
     )
     """, commit=True)
 
+def migration_5() -> None:
+    """
+    migration_5 - Create Donations table for donation tracking.
+    """
+    execute_sql("""
+    CREATE TABLE IF NOT EXISTS Donations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        phone TEXT,
+        amount REAL,
+        donation_type TEXT,
+        description TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+    """, commit=True)
+
 # List of migrations: each tuple is (migration_version, migration_function)
 MIGRATIONS = [
     (1, migration_1),
     (2, migration_2),
     (3, migration_3),
     (4, migration_4),
+    (5, migration_5),
 ]
 
 def run_migrations() -> None:

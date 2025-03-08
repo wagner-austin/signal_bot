@@ -14,5 +14,6 @@ from .system import *
 from .task import *
 from .theme import *
 from .volunteer import *
+from .donate import *
 
 # End of plugins/commands/__init__.py
