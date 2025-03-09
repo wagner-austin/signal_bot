@@ -5,10 +5,12 @@ Provides functions for volunteer registration, check‑in, and deletion.
 Uses a centralized sign_up method for consistent volunteer creation/updates.
 Changes:
  - Use 'external_connection=True' in repository calls to avoid closing a shared connection during sign_up.
+ - Add per-phone locking to prevent race conditions during concurrent sign-ups.
 """
 
 import logging
 import re
+import threading
 from typing import List, Optional
 from core.database import (
     get_volunteer_record, add_volunteer_record, update_volunteer_record,
@@ -23,6 +25,10 @@ logger = logging.getLogger(__name__)
 
 # A basic phone regex that allows optional leading '+' and 7-15 digits.
 PHONE_REGEX = re.compile(r'^\+?\d{7,15}$')
+
+# Global locks for volunteer sign-up concurrency control.
+_SIGN_UP_LOCKS = {}
+_SIGN_UP_LOCKS_LOCK = threading.Lock()
 
 
 def sign_up(phone: str, name: str, skills: List[str], available: bool = True,
@@ -43,27 +49,34 @@ def sign_up(phone: str, name: str, skills: List[str], available: bool = True,
     if not phone or not PHONE_REGEX.match(phone):
         return "Error: Invalid phone number format. Please provide a valid phone (e.g., +1234567890)."
 
-    with db_connection() as conn:
-        # Remove them from DeletedVolunteers if present, using the same conn.
-        remove_deleted_volunteer_record(phone, conn=conn)
+    # Acquire a per-phone lock to prevent race conditions during concurrent sign-ups.
+    with _SIGN_UP_LOCKS_LOCK:
+        lock = _SIGN_UP_LOCKS.get(phone)
+        if lock is None:
+            lock = threading.Lock()
+            _SIGN_UP_LOCKS[phone] = lock
+    with lock:
+        with db_connection() as conn:
+            # Remove them from DeletedVolunteers if present, using the same conn.
+            remove_deleted_volunteer_record(phone, conn=conn)
 
-        record = get_volunteer_record(phone, conn=conn)
-        if record:
-            updated_name = record["name"] if name.lower() == "skip" else name
-            new_skills = set(record["skills"]).union(set(sk.strip() for sk in skills))
-            updated_name = normalize_name(updated_name, phone)
-            new_role = current_role.strip() if current_role and current_role.strip() else record["current_role"]
+            record = get_volunteer_record(phone, conn=conn)
+            if record:
+                updated_name = record["name"] if name.lower() == "skip" else name
+                new_skills = set(record["skills"]).union(set(sk.strip() for sk in skills))
+                updated_name = normalize_name(updated_name, phone)
+                new_role = current_role.strip() if current_role and current_role.strip() else record["current_role"]
 
-            update_volunteer_record(phone, updated_name, list(new_skills), available, new_role, conn=conn)
-            return VOLUNTEER_UPDATED.format(name=updated_name)
-        else:
-            # Not found in Volunteers -> create
-            final_name = "Anonymous" if name.lower() == "skip" or not name.strip() else name
-            final_name = normalize_name(final_name, phone)
-            role_to_set = current_role.strip() if current_role and current_role.strip() else None
+                update_volunteer_record(phone, updated_name, list(new_skills), available, new_role, conn=conn)
+                return VOLUNTEER_UPDATED.format(name=updated_name)
+            else:
+                # Not found in Volunteers -> create
+                final_name = "Anonymous" if name.lower() == "skip" or not name.strip() else name
+                final_name = normalize_name(final_name, phone)
+                role_to_set = current_role.strip() if current_role and current_role.strip() else None
 
-            add_volunteer_record(phone, final_name, skills, available, role_to_set, role_to_set, conn=conn)
-            return NEW_VOLUNTEER_REGISTERED.format(name=final_name)
+                add_volunteer_record(phone, final_name, skills, available, role_to_set, role_to_set, conn=conn)
+                return NEW_VOLUNTEER_REGISTERED.format(name=final_name)
 
 
 def delete_volunteer(phone: str) -> str:
