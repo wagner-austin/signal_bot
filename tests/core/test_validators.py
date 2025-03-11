@@ -1,6 +1,7 @@
 """
 tests/core/test_validators.py - Tests for the CLI argument validation functions in core/validators.py.
 Ensures that allowed CLI flags pass validation and disallowed flags or dangerous characters raise errors.
+Includes parameterized tests for partial dangerous patterns.
 """
 
 import pytest
@@ -25,5 +26,25 @@ def test_validate_cli_args_dangerous_character():
     with pytest.raises(CLIValidationError) as excinfo:
         validate_cli_args(args)
     assert "Potentially dangerous character" in str(excinfo.value)
+
+@pytest.mark.parametrize("args,should_raise", [
+    (["send", "some safe text"], False),
+    (["send", "some;safe"], True),
+    (["send", "safe`text"], True),
+    (["send", "safe&text"], True),
+    (["send", "safe|text"], True),
+    (["send", "some safe text;"], True),
+    (["send", "cleantext"], False),
+])
+def test_validate_cli_args_partial_dangerous(args, should_raise):
+    """
+    Test validate_cli_args with a mix of safe and unsafe patterns.
+    Unsafe patterns include semicolons, backticks, ampersands, and vertical bars.
+    """
+    if should_raise:
+        with pytest.raises(CLIValidationError):
+            validate_cli_args(args)
+    else:
+        validate_cli_args(args)
 
 # End of tests/core/test_validators.py
