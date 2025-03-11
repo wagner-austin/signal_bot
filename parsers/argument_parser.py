@@ -46,4 +46,39 @@ def parse_key_value_args(args: str, pair_delimiter: str = ",", key_value_separat
         result[key.strip().lower()] = value.strip()
     return result
 
+def parse_plugin_arguments(args: str, mode: str = 'auto', sep: str = None, maxsplit: int = -1) -> dict:
+    """
+    parsers/argument_parser.py - Unified parser for plugin command arguments.
+    Centralizes argument parsing to support both positional and key-value pair modes.
+
+    Parameters:
+        args (str): Raw argument string.
+        mode (str): Parsing mode, one of 'auto', 'kv', or 'positional'.
+            'auto': Automatically use key-value parsing if a colon is present, otherwise positional.
+            'kv': Force key-value parsing.
+            'positional': Force positional argument splitting.
+        sep (str, optional): Delimiter to use for positional splitting. Defaults to None.
+        maxsplit (int, optional): Maximum number of splits for positional mode. Defaults to -1.
+    
+    Returns:
+        dict: A dictionary with two keys:
+            'tokens': list of positional tokens (empty if key-value mode is used).
+            'kv': dictionary of key-value pairs (empty if positional mode is used).
+    
+    Raises:
+        ValueError: If key-value parsing fails.
+    """
+    result = {"tokens": [], "kv": {}}
+    raw = args.strip()
+    if not raw:
+        return result
+    if mode == 'kv' or (mode == 'auto' and ':' in raw):
+        try:
+            result["kv"] = parse_key_value_args(raw)
+        except ValueError as e:
+            raise ValueError(f"Argument parsing error: {e}")
+    else:
+        result["tokens"] = split_args(raw, sep=sep, maxsplit=maxsplit)
+    return result
+
 # End of parsers/argument_parser.py

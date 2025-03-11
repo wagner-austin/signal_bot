@@ -13,7 +13,7 @@ from typing import Optional
 from plugins.manager import plugin
 from core.state import BotStateMachine
 from core.database.resources import add_resource, list_resources, remove_resource
-from parsers.argument_parser import split_args
+from parsers.argument_parser import parse_plugin_arguments
 
 logger = logging.getLogger(__name__)
 
@@ -32,36 +32,33 @@ def resource_command(args: str, sender: str, state_machine: BotStateMachine, msg
       "@bot resource list Flyers"
       "@bot resource remove 3"
     """
-    args = args.strip()
-    if not args:
+    parsed_main = parse_plugin_arguments(args, mode='positional', maxsplit=1)
+    tokens = parsed_main["tokens"]
+    if not tokens:
         return (
             "Usage:\n"
             "  @bot resource add <category> <url> [title?]\n"
             "  @bot resource list [<category>]\n"
             "  @bot resource remove <resource_id>"
         )
-    parts = split_args(args, maxsplit=1)
-    subcommand = parts[0].lower()
-    rest = parts[1].strip() if len(parts) > 1 else ""
+    subcommand = tokens[0].lower()
+    rest = tokens[1] if len(tokens) > 1 else ""
     
     if subcommand == "add":
-        tokens = split_args(rest, maxsplit=2)
-
-        # Handle cases where user typed partial fields
-        if len(tokens) == 0:
-            # e.g., "add" with no further text
+        parsed_add = parse_plugin_arguments(rest, mode='positional', maxsplit=2)
+        add_tokens = parsed_add["tokens"]
+        if len(add_tokens) == 0:
             return "Usage: @bot resource add <category> <url> [title?]"
-        elif len(tokens) == 1:
-            # Decide if they're missing category or URL
-            if tokens[0].startswith("http"):
+        elif len(add_tokens) == 1:
+            if add_tokens[0].startswith("http"):
                 return "Error: Category is required. Usage: @bot resource add <category> <url> [title?]"
             else:
                 return "Error: URL is required. Usage: @bot resource add <category> <url> [title?]"
-
-        category = tokens[0].strip()
-        url = tokens[1].strip()
-        title = tokens[2].strip() if len(tokens) == 3 else ""
-
+    
+        category = add_tokens[0]
+        url = add_tokens[1]
+        title = add_tokens[2] if len(add_tokens) == 3 else ""
+    
         if not category:
             return "Error: Category is required. Usage: @bot resource add <category> <url> [title?]"
         if not url:
@@ -92,7 +89,7 @@ def resource_command(args: str, sender: str, state_machine: BotStateMachine, msg
         if not rest:
             return "Usage: @bot resource remove <resource_id>"
         try:
-            resource_id = int(rest)
+            resource_id = int(rest.strip())
         except ValueError:
             return "Invalid resource_id. It should be a number."
         remove_resource(resource_id)

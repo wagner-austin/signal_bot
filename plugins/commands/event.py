@@ -1,23 +1,20 @@
 #!/usr/bin/env python
 """
-plugins/commands/event.py
--------------------------
-Event command plugins for creating and managing events, including planning,
-editing, and removing events, as well as listing speakers. Handles partial or
-invalid inputs and returns informative error messages.
+plugins/commands/event.py - Event command plugins for creating and managing events.
+Handles planning, editing, and removing events, as well as listing speakers.
+Returns informative messages based on command outcomes.
 """
 
 import logging
 from typing import Optional, Dict, Any
 from plugins.manager import plugin
 from core.state import BotStateMachine
-from parsers.argument_parser import parse_key_value_args
+from parsers.argument_parser import parse_plugin_arguments
 from core.event_manager import (
     list_events, create_event, update_event, delete_event, get_event, list_speakers
 )
 
 logger = logging.getLogger(__name__)
-
 
 @plugin('event', canonical='event')
 def event_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
@@ -41,23 +38,13 @@ def event_command(args: str, sender: str, state_machine: BotStateMachine, msg_ti
         response += f"ID {event.get('event_id')}: {event.get('title')} on {event.get('date')} at {event.get('time')} - {event.get('location')}\n"
     return response.strip()
 
-
 @plugin('plan event', canonical='plan event')
 def plan_event_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
     plan event - Create a new event either interactively or immediately.
 
-    If args are empty, it returns instructions for interactive creation.
-    Otherwise, expects comma-separated key:value pairs. Required fields:
-      - Title
-      - Date
-      - Time
-      - Location
-      - Description
-
-    Usage:
-        @bot plan event
-        @bot plan event Title: My Title, Date: 2025-12-31, Time: 2PM, Location: Park, Description: Outdoor gathering
+    If args are empty, returns interactive instructions.
+    Otherwise, expects comma-separated key:value pairs with required fields.
     """
     if not args.strip():
         return (
@@ -69,7 +56,7 @@ def plan_event_command(args: str, sender: str, state_machine: BotStateMachine, m
     if args.strip().lower() in {"skip", "cancel"}:
         return "Event creation cancelled."
     try:
-        details: Dict[str, Any] = parse_key_value_args(args)
+        details: Dict[str, Any] = parse_plugin_arguments(args, mode='kv')["kv"]
         required = ["title", "date", "time", "location", "description"]
         if not all(field in details for field in required):
             return "Missing one or more required fields. Event creation cancelled."
@@ -85,22 +72,16 @@ def plan_event_command(args: str, sender: str, state_machine: BotStateMachine, m
         logger.exception("Error parsing event details in plan_event_command.")
         return "An internal error occurred while creating the event. Please try again later."
 
-
 @plugin('edit event', canonical='edit event')
 def edit_event_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
     edit event - Update an existing event.
-
-    Expects comma-separated key:value pairs, one of which must be "EventID: <id>".
-    Example:
-      @bot edit event EventID: 3, title: New Title, location: Some Venue
-
-    Returns a confirmation message upon successful update or an error if invalid.
+    Expects comma-separated key:value pairs, including "EventID: <id>".
     """
     if not args.strip():
         return "Usage: @bot edit event EventID: <id>, <key>:<value>, [<key>:<value>, ...]"
     try:
-        details: Dict[str, Any] = parse_key_value_args(args)
+        details: Dict[str, Any] = parse_plugin_arguments(args, mode='kv')["kv"]
     except Exception as e:
         return f"Error parsing event details: {str(e)}"
 
@@ -126,26 +107,18 @@ def edit_event_command(args: str, sender: str, state_machine: BotStateMachine, m
     update_event(event_id, **update_fields)
     return f"Event with ID {event_id} updated successfully."
 
-
 @plugin('remove event', canonical='remove event')
 def remove_event_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
     remove event - Delete an existing event.
-
     Accepts comma-separated key:value pairs with either:
       - EventID: <id>
       - Title: <event title>
-
-    Example:
-      @bot remove event EventID: 5
-      @bot remove event Title: Some Event
-
-    Returns a confirmation message upon removal or an error message.
     """
     if not args.strip():
         return "Usage: @bot remove event EventID: <id> or Title: <event title>"
     try:
-        details: Dict[str, Any] = parse_key_value_args(args)
+        details: Dict[str, Any] = parse_plugin_arguments(args, mode='kv')["kv"]
     except Exception as e:
         return f"Error parsing event details: {str(e)}"
 
@@ -174,14 +147,12 @@ def remove_event_command(args: str, sender: str, state_machine: BotStateMachine,
         return f"Event with ID {event_id} removed successfully."
     return "No valid event identifier provided."
 
-
 @plugin('speakers', canonical='speakers')
 def speakers_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
     speakers - List speakers for an event.
-
-    If args is empty, lists speakers for the latest event. If args is an event title,
-    lists speakers for that specific event. If no events are found, returns a message.
+    If args is empty, lists speakers for the latest event.
+    If args is an event title, lists speakers for that event.
     """
     event_found: Optional[Dict[str, Any]] = None
     if args.strip():

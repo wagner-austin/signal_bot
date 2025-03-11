@@ -11,7 +11,7 @@ If "Event:" is omitted, the latest event is used.
 from typing import Optional
 from plugins.manager import plugin
 from core.state import BotStateMachine
-from parsers.argument_parser import parse_key_value_args
+from parsers.argument_parser import parse_plugin_arguments
 from core.event_manager import list_events, assign_speaker, remove_speaker
 
 @plugin('add speaker', canonical='add speaker')
@@ -26,7 +26,7 @@ def add_speaker_command(args: str, sender: str, state_machine: BotStateMachine, 
     Returns a confirmation message on success or an error message on failure.
     """
     try:
-        parts = parse_key_value_args(args)
+        parts = parse_plugin_arguments(args, mode='kv')["kv"]
     except ValueError as ve:
         return f"Error parsing speaker details: {str(ve)}"
     event_id = None
@@ -65,7 +65,7 @@ def remove_speaker_command(args: str, sender: str, state_machine: BotStateMachin
     Returns a confirmation message on success or an error message on failure.
     """
     try:
-        parts = parse_key_value_args(args)
+        parts = parse_plugin_arguments(args, mode='kv')["kv"]
     except ValueError as ve:
         return f"Error parsing speaker details: {str(ve)}"
     event_id = None

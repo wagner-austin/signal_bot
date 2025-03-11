@@ -12,6 +12,7 @@ from typing import Optional
 from plugins.manager import plugin
 from core.state import BotStateMachine
 from core.database.backup import create_backup, list_backups, restore_backup
+from parsers.argument_parser import parse_plugin_arguments
 
 @plugin('dbbackup', canonical='dbbackup')
 def dbbackup_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
@@ -28,11 +29,12 @@ def dbbackup_command(args: str, sender: str, state_machine: BotStateMachine, msg
       "@bot dbbackup list"
       "@bot dbbackup restore backup_20250307_153000.db"
     """
-    args = args.strip().split()
-    if not args:
+    parsed = parse_plugin_arguments(args, mode='positional')
+    tokens = parsed["tokens"]
+    if not tokens:
         return ("Usage:\n  dbbackup create\n  dbbackup list\n  dbbackup restore <filename>")
     
-    subcommand = args[0].lower()
+    subcommand = tokens[0].lower()
     
     if subcommand == "create":
         backup_path = create_backup()
@@ -44,9 +46,9 @@ def dbbackup_command(args: str, sender: str, state_machine: BotStateMachine, msg
         response = "Available Backups:\n" + "\n".join(backups)
         return response
     elif subcommand == "restore":
-        if len(args) < 2:
+        if len(tokens) < 2:
             return "Usage: dbbackup restore <filename>"
-        filename = args[1]
+        filename = tokens[1]
         success = restore_backup(filename)
         if success:
             return f"Database restored from backup: {filename}"

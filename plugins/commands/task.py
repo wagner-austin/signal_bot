@@ -13,7 +13,7 @@ from typing import Optional
 from plugins.manager import plugin
 from core.state import BotStateMachine
 from core.task_manager import add_task, list_tasks, assign_task, close_task
-from parsers.argument_parser import split_args
+from parsers.argument_parser import parse_plugin_arguments
 
 @plugin('task', canonical='task')
 def task_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
@@ -32,17 +32,17 @@ def task_command(args: str, sender: str, state_machine: BotStateMachine, msg_tim
       "@bot task assign 3 John Doe"
       "@bot task close 3"
     """
-    args = args.strip()
-    if not args:
+    parsed = parse_plugin_arguments(args, mode='positional')
+    tokens = parsed["tokens"]
+    if not tokens:
         return ("Usage:\n"
                 "  @bot task add <description>\n"
                 "  @bot task list\n"
                 "  @bot task assign <task_id> <volunteer_display_name>\n"
                 "  @bot task close <task_id>")
     
-    parts = split_args(args, maxsplit=1)
-    subcommand = parts[0].lower()
-    rest = parts[1].strip() if len(parts) > 1 else ""
+    subcommand = tokens[0].lower()
+    rest = " ".join(tokens[1:]) if len(tokens) > 1 else ""
     
     if subcommand == "add":
         if not rest:
@@ -63,9 +63,8 @@ def task_command(args: str, sender: str, state_machine: BotStateMachine, msg_tim
         return "\n".join(response_lines)
     
     elif subcommand == "assign":
-        if not rest:
-            return "Usage: @bot task assign <task_id> <volunteer_display_name>"
-        assign_parts = split_args(rest, maxsplit=1)
+        parsed_assign = parse_plugin_arguments(rest, mode='positional', maxsplit=1)
+        assign_parts = parsed_assign["tokens"]
         if len(assign_parts) < 2:
             return "Usage: @bot task assign <task_id> <volunteer_display_name>"
         try:
@@ -82,7 +81,7 @@ def task_command(args: str, sender: str, state_machine: BotStateMachine, msg_tim
         if not rest:
             return "Usage: @bot task close <task_id>"
         try:
-            task_id = int(rest)
+            task_id = int(rest.strip())
         except ValueError:
             return "Invalid task_id. It should be a number."
         close_task(task_id)
