@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 """
-cli_tools.py --- Aggregated CLI Tools Facade
-Provides a unified command-line interface to perform various database operations.
-
+cli_tools.py - Aggregated CLI Tools Facade - Provides a unified command-line interface
+to perform various database operations. Direct error messages via print() have been replaced
+with logger calls to standardize logging and exception handling.
 Usage Examples:
   python cli_tools.py list-volunteers
   python cli_tools.py add-volunteer --phone +1234567890 --name "John Doe" --skills "Python, SQL" --available 1 --role "Coordinator"
@@ -17,6 +17,8 @@ Usage Examples:
 """
 
 import argparse
+import logging
+from core.logger_setup import setup_logging
 
 from cli.volunteers_cli import list_volunteers_cli, add_volunteer_cli, list_deleted_volunteers_cli
 from cli.events_cli import list_events_cli, list_event_speakers_cli
@@ -24,6 +26,7 @@ from cli.logs_cli import list_logs_cli
 from cli.resources_cli import list_resources_cli, add_resource_cli as original_add_resource_cli, remove_resource_cli as original_remove_resource_cli
 from cli.tasks_cli import list_tasks_cli
 
+logger = logging.getLogger(__name__)
 
 def add_resource_cli(args: argparse.Namespace):
     """
@@ -33,13 +36,11 @@ def add_resource_cli(args: argparse.Namespace):
     url = args.url
     title = args.title if args.title else ""
     # Minimal validation: require the URL to start with 'http'
-    # This addresses negative edge cases (invalid or empty URLs).
     if not url.startswith("http"):
-        print(f"Error: URL must start with 'http'. Provided: {url}")
+        logger.error(f"Error: URL must start with 'http'. Provided: {url}")
         return
     # Delegate to the original function if valid
     original_add_resource_cli(args)
-
 
 def remove_resource_cli(args: argparse.Namespace):
     """
@@ -47,16 +48,18 @@ def remove_resource_cli(args: argparse.Namespace):
     """
     resource_id = args.id
     if resource_id <= 0:
-        print(f"Error: Resource ID must be a positive integer. Provided: {resource_id}")
+        logger.error(f"Error: Resource ID must be a positive integer. Provided: {resource_id}")
         return
     # Delegate to the original function if valid
     original_remove_resource_cli(args)
-
 
 def main():
     """
     main - Parse command-line arguments and dispatch to the appropriate CLI function.
     """
+    # Set up logging so that errors are output to stderr and captured by tests.
+    setup_logging()
+
     parser = argparse.ArgumentParser(description="Aggregated CLI Tools for database operations.")
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
     
@@ -98,11 +101,10 @@ def main():
     if args.command == "list-volunteers":
         list_volunteers_cli()
     elif args.command == "add-volunteer":
-        # Minor addition: handle invalid --available input gracefully
         try:
             add_volunteer_cli(args)
         except ValueError as ve:
-            print(f"Error parsing --available value: {ve}")
+            logger.error(f"Error parsing --available value: {ve}")
     elif args.command == "list-deleted-volunteers":
         list_deleted_volunteers_cli()
     elif args.command == "list-events":
@@ -121,7 +123,6 @@ def main():
         list_tasks_cli()
     else:
         parser.print_help()
-
 
 if __name__ == "__main__":
     main()
