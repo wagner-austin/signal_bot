@@ -23,7 +23,7 @@ async def send_message(
     logger: Optional[logging.Logger] = None
 ) -> None:
     """
-    send_message - Asynchronously send a message using signal-cli.
+    core/signal_client.py - Asynchronously send a message using signal-cli.
     Accepts an optional logger dependency.
     """
     if logger is None:
@@ -53,7 +53,7 @@ async def send_message(
 
 async def receive_messages(logger: Optional[logging.Logger] = None) -> List[str]:
     """
-    receive_messages - Asynchronously retrieve incoming messages using signal-cli.
+    core/signal_client.py - Asynchronously retrieve incoming messages using signal-cli.
     Accepts an optional logger dependency.
     """
     if logger is None:
@@ -70,7 +70,7 @@ async def receive_messages(logger: Optional[logging.Logger] = None) -> List[str]
 
 def _get_quote_details(parsed: ParsedMessage) -> Tuple[Optional[str], str, str]:
     """
-    Extract quoting details from a parsed message.
+    core/signal_client.py - Extract quoting details from a parsed message.
     Returns a tuple of (quote_timestamp, quote_author, quote_message).
     """
     msg_timestamp = parsed.timestamp
@@ -81,7 +81,7 @@ def _get_quote_details(parsed: ParsedMessage) -> Tuple[Optional[str], str, str]:
 
 async def _dispatch_message(response: str, parsed: ParsedMessage, quote_details: Tuple[Optional[str], str, str], logger: Optional[logging.Logger] = None) -> None:
     """
-    Dispatch the response message using send_message with quoting details.
+    core/signal_client.py - Dispatch the response message using send_message with quoting details.
     Accepts an optional logger dependency.
     """
     if logger is None:
@@ -98,7 +98,7 @@ async def _dispatch_message(response: str, parsed: ParsedMessage, quote_details:
 
 async def process_incoming(state_machine, logger: Optional[logging.Logger] = None) -> int:
     """
-    process_incoming - Process incoming messages, dispatch commands, and send responses.
+    core/signal_client.py - Process incoming messages, dispatch commands, and send responses.
     Accepts an optional logger dependency.
     Returns the number of processed messages.
     """
@@ -114,6 +114,7 @@ async def process_incoming(state_machine, logger: Optional[logging.Logger] = Non
         logger.info(f"Processing message:\n{message}\n")
         parsed = parse_message(message)
         if not parsed.sender or not parsed.body:
+            logger.warning(f"Skipping message due to missing sender or body. Parsed: {parsed}")
             continue
         processed_count += 1
         quote_details = _get_quote_details(parsed)

@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 """
-tests/core/test_signal_bot_service.py - Tests for the SignalBotService run loop.
-Includes tests for normal operation, forced shutdown, idle loop behavior, and group chat command filtering.
+tests/core/test_signal_bot_service.py - Tests for the SignalBotService run loop and edge cases.
+Includes tests for normal operation, forced shutdown, idle loop behavior, group chat command filtering,
+mixed batch processing of valid/invalid messages, and empty group messages with zero arguments.
 """
 
 import asyncio
@@ -145,8 +146,6 @@ async def test_signal_bot_service_run_shutdown_with_backlog(monkeypatch):
     service = SignalBotService(state_machine=state_machine)
     await service.run()
 
-    # Once we see the final '@bot shutdown', the service should stop,
-    # ensuring it has processed the earlier messages as well.
     assert state_machine.current_state == BotState.SHUTTING_DOWN, "Bot should be shutting down after the last message."
 
 # --------------------------------------------------------------------------------
@@ -156,7 +155,7 @@ async def test_signal_bot_service_run_shutdown_with_backlog(monkeypatch):
 @pytest.mark.asyncio
 async def test_signal_bot_service_idle_loop(monkeypatch):
     """
-    tests/core/test_signal_bot_service.py - Test for prolonged idle loop.
+    Test for prolonged idle loop.
     Simulate a scenario where process_incoming always returns 0 messages for multiple iterations.
     Confirm that the bot sleeps for POLLING_INTERVAL on each iteration and does not exit prematurely.
     """
@@ -205,10 +204,9 @@ async def test_signal_bot_service_idle_loop(monkeypatch):
 @pytest.mark.asyncio
 async def test_signal_bot_service_group_chat_partial_command(monkeypatch):
     """
-    tests/core/test_signal_bot_service.py - Test for group chat partial command.
+    Test for group chat partial command.
     Simulate an incoming group message missing the '@bot' prefix and confirm it is ignored.
     """
-    # The actual message content doesn't matter because we'll override the parser.
     messages_list = [
         "Dummy message text to be replaced by dummy parser"
     ]
@@ -245,7 +243,7 @@ async def test_signal_bot_service_group_chat_partial_command(monkeypatch):
         # If in group chat and body does not contain '@bot', ignore the message.
         if getattr(parsed, 'group_id', None) and '@bot' not in parsed.body:
             return ""
-        return "response"  # fallback; not expected in this test
+        return "response"
     monkeypatch.setattr(MessageManager, "process_message", dummy_process_message)
 
     class DummyShortStateMachine(BotStateMachine):
@@ -263,8 +261,102 @@ async def test_signal_bot_service_group_chat_partial_command(monkeypatch):
     service = SignalBotService(state_machine=dummy_state_machine)
     await service.run()
 
-    # Since the group message is missing the '@bot' prefix, it should be ignored and no send should occur.
     assert send_call_count[0] == 0, f"Expected 0 send calls, got {send_call_count[0]}"
+    assert dummy_state_machine.current_state == BotState.SHUTTING_DOWN
+
+# --------------------------------------------------------------------------------
+# NEW TEST: Mixed Batch of Envelopes
+# --------------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_signal_bot_service_mixed_messages(monkeypatch):
+    """
+    Test for mixed batch of envelopes.
+    Simulate a batch with:
+      - Valid private message.
+      - Message missing Body.
+      - Message missing sender.
+      - Group message without '@bot' prefix.
+      - Valid shutdown message.
+    Confirm that the bot processes valid messages and ignores invalid ones.
+    """
+    messages_list = [
+        "Envelope\nfrom: +1234567890\nBody: @bot echo Hello\nTimestamp: 1000\n",
+        "Envelope\nfrom: +1234567891\nTimestamp: 1001\n",  # missing Body
+        "Envelope\nBody: @bot echo Missing sender\nTimestamp: 1002\n",  # missing from
+        "Envelope\nfrom: +1234567892\nBody: Hello group\nTimestamp: 1003\nGroup info: groupXYZ\n",  # group without '@bot'
+        "Envelope\nfrom: +1234567893\nBody: @bot shutdown\nTimestamp: 1004\n"
+    ]
+    poll_count = 0
+
+    async def dummy_receive_messages(logger=None):
+        nonlocal poll_count
+        poll_count += 1
+        if messages_list:
+            return [messages_list.pop(0)]
+        return []
+
+    async def dummy_async_run_signal_cli(*args, **kwargs):
+        return ""
+
+    monkeypatch.setattr("core.signal_client.receive_messages", dummy_receive_messages)
+    monkeypatch.setattr("core.signal_client.async_run_signal_cli", dummy_async_run_signal_cli)
+    monkeypatch.setattr(asyncio, "sleep", fast_sleep)
+
+    state_machine = BotStateMachine()
+    service = SignalBotService(state_machine=state_machine)
+    await service.run()
+
+    # Expect poll_count to be equal to number of messages processed (5)
+    assert poll_count == 5, f"Expected 5 polls, got {poll_count}"
+    assert state_machine.current_state == BotState.SHUTTING_DOWN
+
+# --------------------------------------------------------------------------------
+# NEW TEST: Empty Group Message with @bot but Zero Arguments
+# --------------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_signal_bot_service_empty_group_message(monkeypatch):
+    """
+    Test for an empty group message with @bot present but zero arguments.
+    Simulate a group message with Body '@bot' and ensure it is gracefully processed (ignored/no response).
+    """
+    messages_list = [
+        "Envelope\nfrom: +1111111111\nBody: @bot\nTimestamp: 5555\nGroup info: group123\n"
+    ]
+    poll_count = 0
+    async def dummy_receive_messages(logger=None):
+        nonlocal poll_count
+        poll_count += 1
+        if messages_list:
+            return [messages_list.pop(0)]
+        return []
+    send_call_count = [0]
+    async def dummy_async_run_signal_cli(args, stdin_input=None):
+        if args and args[0] != 'receive':
+            send_call_count[0] += 1
+        return ""
+    monkeypatch.setattr("core.signal_client.receive_messages", dummy_receive_messages)
+    monkeypatch.setattr("core.signal_client.async_run_signal_cli", dummy_async_run_signal_cli)
+    monkeypatch.setattr(asyncio, "sleep", fast_sleep)
+
+    class DummyShortStateMachine(BotStateMachine):
+        def __init__(self, iterations):
+            super().__init__()
+            self.iterations = iterations
+        def should_continue(self) -> bool:
+            if self.iterations <= 0:
+                self.shutdown()
+            else:
+                self.iterations -= 1
+            return super().should_continue()
+
+    dummy_state_machine = DummyShortStateMachine(iterations=1)
+    service = SignalBotService(state_machine=dummy_state_machine)
+    await service.run()
+
+    assert send_call_count[0] == 0, f"Expected 0 send calls, got {send_call_count[0]}"
+    from core.state import BotState
     assert dummy_state_machine.current_state == BotState.SHUTTING_DOWN
 
 # End of tests/core/test_signal_bot_service.py
