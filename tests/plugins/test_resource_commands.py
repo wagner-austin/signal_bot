@@ -2,7 +2,7 @@
 """
 tests/plugins/test_resource_commands.py - Tests for the resource command plugin.
 Verifies that the resource_command function correctly handles usage, add, list, and remove subcommands,
-including edge/negative cases like missing category or URL, and empty titles.
+including edge/negative cases like missing category or URL, empty titles, and unrecognized subcommands.
 """
 
 import re
@@ -10,7 +10,6 @@ import pytest
 from plugins.commands.resource import resource_command
 from core.state import BotStateMachine
 from core.database.resources import list_resources
-
 
 def test_resource_no_args_shows_usage():
     """
@@ -21,7 +20,6 @@ def test_resource_no_args_shows_usage():
     response = resource_command("", sender, state_machine, msg_timestamp=123)
     assert "Usage:" in response
     assert "resource add <category> <url> [title?]" in response
-
 
 def test_resource_add_command():
     """
@@ -36,7 +34,6 @@ def test_resource_add_command():
     resources = list_resources("Linktree")
     assert any("OfficialLinktree" in res["title"] for res in resources)
 
-
 def test_resource_list_command_with_category():
     """
     Tests listing resources filtered by category.
@@ -49,7 +46,6 @@ def test_resource_list_command_with_category():
     # Now list resources filtered by the "Linktree" category.
     response = resource_command("list Linktree", sender, state_machine, msg_timestamp=123)
     assert "ID" in response and "Linktree" in response and "OfficialLinktree" in response
-
 
 def test_resource_list_command_all():
     """
@@ -65,7 +61,6 @@ def test_resource_list_command_all():
     # List all resources without filtering by category.
     response = resource_command("list", sender, state_machine, msg_timestamp=123)
     assert "OfficialLinktree" in response and "Flyer1" in response
-
 
 def test_resource_remove_command():
     """
@@ -90,7 +85,6 @@ def test_resource_remove_command():
     list_output = resource_command("list Linktree", sender, state_machine, msg_timestamp=123)
     assert str(resource_id) not in list_output
 
-
 def test_resource_add_missing_category():
     """
     Test passing only the URL, omitting the category completely.
@@ -101,7 +95,6 @@ def test_resource_add_missing_category():
     response = resource_command("add  https://example.com", sender, state_machine, msg_timestamp=123)
     assert "Error: Category is required" in response
 
-
 def test_resource_add_missing_url():
     """
     Test passing only the category, omitting the URL.
@@ -111,7 +104,6 @@ def test_resource_add_missing_url():
     sender = "+10000000002"
     response = resource_command("add Flyers", sender, state_machine, msg_timestamp=123)
     assert "Error: URL is required" in response
-
 
 def test_resource_add_empty_title():
     """
@@ -126,5 +118,14 @@ def test_resource_add_empty_title():
     # Verify the resource was created with empty title
     resources = list_resources("Docs")
     assert any(r["title"] == "" for r in resources)
+
+def test_resource_unknown_subcommand():
+    """
+    Test that an unrecognized subcommand returns an error message indicating an invalid subcommand.
+    """
+    state_machine = BotStateMachine()
+    sender = "+10000000000"
+    response = resource_command("foo", sender, state_machine, msg_timestamp=123)
+    assert "Invalid subcommand" in response
 
 # End of tests/plugins/test_resource_commands.py
