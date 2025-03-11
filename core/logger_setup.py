@@ -1,5 +1,5 @@
 """
-core/logger_setup.py - Provides a reusable logging configuration setup.
+core/logger_setup.py - Provides a reusable logging configuration setup with robust handling.
 This module centralizes logging configuration and exposes a setup_logging() function
 that can be used in both production and testing environments.
 """
@@ -7,6 +7,7 @@ that can be used in both production and testing environments.
 import logging
 import logging.config
 import copy
+import warnings
 
 DEFAULT_LOGGING_CONFIG = {
     "version": 1,
@@ -42,11 +43,24 @@ def setup_logging(config_overrides=None):
     config = copy.deepcopy(DEFAULT_LOGGING_CONFIG)
     if config_overrides:
         merge_dicts(config, config_overrides)
+    
+    # Check for empty or missing handlers in overall config or in the root logger.
+    if not config.get("handlers") or not config["handlers"] or not config.get("root", {}).get("handlers"):
+        warnings.warn("Logging configuration missing handlers; using fallback console handler.")
+        config["handlers"] = {
+            "console": {
+                "class": "logging.StreamHandler",
+                "formatter": "default",
+            },
+        }
+        if "root" in config:
+            config["root"]["handlers"] = ["console"]
+
     logging.config.dictConfig(config)
 
 def merge_dicts(base, overrides):
     """
-    merge_dicts - Recursively merge two dictionaries.
+    merge_dicts - Recursively merge two dictionaries with graceful handling of type mismatches.
     
     Args:
         base (dict): The base dictionary to update.
@@ -59,6 +73,8 @@ def merge_dicts(base, overrides):
         if key in base and isinstance(base[key], dict) and isinstance(value, dict):
             merge_dicts(base[key], value)
         else:
+            if key in base and (isinstance(base[key], dict) != isinstance(value, dict)):
+                warnings.warn(f"Type mismatch for key '{key}': base type {type(base[key])} vs override type {type(value)}. Using override value.")
             base[key] = value
     return base
 

@@ -1,12 +1,13 @@
 #!/usr/bin/env python
 """
 tests/core/test_logger_setup.py - Unit tests for logger setup.
-Tests default configuration, overrides, output formatting, and merge_dicts functionality.
+Tests default configuration, overrides, output formatting, and merge_dicts functionality including edge cases.
 """
 
 import logging
 import pytest
 import re
+import warnings
 from core.logger_setup import setup_logging, merge_dicts
 
 @pytest.fixture(autouse=True)
@@ -75,5 +76,29 @@ def test_merge_dicts():
     merged = merge_dicts(base.copy(), overrides)
     expected = {"a": 1, "b": {"c": 2, "d": 3}, "e": 4}
     assert merged == expected
+
+def test_merge_dicts_type_mismatch():
+    base = {"a": 1, "b": {"c": 2}}
+    overrides = {"b": "not a dict", "d": {"e": 5}}
+    with pytest.warns(UserWarning, match="Type mismatch for key 'b'"):
+        merged = merge_dicts(base.copy(), overrides)
+    expected = {"a": 1, "b": "not a dict", "d": {"e": 5}}
+    assert merged == expected
+
+def test_setup_logging_no_handlers(capsys):
+    # Override config to have empty handlers and root handlers.
+    override_config = {
+        "handlers": {},
+        "root": {"handlers": []}
+    }
+    with pytest.warns(UserWarning, match="Logging configuration missing handlers"):
+        setup_logging(override_config)
+    root_logger = logging.getLogger()
+    # Check that fallback console handler is used by ensuring there's at least one handler.
+    assert len(root_logger.handlers) > 0
+    logger = logging.getLogger("fallback_test")
+    logger.info("Fallback test message")
+    captured = capsys.readouterr()
+    assert "Fallback test message" in captured.err
 
 # End of tests/core/test_logger_setup.py
