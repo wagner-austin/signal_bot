@@ -5,6 +5,7 @@ Verifies command-line interface dispatch, including negative/edge case scenarios
  - Missing required arguments
  - Invalid values (like non-integer or negative IDs)
  - Partial near-match commands
+ - Missing subcommand and near-correct subcommands (typos)
 """
 
 from tests.cli.cli_test_helpers import run_cli_command
@@ -130,6 +131,17 @@ def test_cli_remove_resource_negative_id():
     assert "Error: Resource ID must be a positive integer" in output
 
 
+def test_cli_remove_resource_missing_id():
+    """
+    Verify that calling remove-resource without the required --id flag prints usage/help.
+    """
+    output_data = run_cli_command(["remove-resource"])
+    stderr = output_data["stderr"].lower()
+    # The parser should enforce that --id is required.
+    assert "usage:" in stderr
+    assert "the following arguments are required: --id" in stderr
+
+
 # ---------------------------------------------------------------------
 # Additional test for partial near-match commands
 # ---------------------------------------------------------------------
@@ -141,6 +153,28 @@ def test_cli_partial_known_command():
     output_data = run_cli_command(["list-volunteerz"])
     stdout = output_data["stdout"].lower()
     stderr = output_data["stderr"].lower()
+    assert "usage:" in stdout or "usage:" in stderr
+
+
+def test_cli_no_subcommand():
+    """
+    Verify that calling cli_tools.py without any subcommand prints top-level help.
+    """
+    output_data = run_cli_command([])
+    stdout = output_data["stdout"].lower()
+    stderr = output_data["stderr"].lower()
+    # Expect help text with usage information if no subcommand is provided.
+    assert "usage:" in stdout or "usage:" in stderr
+
+
+def test_cli_almost_correct_subcommand():
+    """
+    Verify that calling an almost-correct subcommand, e.g. list-eventz, prints usage help.
+    """
+    output_data = run_cli_command(["list-eventz"])
+    stdout = output_data["stdout"].lower()
+    stderr = output_data["stderr"].lower()
+    # Expect usage instructions if the subcommand is not recognized.
     assert "usage:" in stdout or "usage:" in stderr
 
 # End of tests/cli/test_cli_tools.py
