@@ -9,44 +9,59 @@ from plugins.manager import plugin
 from core.state import BotStateMachine
 from managers.volunteer_manager import VOLUNTEER_MANAGER
 from core.metrics import get_uptime
-import core.metrics  # Import the module to access the dynamic messages_sent value
+import core.metrics
+from parsers.argument_parser import parse_plugin_arguments
+from parsers.plugin_arg_parser import PluginArgError
 
 @plugin('assign', canonical='assign')
 def assign_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
     assign - Assign a volunteer based on a required skill.
-    Expected format: "@bot assign <Skill Name>"
+    Usage: "@bot assign <Skill Name>"
     """
-    skill = args.strip()
-    if not skill:
-        return "Usage: @bot assign <Skill Name>"
-    volunteer = VOLUNTEER_MANAGER.assign_volunteer(skill, skill)
-    if volunteer:
-        return f"{skill} assigned to {volunteer}."
-    return f"No available volunteer for {skill}."
+    try:
+        parsed = parse_plugin_arguments(args, mode='positional')
+        tokens = parsed["tokens"]
+        if not tokens:
+            raise PluginArgError("Usage: @bot assign <Skill Name>")
+        skill = " ".join(tokens)
+        volunteer = VOLUNTEER_MANAGER.assign_volunteer(skill, skill)
+        if volunteer:
+            return f"{skill} assigned to {volunteer}."
+        return f"No available volunteer for {skill}."
+    except PluginArgError as e:
+        return str(e)
 
 @plugin('test', canonical='test')
 def plugin_test_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
     test - Test command for verifying bot response.
-    Expected format: "@bot test"
+    Usage: "@bot test"
     """
-    if args.strip():
-        return "Usage: @bot test"
-    return "yes"
+    try:
+        parsed = parse_plugin_arguments(args, mode='positional')
+        tokens = parsed["tokens"]
+        if tokens:
+            raise PluginArgError("Usage: @bot test")
+        return "yes"
+    except PluginArgError as e:
+        return str(e)
 
 @plugin('shutdown', canonical='shutdown')
 def shutdown_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
     shutdown - Shut down the bot gracefully.
-    If extra arguments are provided, returns usage.
-
-    Usage: "@bot shutdown"
+    If extra arguments are provided, usage error.
     """
-    if args.strip():
-        return "Usage: @bot shutdown"
-    state_machine.shutdown()
-    return "Bot is shutting down."
+    try:
+        parsed = parse_plugin_arguments(args, mode='positional')
+        tokens = parsed["tokens"]
+        if tokens:
+            raise PluginArgError("Usage: @bot shutdown")
+        state_machine.shutdown()
+        return "Bot is shutting down."
+    except PluginArgError as e:
+        return str(e)
 
 @plugin('info', canonical='info')
 def info_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
@@ -54,32 +69,35 @@ def info_command(args: str, sender: str, state_machine: BotStateMachine, msg_tim
     info - Provides a brief overview of the 50501 OC Grassroots Movement.
     Usage: "@bot info"
     """
-    if args.strip():
-        return "Usage: @bot info"
-    return (
-        "50501 OC Grassroots Movement is dedicated to upholding the Constitution and ending executive overreach. \n\n"
-        "Our objective is to foster peaceful, visible, and sustained community engagement through nonviolent protest. "
-        "We empower citizens to reclaim democracy and hold power accountable, inspiring change through unity and active resistance."
-    )
+    try:
+        parsed = parse_plugin_arguments(args, mode='positional')
+        tokens = parsed["tokens"]
+        if tokens:
+            raise PluginArgError("Usage: @bot info")
+        return (
+            "50501 OC Grassroots Movement is dedicated to upholding the Constitution and ending executive overreach.\n\n"
+            "We empower citizens to reclaim democracy and hold power accountable through peaceful, visible, and sustained engagement."
+        )
+    except PluginArgError as e:
+        return str(e)
 
 @plugin('weekly update', canonical='weekly update')
 def weekly_update_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
     weekly update - Provides a summary of Trump's actions and Democrat advances this week.
-    Usage: "@bot weekly update"
     """
-    if args.strip():
-        return "Usage: @bot weekly update"
-    return (
-        "Weekly Update:\n\n"
-        "Trump Actions:\n"
-        "- Held multiple rallies and press conferences.\n"
-        "- Continued controversial executive orders.\n\n"
-        "Democrat Advances:\n"
-        "- Pushed forward key legislation on voting rights and healthcare.\n"
-        "- Gained momentum in local and state elections.\n\n"
-        "Overall, it was a week of stark contrasts between executive actions and legislative progress."
-    )
+    try:
+        parsed = parse_plugin_arguments(args, mode='positional')
+        tokens = parsed["tokens"]
+        if tokens:
+            raise PluginArgError("Usage: @bot weekly update")
+        return (
+            "Weekly Update:\n\n"
+            "Trump Actions:\n - Held rallies, executive orders.\n\n"
+            "Democrat Advances:\n - Pushed key legislation, local election wins.\n"
+        )
+    except PluginArgError as e:
+        return str(e)
 
 @plugin('theme', canonical='theme')
 def theme_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
@@ -87,48 +105,59 @@ def theme_command(args: str, sender: str, state_machine: BotStateMachine, msg_ti
     theme - Displays the important theme for this week.
     Usage: "@bot theme"
     """
-    if args.strip():
-        return "Usage: @bot theme"
-    return (
-        "This Week's Theme:\n\n"
-        "General - Focusing on grassroots organization, community empowerment, and challenging executive overreach.\n"
-        "Key Message: Visibility, Unity, and Resistance."
-    )
+    try:
+        parsed = parse_plugin_arguments(args, mode='positional')
+        tokens = parsed["tokens"]
+        if tokens:
+            raise PluginArgError("Usage: @bot theme")
+        return (
+            "This Week's Theme:\n"
+            "Community Engagement & Accountability."
+        )
+    except PluginArgError as e:
+        return str(e)
 
 @plugin('plan theme', canonical='plan theme')
 def plan_theme_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
-    plan theme - Walks you through adding the theme for this week.
+    plan theme - Helps set or plan this week's theme.
     Usage: "@bot plan theme"
     """
-    if args.strip():
-        return "Usage: @bot plan theme"
-    return (
-        "Plan Theme:\n\n"
-        "To set this week's theme, please reply with a message in the following format:\n"
-        "'Theme: <your theme description>'\n\n"
-        "For example: 'Theme: Community Resilience and Unity'."
-    )
+    try:
+        parsed = parse_plugin_arguments(args, mode='positional')
+        tokens = parsed["tokens"]
+        if tokens:
+            raise PluginArgError("Usage: @bot plan theme")
+        return (
+            "Plan Theme:\n"
+            "Provide the new theme in a format: 'Theme: <description>'."
+        )
+    except PluginArgError as e:
+        return str(e)
 
 @plugin('status', canonical='status')
 def status_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
-    status - Displays system status including messages per hour, total messages sent, uptime, and overall system status.
+    status - Displays system status including messages per hour, total messages sent, and uptime.
     Usage: "@bot status"
     """
-    if args.strip():
-        return "Usage: @bot status"
-    uptime_seconds = get_uptime()
-    uptime_hours = uptime_seconds / 3600 if uptime_seconds > 0 else 0
-    # Use the dynamic messages_sent value from core.metrics
-    sent = core.metrics.messages_sent
-    mph = sent if uptime_hours < 1 else sent / uptime_hours
-    return (
-        f"Status:\n"
-        f"Messages sent: {sent}\n"
-        f"Uptime: {uptime_seconds:.0f} seconds (~{uptime_hours:.2f} hours)\n"
-        f"Messages per hour: {mph:.2f}\n"
-        f"System: operational."
-    )
+    try:
+        parsed = parse_plugin_arguments(args, mode='positional')
+        tokens = parsed["tokens"]
+        if tokens:
+            raise PluginArgError("Usage: @bot status")
+        uptime_seconds = get_uptime()
+        uptime_hours = uptime_seconds / 3600 if uptime_seconds > 0 else 0
+        sent = core.metrics.messages_sent
+        mph = sent if uptime_hours < 1 else sent / uptime_hours
+        return (
+            f"Status:\n"
+            f"Messages sent: {sent}\n"
+            f"Uptime: {uptime_seconds:.0f} seconds (~{uptime_hours:.2f} hours)\n"
+            f"Messages per hour: {mph:.2f}\n"
+            f"System: operational."
+        )
+    except PluginArgError as e:
+        return str(e)
 
-# End of plugins/commands/system.py
+# End plugins/commands/system.py
