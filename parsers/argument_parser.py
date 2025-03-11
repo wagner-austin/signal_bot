@@ -5,6 +5,8 @@ Provides common functions for splitting command arguments and parsing key-value 
 centralizing repetitive string splitting and validation logic.
 """
 
+from parsers.plugin_arg_parser import PluginArgError
+
 def split_args(args: str, sep: str = None, maxsplit: int = -1) -> list:
     """
     Splits the argument string into tokens.
@@ -66,7 +68,7 @@ def parse_plugin_arguments(args: str, mode: str = 'auto', sep: str = None, maxsp
             'kv': dictionary of key-value pairs (empty if positional mode is used).
     
     Raises:
-        ValueError: If key-value parsing fails.
+        PluginArgError: If key-value parsing fails.
     """
     result = {"tokens": [], "kv": {}}
     raw = args.strip()
@@ -76,7 +78,7 @@ def parse_plugin_arguments(args: str, mode: str = 'auto', sep: str = None, maxsp
         try:
             result["kv"] = parse_key_value_args(raw)
         except ValueError as e:
-            raise ValueError(f"Argument parsing error: {e}")
+            raise PluginArgError(f"Argument parsing error: {e}")
     else:
         result["tokens"] = split_args(raw, sep=sep, maxsplit=maxsplit)
     return result
