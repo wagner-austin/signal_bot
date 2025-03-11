@@ -3,6 +3,7 @@
 managers/message/message_dispatcher.py - Dispatches incoming messages to appropriate handlers or plugins.
 Contains the function to process a message and route it accordingly.
 Supports dependency injection for the logger.
+Modified to handle plugin argument parsing errors uniformly.
 """
 
 import logging
@@ -14,6 +15,7 @@ if TYPE_CHECKING:
 
 from core.state import BotStateMachine
 from plugins.manager import get_plugin, get_all_plugins
+from parsers.plugin_arg_parser import PluginArgError
 
 def dispatch_message(parsed: "ParsedMessage", sender: str, state_machine: BotStateMachine,
                      pending_actions: any, volunteer_manager: any,
@@ -21,6 +23,7 @@ def dispatch_message(parsed: "ParsedMessage", sender: str, state_machine: BotSta
     """
     dispatch_message - Processes an incoming message by handling pending actions and then dispatching commands via plugins.
     Accepts an optional logger dependency.
+    Handles plugin argument parsing errors uniformly by returning a "Usage error" message.
     """
     if logger is None:
         logger = logging.getLogger(__name__)
@@ -56,6 +59,9 @@ def dispatch_message(parsed: "ParsedMessage", sender: str, state_machine: BotSta
                 logger.warning(f"Plugin '{command}' returned a non-string result of type {type(response).__name__}. Converting to empty string.")
                 response = ""
             return response
+        except PluginArgError as pae:
+            logger.error(f"Argument parsing error for command '{command}': {pae}")
+            return f"Usage error: {pae}"
         except Exception as e:
             logger.exception(
                 f"Error executing plugin for command '{command}' with args '{args}' "
