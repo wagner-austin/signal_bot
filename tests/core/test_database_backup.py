@@ -1,10 +1,12 @@
 #!/usr/bin/env python
 """
-tests/core/test_database_backup.py --- Tests for database backup and restore functionality.
+tests/core/test_database_backup.py - Tests for database backup and restore functionality.
 Verifies that backups are created, listed, cleaned up per retention policy, that restore functionality works,
 and now ensures that multiple backups in the same second do not produce filename collisions.
 Changes:
- - Added an assertion for an info-level log message to confirm successful backup creation is logged.
+ - Added tests to simulate failure conditions:
+    - Patching shutil.copyfile to raise an IOError mid-copy.
+    - Restoring from a truncated backup file (only 16 bytes long).
 """
 
 import os
@@ -128,7 +130,6 @@ def test_cleanup_backups_zero_or_negative_retention(retention_value):
         initial_backups = list_backups()
         assert len(initial_backups) == 5
 
-        # We'll patch the logger to check warnings
         with patch("core.database.backup.logger.warning") as mock_logger:
             cleanup_backups(max_backups=retention_value)
 
@@ -142,7 +143,7 @@ def test_cleanup_backups_zero_or_negative_retention(retention_value):
         if retention_value <= 0:
             mock_logger.assert_called_once()
             call_args, _ = mock_logger.call_args
-            assert "Removing all backups" in call_args[0]
+            assert "removing all backups" in call_args[0].lower()
     finally:
         if os.path.exists(BACKUP_DIR):
             shutil.rmtree(BACKUP_DIR)
@@ -176,17 +177,54 @@ def test_restore_corrupted_backup():
         with open(corrupted_path, "wb") as f:
             pass  # zero bytes
 
-        # Attempt to restore from the corrupted backup
         with patch("core.database.backup.logger.warning") as mock_warning:
             result = restore_backup(corrupted_filename)
 
-        # Confirm it returns False
         assert result is False, "Expected restore_backup to return False for corrupted DB file."
-
-        # Confirm a warning was logged
         mock_warning.assert_called_once()
         call_args, _ = mock_warning.call_args
         assert "invalid or corrupted" in call_args[0].lower()
+    finally:
+        if os.path.exists(BACKUP_DIR):
+            shutil.rmtree(BACKUP_DIR)
+
+def test_create_backup_copyfile_failure():
+    """
+    Test that if shutil.copyfile raises an IOError, create_backup() logs a warning and returns an empty string.
+    """
+    try:
+        if os.path.exists(BACKUP_DIR):
+            shutil.rmtree(BACKUP_DIR)
+        os.makedirs(BACKUP_DIR)
+        with patch("shutil.copyfile", side_effect=IOError("Simulated IOError")):
+            with patch("core.database.backup.logger.warning") as mock_logger:
+                backup_path = create_backup()
+                assert backup_path == "", "Expected create_backup to return an empty string on IOError during copyfile."
+                mock_logger.assert_called()
+    finally:
+        if os.path.exists(BACKUP_DIR):
+            shutil.rmtree(BACKUP_DIR)
+
+def test_restore_truncated_backup():
+    """
+    Test that restoring from a backup file that is exactly 16 bytes (i.e. truncated)
+    logs a warning and returns False.
+    """
+    try:
+        if os.path.exists(BACKUP_DIR):
+            shutil.rmtree(BACKUP_DIR)
+        os.makedirs(BACKUP_DIR)
+        truncated_filename = "truncated_backup.db"
+        truncated_path = os.path.join(BACKUP_DIR, truncated_filename)
+        # Write exactly 16 bytes matching the SQLite header.
+        with open(truncated_path, "wb") as f:
+            f.write(b"SQLite format 3\000")
+        with patch("core.database.backup.logger.warning") as mock_logger:
+            result = restore_backup(truncated_filename)
+            assert result is False, "Expected restore_backup to return False for a truncated backup file."
+            mock_logger.assert_called_once()
+            call_args, _ = mock_logger.call_args
+            assert "invalid or corrupted" in call_args[0].lower()
     finally:
         if os.path.exists(BACKUP_DIR):
             shutil.rmtree(BACKUP_DIR)
@@ -201,27 +239,17 @@ def test_frequent_backups_same_second():
             shutil.rmtree(BACKUP_DIR)
         os.makedirs(BACKUP_DIR)
 
-        # Call create_backup multiple times quickly
         created_paths = []
         for _ in range(5):
             path = create_backup()
             assert path, "Expected a valid backup path."
             created_paths.append(path)
 
-        # Confirm we have 5 distinct backups
         backups = list_backups()
-        assert len(backups) == 5, (
-            f"Expected 5 distinct backups in the same second, found: {backups}"
-        )
-
-        # Check that the backups match exactly the 5 created
-        # Filenames in 'backups' are sorted, so we can just match the count.
-        # If there's any duplication, we won't get 5 unique files.
+        assert len(backups) == 5, f"Expected 5 distinct backups in the same second, found: {backups}"
         created_filenames = set(os.path.basename(p) for p in created_paths)
         backups_set = set(backups)
-        assert created_filenames == backups_set, (
-            "The created backup filenames do not match the files in the directory."
-        )
+        assert created_filenames == backups_set, "The created backup filenames do not match the files in the directory."
     finally:
         if os.path.exists(BACKUP_DIR):
             shutil.rmtree(BACKUP_DIR)

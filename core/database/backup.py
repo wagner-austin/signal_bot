@@ -1,11 +1,12 @@
 #!/usr/bin/env python
 """
-core/database/backup.py --- Database backup and restore utilities with retention and periodic scheduling.
+core/database/backup.py - Database backup and restore utilities.
 Provides functions to create a backup snapshot of the current database, automatically clean up old backups
 using a configurable retention count, and schedule periodic backups using a configurable interval.
 Changes:
  - Added an info-level log message upon successful backup creation.
  - Updated periodic backup to handle exceptions and log warnings on failure.
+ - Updated restore_backup to check for truncated backups (≤ 16 bytes) and log as invalid/corrupted.
 """
 
 import os
@@ -49,8 +50,8 @@ def create_backup() -> str:
             os.makedirs(BACKUP_DIR)
     except OSError as e:
         logger.warning(f"Failed to create backup directory '{BACKUP_DIR}'. Error: {e}")
-        return ""  # Return an empty string to indicate failure or skip.
-
+        return ""
+    
     backup_filename = _generate_backup_filename()
     backup_path = os.path.join(BACKUP_DIR, backup_filename)
 
@@ -103,7 +104,7 @@ def list_backups() -> list:
 def restore_backup(backup_filename: str) -> bool:
     """
     Restore the database from a specified backup file.
-    Uses a minimal signature check to confirm it's valid SQLite.
+    Uses a minimal signature check to confirm it's valid SQLite and ensures the backup file is not truncated.
 
     Args:
         backup_filename (str): The name of the backup file (found in the backups folder).
@@ -122,11 +123,14 @@ def restore_backup(backup_filename: str) -> bool:
         if not header.startswith(b"SQLite format 3\000"):
             logger.warning(f"Cannot restore from backup '{backup_filename}': invalid or corrupted SQLite file.")
             return False
+        # Check if the file is truncated (i.e., only header and no additional content)
+        if os.path.getsize(backup_path) <= 16:
+            logger.warning(f"Cannot restore from backup '{backup_filename}': invalid or corrupted SQLite file.")
+            return False
     except Exception as e:
         logger.warning(f"Cannot restore from backup '{backup_filename}': error reading file. Error: {e}")
         return False
 
-    # If valid signature, proceed with the restore
     try:
         shutil.copyfile(backup_path, DB_NAME)
     except Exception as e:
