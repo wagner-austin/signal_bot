@@ -1,12 +1,7 @@
 #!/usr/bin/env python
 """
-plugins/commands/task.py --- Task command plugins.
-Provides commands to add, list, assign, and close tasks.
-Usage:
-  "@bot task add <description>"
-  "@bot task list"
-  "@bot task assign <task_id> <volunteer_display_name>"
-  "@bot task close <task_id>"
+plugins/commands/task.py --- Task command plugins, now catching invalid integer parsing explicitly.
+Uses unified validate_model for consistent argument validation.
 """
 
 from typing import Optional
@@ -14,10 +9,17 @@ from plugins.manager import plugin
 from core.state import BotStateMachine
 from core.task_manager import add_task, list_tasks, assign_task, close_task
 from parsers.argument_parser import parse_plugin_arguments
-from parsers.plugin_arg_parser import PluginArgError
+from parsers.plugin_arg_parser import (
+    PluginArgError,
+    TaskAddModel,
+    TaskAssignModel,
+    TaskCloseModel,
+    validate_model
+)
 
 @plugin('task', canonical='task')
-def task_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
+def task_command(args: str, sender: str, state_machine: BotStateMachine,
+                 msg_timestamp: Optional[int] = None) -> str:
     """
     task - Manage shared to-do tasks.
     
@@ -28,8 +30,8 @@ def task_command(args: str, sender: str, state_machine: BotStateMachine, msg_tim
       close <task_id>                     : Close a task.
     """
     try:
-        parsed = parse_plugin_arguments(args, mode='positional')
-        tokens = parsed["tokens"]
+        parsed_main = parse_plugin_arguments(args, mode='positional')
+        tokens = parsed_main["tokens"]
         if not tokens:
             raise PluginArgError(
                 "Usage:\n"
@@ -45,10 +47,9 @@ def task_command(args: str, sender: str, state_machine: BotStateMachine, msg_tim
         if subcommand == "add":
             if not rest:
                 raise PluginArgError("Usage: @bot task add <description>")
-            description = " ".join(rest)
-            task_id = add_task(sender, description)
+            validated = validate_model({"description": " ".join(rest)}, TaskAddModel, "task add <description>")
+            task_id = add_task(sender, validated.description)
             return f"Task added with ID {task_id}."
-
         elif subcommand == "list":
             tasks = list_tasks()
             if not tasks:
@@ -60,30 +61,30 @@ def task_command(args: str, sender: str, state_machine: BotStateMachine, msg_tim
                     f"Created by: {task['created_by_name']} | Assigned to: {task['assigned_to_name']}"
                 )
             return "\n".join(response_lines)
-
         elif subcommand == "assign":
             if len(rest) < 2:
                 raise PluginArgError("Usage: @bot task assign <task_id> <volunteer_display_name>")
             try:
-                task_id = int(rest[0])
-            except ValueError:
-                return "Invalid task_id. It should be a number."
-            volunteer_name = " ".join(rest[1:])
-            error = assign_task(task_id, volunteer_name)
+                validated = validate_model(
+                    {"task_id": rest[0], "volunteer_display_name": " ".join(rest[1:])},
+                    TaskAssignModel,
+                    "task assign <task_id> <volunteer_display_name>"
+                )
+            except PluginArgError:
+                return "invalid task_id"
+            error = assign_task(validated.task_id, validated.volunteer_display_name)
             if error:
                 return error
-            return f"Task {task_id} assigned to {volunteer_name}."
-
+            return f"Task {validated.task_id} assigned to {validated.volunteer_display_name}."
         elif subcommand == "close":
             if not rest:
                 raise PluginArgError("Usage: @bot task close <task_id>")
             try:
-                task_id = int(rest[0])
-            except ValueError:
-                return "Invalid task_id. It should be a number."
-            close_task(task_id)
-            return f"Task {task_id} has been closed."
-
+                validated = validate_model({"task_id": rest[0]}, TaskCloseModel, "task close <task_id>")
+            except PluginArgError:
+                return "invalid task_id"
+            close_task(validated.task_id)
+            return f"Task {validated.task_id} has been closed."
         else:
             raise PluginArgError("Invalid subcommand for task. Use add, list, assign, or close.")
     except PluginArgError as e:

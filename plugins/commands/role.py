@@ -1,12 +1,7 @@
 #!/usr/bin/env python
 """
 plugins/commands/role.py --- Role command plugins.
-Provides commands to list, set, switch, and unassign volunteer roles.
-Usage examples:
-  "@bot role list"
-  "@bot role set greeter"
-  "@bot role switch emcee"
-  "@bot role unassign"
+Now with Pydantic-based argument validation using the unified validate_model helper.
 """
 
 from typing import Optional
@@ -14,10 +9,16 @@ from plugins.manager import plugin
 from core.state import BotStateMachine
 from managers.volunteer_manager import VOLUNTEER_MANAGER
 from parsers.argument_parser import parse_plugin_arguments
-from parsers.plugin_arg_parser import PluginArgError
+from parsers.plugin_arg_parser import (
+    PluginArgError,
+    RoleSetModel,
+    RoleSwitchModel,
+    validate_model
+)
 
 @plugin('role', canonical='role')
-def role_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
+def role_command(args: str, sender: str, state_machine: BotStateMachine,
+                 msg_timestamp: Optional[int] = None) -> str:
     """
     role - Manage volunteer roles.
     
@@ -31,7 +32,6 @@ def role_command(args: str, sender: str, state_machine: BotStateMachine, msg_tim
         parsed = parse_plugin_arguments(args, mode='positional', maxsplit=1)
         tokens = parsed["tokens"]
         if not tokens:
-            # Default subcommand is 'list'
             roles = VOLUNTEER_MANAGER.list_roles()
             return "Recognized roles:\n" + "\n".join(f" - {role}" for role in roles)
 
@@ -44,11 +44,13 @@ def role_command(args: str, sender: str, state_machine: BotStateMachine, msg_tim
         elif subcmd == "set":
             if not remainder:
                 raise PluginArgError("Usage: @bot role set <role>")
-            return VOLUNTEER_MANAGER.assign_role(sender, remainder)
+            validated = validate_model({"role": remainder}, RoleSetModel, "role set <role>")
+            return VOLUNTEER_MANAGER.assign_role(sender, validated.role)
         elif subcmd == "switch":
             if not remainder:
                 raise PluginArgError("Usage: @bot role switch <role>")
-            return VOLUNTEER_MANAGER.switch_role(sender, remainder)
+            validated = validate_model({"role": remainder}, RoleSwitchModel, "role switch <role>")
+            return VOLUNTEER_MANAGER.switch_role(sender, validated.role)
         elif subcmd in {"unassign", "unset"}:
             return VOLUNTEER_MANAGER.unassign_role(sender)
         else:
@@ -58,4 +60,4 @@ def role_command(args: str, sender: str, state_machine: BotStateMachine, msg_tim
     except PluginArgError as e:
         return str(e)
 
-# End plugins/commands/role.py
+# End of plugins/commands/role.py

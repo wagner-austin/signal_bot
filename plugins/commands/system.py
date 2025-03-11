@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """
 plugins/commands/system.py --- System command plugins.
-Provides system-level commands such as assign, test, shutdown, info, weekly update, theme, plan theme, and status.
+Now uses Pydantic-based argument validation for the 'assign' subcommand via the unified validate_model helper.
 """
 
 from typing import Optional
@@ -11,10 +11,15 @@ from managers.volunteer_manager import VOLUNTEER_MANAGER
 from core.metrics import get_uptime
 import core.metrics
 from parsers.argument_parser import parse_plugin_arguments
-from parsers.plugin_arg_parser import PluginArgError
+from parsers.plugin_arg_parser import (
+    PluginArgError,
+    SystemAssignModel,
+    validate_model
+)
 
 @plugin('assign', canonical='assign')
-def assign_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
+def assign_command(args: str, sender: str, state_machine: BotStateMachine,
+                   msg_timestamp: Optional[int] = None) -> str:
     """
     assign - Assign a volunteer based on a required skill.
     Usage: "@bot assign <Skill Name>"
@@ -24,16 +29,18 @@ def assign_command(args: str, sender: str, state_machine: BotStateMachine, msg_t
         tokens = parsed["tokens"]
         if not tokens:
             raise PluginArgError("Usage: @bot assign <Skill Name>")
-        skill = " ".join(tokens)
-        volunteer = VOLUNTEER_MANAGER.assign_volunteer(skill, skill)
+        data = {"skill": " ".join(tokens)}
+        validated = validate_model(data, SystemAssignModel, "assign <Skill Name>")
+        volunteer = VOLUNTEER_MANAGER.assign_volunteer(validated.skill, validated.skill)
         if volunteer:
-            return f"{skill} assigned to {volunteer}."
-        return f"No available volunteer for {skill}."
+            return f"{validated.skill} assigned to {volunteer}."
+        return f"No available volunteer for {validated.skill}."
     except PluginArgError as e:
         return str(e)
 
 @plugin('test', canonical='test')
-def plugin_test_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
+def plugin_test_command(args: str, sender: str, state_machine: BotStateMachine,
+                        msg_timestamp: Optional[int] = None) -> str:
     """
     test - Test command for verifying bot response.
     Usage: "@bot test"
@@ -48,7 +55,8 @@ def plugin_test_command(args: str, sender: str, state_machine: BotStateMachine, 
         return str(e)
 
 @plugin('shutdown', canonical='shutdown')
-def shutdown_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
+def shutdown_command(args: str, sender: str, state_machine: BotStateMachine,
+                     msg_timestamp: Optional[int] = None) -> str:
     """
     shutdown - Shut down the bot gracefully.
     If extra arguments are provided, usage error.
@@ -64,7 +72,8 @@ def shutdown_command(args: str, sender: str, state_machine: BotStateMachine, msg
         return str(e)
 
 @plugin('info', canonical='info')
-def info_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
+def info_command(args: str, sender: str, state_machine: BotStateMachine,
+                 msg_timestamp: Optional[int] = None) -> str:
     """
     info - Provides a brief overview of the 50501 OC Grassroots Movement.
     Usage: "@bot info"
@@ -75,14 +84,17 @@ def info_command(args: str, sender: str, state_machine: BotStateMachine, msg_tim
         if tokens:
             raise PluginArgError("Usage: @bot info")
         return (
-            "50501 OC Grassroots Movement is dedicated to upholding the Constitution and ending executive overreach.\n\n"
-            "We empower citizens to reclaim democracy and hold power accountable through peaceful, visible, and sustained engagement."
+            "50501 OC Grassroots Movement is dedicated to upholding the Constitution "
+            "and ending executive overreach.\n\n"
+            "We empower citizens to reclaim democracy and hold power accountable "
+            "through peaceful, visible, and sustained engagement."
         )
     except PluginArgError as e:
         return str(e)
 
 @plugin('weekly update', canonical='weekly update')
-def weekly_update_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
+def weekly_update_command(args: str, sender: str, state_machine: BotStateMachine,
+                          msg_timestamp: Optional[int] = None) -> str:
     """
     weekly update - Provides a summary of Trump's actions and Democrat advances this week.
     """
@@ -100,7 +112,8 @@ def weekly_update_command(args: str, sender: str, state_machine: BotStateMachine
         return str(e)
 
 @plugin('theme', canonical='theme')
-def theme_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
+def theme_command(args: str, sender: str, state_machine: BotStateMachine,
+                  msg_timestamp: Optional[int] = None) -> str:
     """
     theme - Displays the important theme for this week.
     Usage: "@bot theme"
@@ -118,7 +131,8 @@ def theme_command(args: str, sender: str, state_machine: BotStateMachine, msg_ti
         return str(e)
 
 @plugin('plan theme', canonical='plan theme')
-def plan_theme_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
+def plan_theme_command(args: str, sender: str, state_machine: BotStateMachine,
+                       msg_timestamp: Optional[int] = None) -> str:
     """
     plan theme - Helps set or plan this week's theme.
     Usage: "@bot plan theme"
@@ -136,7 +150,8 @@ def plan_theme_command(args: str, sender: str, state_machine: BotStateMachine, m
         return str(e)
 
 @plugin('status', canonical='status')
-def status_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
+def status_command(args: str, sender: str, state_machine: BotStateMachine,
+                   msg_timestamp: Optional[int] = None) -> str:
     """
     status - Displays system status including messages per hour, total messages sent, and uptime.
     Usage: "@bot status"
@@ -160,4 +175,4 @@ def status_command(args: str, sender: str, state_machine: BotStateMachine, msg_t
     except PluginArgError as e:
         return str(e)
 
-# End plugins/commands/system.py
+# End of plugins/commands/system.py
