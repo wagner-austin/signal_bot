@@ -1,12 +1,11 @@
 #!/usr/bin/env python
 """
-core/database/backup.py --- Database backup and restore utilities with retention, periodic scheduling, and improved error handling.
+core/database/backup.py --- Database backup and restore utilities with retention and periodic scheduling.
 Provides functions to create a backup snapshot of the current database, automatically clean up old backups
-using a configurable retention count, schedule periodic backups using a configurable interval, and gracefully
-handle errors during periodic backups.
+using a configurable retention count, and schedule periodic backups using a configurable interval.
 Changes:
- - Added error handling in start_periodic_backups to log warnings and continue on backup failure.
- - Retained all previous functionality.
+ - Added an info-level log message upon successful backup creation.
+ - Updated periodic backup to handle exceptions and log warnings on failure.
 """
 
 import os
@@ -139,13 +138,13 @@ def restore_backup(backup_filename: str) -> bool:
 async def start_periodic_backups(interval_seconds: int = BACKUP_INTERVAL, max_backups: int = BACKUP_RETENTION_COUNT) -> None:
     """
     Schedule periodic backups at the specified interval.
-    
-    This function continuously creates backups at a fixed interval. If a backup fails, the error is caught,
-    a warning is logged, and the function continues scheduling subsequent backups.
 
     Args:
         interval_seconds (int): Time interval between backups in seconds (configurable via BACKUP_INTERVAL).
         max_backups (int): Maximum number of backups to retain (configurable via BACKUP_RETENTION_COUNT).
+
+    Changes:
+        - Added error handling to ensure a single backup failure does not kill the periodic backup task.
     """
     while True:
         try:
