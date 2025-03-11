@@ -2,23 +2,19 @@
 """
 core/task_manager.py --- Task Manager for shared to-do items using repository pattern.
 Provides functions to add, list, assign, and close tasks.
-
 Concurrency Note:
-    The `assign_task` function uses a simple last-write-wins approach when multiple
-    concurrent assignments happen to the same task. The final DB state reflects the
-    assignment from whichever thread completes last. If you need finer-grained control,
-    consider using transactions or row-level locking.
-
+    The `assign_task` function now uses an atomic transaction to ensure consistent assignment.
+    We rely on SQLite's BEGIN IMMEDIATE to lock the database during task assignment.
 Name Matching Note:
     The volunteer's name comparison in `assign_task` is case-insensitive.
     If the DB has 'John Doe', you can assign with 'john doe' or 'JOHN DOE' etc.
 """
-
 from typing import List, Dict, Optional
 from core.database.repository import TaskRepository
 from core.database.helpers import execute_sql
 from core.database.connection import get_connection
 from managers.volunteer.volunteer_common import normalize_name
+from core.transaction import atomic_transaction
 
 def add_task(created_by: str, description: str) -> int:
     repo = TaskRepository()
@@ -59,16 +55,20 @@ def list_tasks() -> List[Dict]:
 def assign_task(task_id: int, volunteer_display_name: str) -> Optional[str]:
     """
     assign_task - Assigns the given task to the volunteer identified by volunteer_display_name
-    (matching is case-insensitive). If the volunteer is not found, returns an error message;
-    otherwise returns None.
+    (matching is case-insensitive). Uses an atomic transaction for consistency.
+    If the volunteer is not found, returns an error message; otherwise returns None.
     """
-    query = "SELECT phone FROM Volunteers WHERE lower(name)=? LIMIT 1"
-    result = execute_sql(query, (volunteer_display_name.lower(),), fetchone=True)
-    if not result:
-        return f"Volunteer with name '{volunteer_display_name}' not found."
-    volunteer_phone = result["phone"]
-    update_query = "UPDATE Tasks SET assigned_to = ? WHERE task_id = ?"
-    execute_sql(update_query, (volunteer_phone, task_id), commit=True)
+    try:
+        with atomic_transaction() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT phone FROM Volunteers WHERE lower(name)=? LIMIT 1", (volunteer_display_name.lower(),))
+            result = cursor.fetchone()
+            if not result:
+                return f"Volunteer with name '{volunteer_display_name}' not found."
+            volunteer_phone = result["phone"]
+            cursor.execute("UPDATE Tasks SET assigned_to = ? WHERE task_id = ?", (volunteer_phone, task_id))
+    except Exception as e:
+        return f"Error assigning task: {str(e)}"
     return None
 
 def close_task(task_id: int) -> bool:
