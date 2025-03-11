@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 """
-plugins/commands/event.py --- Event command plugins for creating and managing events.
-Handles invalid integer parsing by returning custom error messages to match negative tests.
+plugins/commands/event.py - Event command plugins - Handles event creation and management including listing, planning, editing, and removing events.
 """
 
 import logging
@@ -42,15 +41,17 @@ def event_command(args: str, sender: str, state_machine: BotStateMachine,
             )
         return response.strip()
     except PluginArgError as e:
+        logger.warning(f"event_command PluginArgError: {e}")
         return str(e)
+    except Exception as e:
+        logger.error(f"event_command unexpected error: {e}", exc_info=True)
+        return "An internal error occurred in event_command."
 
 @plugin('plan event', canonical='plan event')
 def plan_event_command(args: str, sender: str, state_machine: BotStateMachine,
                        msg_timestamp: Optional[int] = None) -> str:
     """
     plan event - Create a new event using comma-separated key:value pairs.
-    If args are empty, returns interactive instructions.
-    If args are 'skip'/'cancel', cancels creation.
     """
     try:
         lowered = args.strip().lower()
@@ -94,10 +95,11 @@ def plan_event_command(args: str, sender: str, state_machine: BotStateMachine,
         )
         return f"Event '{validated.title}' created successfully with ID {event_id}."
     except PluginArgError as e:
+        logger.warning(f"plan_event_command PluginArgError: {e}")
         return str(e)
     except Exception as e:
-        logger.exception("Error parsing event details in plan_event_command.")
-        return "An internal error occurred while creating the event. Please try again later."
+        logger.error(f"plan_event_command unexpected error: {e}", exc_info=True)
+        return "An internal error occurred in plan_event_command."
 
 @plugin('edit event', canonical='edit event')
 def edit_event_command(args: str, sender: str, state_machine: BotStateMachine,
@@ -156,7 +158,11 @@ def edit_event_command(args: str, sender: str, state_machine: BotStateMachine,
         update_event(validated.event_id, **update_fields)
         return f"Event with ID {validated.event_id} updated successfully."
     except PluginArgError as e:
+        logger.warning(f"edit_event_command PluginArgError: {e}")
         return str(e)
+    except Exception as e:
+        logger.error(f"edit_event_command unexpected error: {e}", exc_info=True)
+        return "An internal error occurred in edit_event_command."
 
 @plugin('remove event', canonical='remove event')
 def remove_event_command(args: str, sender: str, state_machine: BotStateMachine,
@@ -205,6 +211,10 @@ def remove_event_command(args: str, sender: str, state_machine: BotStateMachine,
         else:
             raise PluginArgError("Please provide either EventID or Title to remove an event.")
     except PluginArgError as e:
+        logger.warning(f"remove_event_command PluginArgError: {e}")
         return str(e)
+    except Exception as e:
+        logger.error(f"remove_event_command unexpected error: {e}", exc_info=True)
+        return "An internal error occurred in remove_event_command."
 
 # End of plugins/commands/event.py

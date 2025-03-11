@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 """
-plugins/commands/donate.py --- Donation command plugin.
-Unified under the new Pydantic approach, reusing the typed models and unified validation helper.
+plugins/commands/donate.py - Donation command plugin - Unified under the new Pydantic approach, reusing typed models and unified validation helper.
 """
 
 from typing import Optional
@@ -16,17 +15,19 @@ from parsers.plugin_arg_parser import (
     RegisterDonationArgs,
     validate_model
 )
+import logging
+
+logger = logging.getLogger(__name__)
 
 @plugin('donate', canonical='donate')
 def donate_command(args: str, sender: str, state_machine: BotStateMachine,
                    msg_timestamp: Optional[int] = None) -> str:
     """
     donate - Log donation interest or record a donation.
-
     Subcommands:
       donate <amount> <description>         -> Cash donation.
       donate in-kind <description>          -> In-kind donation.
-      donate register <method> [<desc>]     -> Register donation interest.
+      donate register <method> [<description>]     -> Register donation interest.
     """
     try:
         parsed = parse_plugin_arguments(args.strip(), mode='positional')
@@ -73,6 +74,10 @@ def donate_command(args: str, sender: str, state_machine: BotStateMachine,
             donation_id = add_donation(sender, validated.amount, "cash", validated.description)
             return f"Donation logged with ID {donation_id}."
     except PluginArgError as e:
+        logger.warning(f"donate_command PluginArgError: {e}")
         return str(e)
+    except Exception as e:
+        logger.error(f"donate_command unexpected error: {e}", exc_info=True)
+        return "An internal error occurred in donate_command."
 
 # End of plugins/commands/donate.py

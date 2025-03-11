@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 """
-plugins/commands/dbbackup.py --- Database backup command plugin.
-Provides subcommands to create, list, and restore database backups.
+plugins/commands/dbbackup.py - Database backup command plugin - Provides subcommands to create, list, and restore database backups.
 Usage:
   "@bot dbbackup create"
   "@bot dbbackup list"
@@ -14,12 +13,14 @@ from core.state import BotStateMachine
 from core.database.backup import create_backup, list_backups, restore_backup
 from parsers.argument_parser import parse_plugin_arguments
 from parsers.plugin_arg_parser import PluginArgError
+import logging
+
+logger = logging.getLogger(__name__)
 
 @plugin('dbbackup', canonical='dbbackup')
 def dbbackup_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
     dbbackup - Manage database backups.
-
     Subcommands:
       create               : Create a new backup snapshot.
       list                 : List all backup snapshots.
@@ -58,6 +59,10 @@ def dbbackup_command(args: str, sender: str, state_machine: BotStateMachine, msg
                 "Invalid subcommand.\nUsage:\n  dbbackup create\n  dbbackup list\n  dbbackup restore <filename>"
             )
     except PluginArgError as e:
+        logger.warning(f"dbbackup_command PluginArgError: {e}")
         return str(e)
+    except Exception as e:
+        logger.error(f"dbbackup_command unexpected error: {e}", exc_info=True)
+        return "An internal error occurred in dbbackup_command."
 
 # End of plugins/commands/dbbackup.py
