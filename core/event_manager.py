@@ -1,9 +1,8 @@
+#!/usr/bin/env python
 """
 core/event_manager.py --- Event Manager for handling event CRUD operations and speaker assignments.
 Provides functions for creating, updating, listing, retrieving, and deleting events, as well as assigning,
 listing, and removing speakers from events.
-Changes:
- - Added an info-level log message upon successful event creation.
 """
 
 from typing import List, Dict, Any, Optional
@@ -58,5 +57,15 @@ def list_speakers(event_id: int) -> List[Dict[str, Any]]:
 def remove_speaker(event_id: int, speaker_name: str) -> None:
     repo = EventSpeakerRepository()
     repo.delete_by_conditions({"event_id": event_id, "speaker_name": speaker_name})
+
+def list_all_event_speakers() -> List[Dict[str, Any]]:
+    """
+    list_all_event_speakers - List all event speaker records without filtering by event.
+    
+    Returns:
+        List[Dict[str, Any]]: A list of all event speaker records ordered by created_at descending.
+    """
+    repo = EventSpeakerRepository()
+    return repo.list_all(order_by="created_at DESC")
 
 # End of core/event_manager.py
