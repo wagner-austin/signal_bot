@@ -6,7 +6,7 @@ and then calling the CLI command which delegates to task_manager.list_all_tasks(
 """
 
 from tests.cli.cli_test_helpers import run_cli_command
-from core.task_manager import add_task
+from managers.task_manager import add_task
 
 def test_list_tasks():
     # Use the task manager API to add a task.

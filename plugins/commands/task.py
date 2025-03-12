@@ -50,11 +50,11 @@ def task_command(args: str, sender: str, state_machine: BotStateMachine, msg_tim
                 raise PluginArgError("Usage: @bot task add <description>")
             validated = validate_model({"description": " ".join(rest)}, TaskAddModel, "task add <description>")
             # Local import to break circular dependency.
-            from core.task_manager import add_task
+            from managers.task_manager import add_task
             task_id = add_task(sender, validated.description)
             return f"Task added with ID {task_id}."
         elif subcommand == "list":
-            from core.task_manager import list_tasks
+            from managers.task_manager import list_tasks
             tasks = list_tasks()
             if not tasks:
                 return "No tasks found."
@@ -77,7 +77,7 @@ def task_command(args: str, sender: str, state_machine: BotStateMachine, msg_tim
             except PluginArgError as e:
                 logger.warning(f"task_command PluginArgError in assign subcommand: {e}")
                 return "invalid task_id"
-            from core.task_manager import assign_task
+            from managers.task_manager import assign_task
             error = assign_task(validated.task_id, validated.volunteer_display_name)
             if error:
                 return error
@@ -90,7 +90,7 @@ def task_command(args: str, sender: str, state_machine: BotStateMachine, msg_tim
             except PluginArgError as e:
                 logger.warning(f"task_command PluginArgError in close subcommand: {e}")
                 return "invalid task_id"
-            from core.task_manager import close_task
+            from managers.task_manager import close_task
             close_task(validated.task_id)
             return f"Task {validated.task_id} has been closed."
         else:

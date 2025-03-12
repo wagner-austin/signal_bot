@@ -8,7 +8,7 @@ and checks that volunteer name matching is case-insensitive.
 
 import concurrent.futures
 import pytest
-from core.task_manager import add_task, list_tasks, assign_task, close_task
+from managers.task_manager import add_task, list_tasks, assign_task, close_task
 from core.database.connection import get_connection
 from core.database.volunteers import add_volunteer_record, get_volunteer_record
 
@@ -136,7 +136,7 @@ def test_list_all_tasks():
     created_by = "+5555555555"
     description = "List All Task Test"
     task_id = add_task(created_by, description)
-    from core.task_manager import list_all_tasks
+    from managers.task_manager import list_all_tasks
     tasks = list_all_tasks()
     matching = [task for task in tasks if task["task_id"] == task_id]
     assert matching, "Added task should appear in list_all_tasks"

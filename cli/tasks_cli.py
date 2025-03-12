@@ -5,7 +5,7 @@ Retrieves task data using business logic and uses a dedicated formatter to prese
 Delegates task retrieval to the task manager.
 """
 
-from core.task_manager import list_all_tasks
+from managers.task_manager import list_all_tasks
 from cli.formatters import format_task
 from cli.common import print_results
 
