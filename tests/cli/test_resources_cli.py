@@ -1,14 +1,13 @@
 #!/usr/bin/env python
 """
 tests/cli/test_resources_cli.py - Tests for resource-related CLI commands.
-Verifies resource addition, listing, and removal functionalities.
-Updated to expect raised ResourceError for invalid URL and ID inputs by checking CLI output.
+Verifies resource addition, listing, and removal functionalities using the unified resources_manager.
+Ensures that CLI commands delegate to managers.resources_manager.list_all_resources and removes legacy DB logic.
 """
 
 import re
 import pytest
 from tests.cli.cli_test_helpers import run_cli_command
-from core.exceptions import ResourceError  # New import for error handling
 
 def test_list_resources_and_add_remove_resource():
     # Ensure no resources initially.
@@ -47,23 +46,21 @@ def test_list_resources_and_add_remove_resource():
 def test_cli_add_resource_invalid_url():
     """
     Test providing an invalid URL (not starting with 'http') for add-resource.
-    Instead of expecting a ResourceError to be raised, check the CLI's output.
     """
     output_data = run_cli_command([
         "add-resource",
         "--category", "Linktree",
-        "--url", "ftp://example.com",  # invalid
+        "--url", "ftp://example.com",  # invalid URL
         "--title", "Invalid URL"
     ])
     stdout = output_data["stdout"]
     stderr = output_data["stderr"]
-    # Expect the error message to be printed in either stdout or stderr.
+    # Expect the error message about the URL format in either stdout or stderr.
     assert "URL must start with 'http'" in stdout or "URL must start with 'http'" in stderr
 
 def test_cli_remove_resource_negative_id():
     """
-    Test removing a resource using negative ID.
-    Instead of expecting a ResourceError, check that the error message appears in the output.
+    Test removing a resource using a negative ID.
     """
     output_data = run_cli_command([
         "remove-resource",
@@ -79,8 +76,21 @@ def test_cli_remove_resource_missing_id():
     """
     output_data = run_cli_command(["remove-resource"])
     stderr = output_data["stderr"].lower()
-    # The parser should enforce that --id is required.
+    # The argument parser should enforce that --id is required.
     assert "usage:" in stderr
     assert "the following arguments are required: --id" in stderr
+
+def test_list_resources_calls_manager(monkeypatch):
+    """
+    Test that the 'list-resources' CLI command delegates to managers.resources_manager.list_all_resources().
+    """
+    call_log = []
+    def fake_list_all_resources():
+        call_log.append(True)
+        return []
+    monkeypatch.setattr("cli.resources_cli.list_all_resources", fake_list_all_resources)
+    output = run_cli_command(["list-resources"])["stdout"]
+    assert "No resources found." in output
+    assert call_log, "list_all_resources was not called"
 
 # End of tests/cli/test_resources_cli.py
