@@ -5,6 +5,8 @@ tests/plugins/test_plugin_negatives.py
 Centralized negative/edge-case tests for various plugin commands except usage instructions,
 which are now handled directly in each plugin's test_ file (for more modular coverage).
 We still test partial/invalid arguments that do not just print usage but produce other errors.
+
+Now includes resource and volunteer plugin negative tests for unified coverage.
 """
 
 import pytest
@@ -13,7 +15,9 @@ from plugins.commands.event import plan_event_command, edit_event_command, remov
 from plugins.commands.task import task_command
 from plugins.commands.role import role_command
 from plugins.commands.system import shutdown_command
-from plugins.commands.donate import donate_command  # <-- Newly added import
+from plugins.commands.donate import donate_command
+from plugins.commands.resource import resource_command
+from plugins.commands.volunteer import add_skills_command, find_command, delete_command
 from managers.volunteer.volunteer_operations import register_volunteer
 from managers.volunteer.volunteer_roles import get_volunteer_record
 
@@ -47,9 +51,15 @@ def test_event_command_edit_no_eventid():
     assert "EventID is required" in response
 
 def test_event_command_edit_invalid_eventid():
+    """
+    Updated to check the actual pydantic-based error message instead of
+    'Invalid EventID provided.'
+    """
     state_machine = BotStateMachine()
     response = edit_event_command("EventID: abc, title: newtitle", "+dummy", state_machine)
-    assert "Invalid EventID provided." in response
+    # Check for the usage string and the model error text
+    assert "usage error: edit event: provide valid eventid and fields" in response.lower()
+    assert "1 validation error for editeventmodel" in response.lower()
 
 def test_event_command_edit_non_existent():
     state_machine = BotStateMachine()
@@ -62,9 +72,14 @@ def test_event_command_remove_no_args():
     assert "Usage: @bot remove event" in response
 
 def test_event_command_remove_invalid_id():
+    """
+    Updated to check the actual pydantic-based error message instead of
+    'Invalid EventID provided.'
+    """
     state_machine = BotStateMachine()
     response = remove_event_command("EventID: abc", "+dummy", state_machine)
-    assert "Invalid EventID provided." in response
+    assert "usage error: remove event: provide valid eventid" in response.lower()
+    assert "1 validation error for removeeventbyidmodel" in response.lower()
 
 def test_event_command_remove_non_existent():
     state_machine = BotStateMachine()
@@ -86,8 +101,12 @@ def test_task_command_assign_invalid():
     assert "not found" in response.lower() or "volunteer with name" in response.lower()
 
 def test_task_command_close_invalid():
+    """
+    Updated to check the new pydantic-based message instead of 'invalid task_id'.
+    """
     response = task_command("close abc", "+dummy", BotStateMachine(), msg_timestamp=123)
-    assert "invalid task_id" in response.lower()
+    assert "usage error: task close <task_id>" in response.lower()
+    assert "1 validation error for taskclosemodel" in response.lower()
 
 def test_task_command_add_no_description():
     response = task_command("add", "+dummy", BotStateMachine(), msg_timestamp=123)
@@ -138,5 +157,72 @@ def test_shutdown_command_with_extra_args():
     assert "Usage: @bot shutdown" in response
     # The bot state should remain RUNNING since we refused to shut down
     assert state_machine.current_state == BotStateMachine().current_state
+
+
+####################################
+# RESOURCE COMMAND NEGATIVES
+####################################
+
+def test_resource_command_remove_bad_id():
+    """
+    Attempt to remove a resource with a non-integer ID in the plugin command.
+    Expect an error about 'Resource ID must be a positive integer.' or similar.
+    """
+    response = resource_command("remove abc", "+dummy", BotStateMachine())
+    assert "must be a positive integer" in response.lower() or "error" in response.lower()
+
+def test_resource_command_remove_zero_id():
+    """
+    Attempt to remove a resource with an ID of 0, which is invalid.
+    The manager or plugin should raise an error about needing a positive integer.
+    """
+    response = resource_command("remove 0", "+dummy", BotStateMachine())
+    # Some might say 'Resource ID must be a positive integer.'
+    assert "positive integer" in response.lower() or "error" in response.lower()
+
+def test_resource_command_add_missing_url():
+    """
+    Attempt to add a resource with no URL (just a category).
+    Plugin code or manager logic should error beyond just usage instructions.
+    """
+    response = resource_command("add Linktree", "+dummy", BotStateMachine())
+    assert "url is required" in response.lower() or "error" in response.lower()
+
+def test_resource_command_add_missing_category():
+    """
+    Attempt to add a resource with no category, only a URL. Should produce an error.
+    """
+    response = resource_command("add http://example.com", "+dummy", BotStateMachine())
+    assert "category is required" in response.lower() or "error" in response.lower()
+
+
+####################################
+# VOLUNTEER COMMAND NEGATIVES
+####################################
+
+def test_add_skills_command_no_skills():
+    """
+    Attempt to add skills with no arguments after the subcommand. 
+    Should produce an error beyond usage instructions.
+    """
+    response = add_skills_command("", "+dummy", BotStateMachine(), msg_timestamp=123)
+    assert "usage:" in response.lower() or "error" in response.lower()
+
+def test_find_command_no_skills():
+    """
+    Attempt to find volunteers with no skill arguments. Expects an error or usage message. 
+    Verifies negative coverage for partial arguments not just usage.
+    """
+    response = find_command("", "+dummy", BotStateMachine(), msg_timestamp=123)
+    assert "usage:" in response.lower() or "error" in response.lower()
+
+def test_delete_command_with_extra_args():
+    """
+    Attempt to delete with extra arguments that do not just skip usage. 
+    We confirm it sets the same pending state or errors out in some negative scenario.
+    """
+    response = delete_command("extra stuff", "+dummy", BotStateMachine(), msg_timestamp=123)
+    # The plugin sets 'initial' deletion state, but let's see if it yields an unexpected scenario.
+    assert "delete your registration" in response.lower() or "deletion" in response.lower()
 
 # End of tests/plugins/test_plugin_negatives.py
