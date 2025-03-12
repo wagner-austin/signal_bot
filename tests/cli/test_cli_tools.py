@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 """
-tests/cli/test_cli_tools.py --- Tests for cli_tools.py
+tests/cli/test_cli_tools.py - Tests for cli_tools.py
+----------------------------------------------------
 Verifies command-line interface dispatch, including negative/edge case scenarios:
  - Missing required arguments
  - Invalid values (like non-integer or negative IDs)
@@ -90,8 +91,8 @@ def test_cli_add_volunteer_invalid_available():
     ])
     stdout = output_data["stdout"].lower()
     stderr = output_data["stderr"].lower()
-    # Check that either stdout or stderr contains the error message about --available being invalid.
-    expected_substr = "--available must be 0 or 1"
+    # Manager now prints "error: available must be 0 or 1."
+    expected_substr = "error: available must be 0 or 1"
     assert expected_substr in stdout or expected_substr in stderr
 
 def test_cli_partial_known_command():
@@ -118,6 +119,43 @@ def test_cli_almost_correct_subcommand():
     Verify that calling an almost-correct subcommand, e.g. list-eventz, prints usage help.
     """
     output_data = run_cli_command(["list-eventz"])
+    stdout = output_data["stdout"].lower()
+    stderr = output_data["stderr"].lower()
+    assert "usage:" in stdout or "usage:" in stderr
+
+# -----------------------
+# NEW TESTS FOR COVERAGE
+# -----------------------
+
+def test_cli_add_volunteer_invalid_phone():
+    """
+    Test that passing an invalid phone format results in an error message from the manager.
+    We expect to see 'invalid phone number format' in stdout or stderr.
+    """
+    output_data = run_cli_command([
+        "add-volunteer",
+        "--phone", "ABCD1234",  # invalid phone format
+        "--name", "Wrong Phone",
+        "--skills", "CLI",
+        "--available", "1"
+    ])
+    stdout = output_data["stdout"].lower()
+    stderr = output_data["stderr"].lower()
+    # Manager should raise VolunteerError about phone format
+    assert "invalid phone number format" in stdout or "invalid phone number format" in stderr
+
+def test_cli_list_deleted_volunteers_no_results():
+    """
+    Test that calling list-deleted-volunteers prints 'No deleted volunteers found.' if none exist.
+    """
+    output = run_cli_command(["list-deleted-volunteers"])["stdout"].lower()
+    assert "no deleted volunteers found" in output
+
+def test_cli_list_deleted_volunteers_partial():
+    """
+    Test a partial near-match command like 'list-deleted-volunteerse' also shows usage help.
+    """
+    output_data = run_cli_command(["list-deleted-volunteerse"])
     stdout = output_data["stdout"].lower()
     stderr = output_data["stderr"].lower()
     assert "usage:" in stdout or "usage:" in stderr
