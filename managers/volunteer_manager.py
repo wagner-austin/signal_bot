@@ -2,6 +2,7 @@
 """
 managers/volunteer_manager.py - Aggregated volunteer management.
 Renamed sign_up -> register_volunteer, list_volunteers -> list_all_volunteers.
+Now includes list_all_volunteers_list() returning a list of dicts for CLI usage.
 """
 
 from typing import Optional
@@ -36,10 +37,28 @@ class VolunteerManager:
     
     def list_all_volunteers(self) -> dict:
         """
-        list_all_volunteers - Retrieve all volunteer records.
+        list_all_volunteers - Retrieve all volunteer records as a dict {phone: data}.
         """
         return get_all_volunteers()
-    
+
+    def list_all_volunteers_list(self) -> list:
+        """
+        list_all_volunteers_list - Retrieve all volunteer records as a list of dictionaries,
+        for direct consumption by CLI + print_results().
+        """
+        volunteers_dict = self.list_all_volunteers()
+        result = []
+        for phone, data in volunteers_dict.items():
+            row = {
+                "phone": phone,
+                "name": data.get("name"),
+                "skills": data.get("skills", []),
+                "available": data.get("available"),
+                "current_role": data.get("current_role"),
+            }
+            result.append(row)
+        return result
+
     # Role management
     def list_roles(self) -> list:
         return list_roles()

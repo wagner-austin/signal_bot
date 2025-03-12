@@ -2,7 +2,7 @@
 """
 cli/formatters.py - CLI formatters for presenting data.
 Provides helper functions to convert raw data dictionaries from business logic into formatted strings.
-This separation allows business logic to return plain data while the formatter handles presentation.
+Now updated to unify volunteer formatting with a single dictionary param.
 """
 
 def _ensure_dict(item) -> dict:
@@ -17,12 +17,6 @@ def _ensure_dict(item) -> dict:
 def format_event(event: dict) -> str:
     """
     Format a single event record.
-
-    Args:
-        event (dict): An event record.
-
-    Returns:
-        str: A formatted string representing the event.
     """
     event = _ensure_dict(event)
     return (
@@ -38,12 +32,6 @@ def format_event(event: dict) -> str:
 def format_event_speaker(speaker: dict) -> str:
     """
     Format a single event speaker record.
-
-    Args:
-        speaker (dict): An event speaker record.
-
-    Returns:
-        str: A formatted string representing the event speaker.
     """
     speaker = _ensure_dict(speaker)
     return (
@@ -58,12 +46,6 @@ def format_event_speaker(speaker: dict) -> str:
 def format_log(log: dict) -> str:
     """
     Format a single command log record.
-
-    Args:
-        log (dict): A command log record.
-
-    Returns:
-        str: A formatted string representing the log entry.
     """
     log = _ensure_dict(log)
     return (
@@ -78,12 +60,6 @@ def format_log(log: dict) -> str:
 def format_resource(resource: dict) -> str:
     """
     Format a single resource record.
-
-    Args:
-        resource (dict): A resource record.
-
-    Returns:
-        str: A formatted string representing the resource.
     """
     resource = _ensure_dict(resource)
     title = resource.get('title') if resource.get('title') else 'N/A'
@@ -99,12 +75,6 @@ def format_resource(resource: dict) -> str:
 def format_task(task: dict) -> str:
     """
     Format a single task record.
-
-    Args:
-        task (dict): A task record.
-
-    Returns:
-        str: A formatted string representing the task.
     """
     task = _ensure_dict(task)
     return (
@@ -117,22 +87,16 @@ def format_task(task: dict) -> str:
         + "-" * 40
     )
 
-def format_volunteer(phone: str, data: dict) -> str:
+def format_volunteer(vol: dict) -> str:
     """
-    Format a volunteer record.
-
-    Args:
-        phone (str): The volunteer's phone number.
-        data (dict): The volunteer's data.
-
-    Returns:
-        str: A formatted string representing the volunteer.
+    format_volunteer - Format a single volunteer record dictionary.
     """
-    data = _ensure_dict(data)
-    name = data.get("name")
-    skills = ", ".join(data.get("skills", [])) if data.get("skills") else "None"
-    available = data.get("available")
-    current_role = data.get("current_role")
+    vol = _ensure_dict(vol)
+    phone = vol.get("phone")
+    name = vol.get("name")
+    skills = ", ".join(vol.get("skills", [])) if vol.get("skills") else "None"
+    available = vol.get("available")
+    current_role = vol.get("current_role")
     return (
         f"Phone: {phone}\n"
         f"Name: {name}\n"
@@ -145,12 +109,6 @@ def format_volunteer(phone: str, data: dict) -> str:
 def format_deleted_volunteer(data: dict) -> str:
     """
     Format a deleted volunteer record.
-
-    Args:
-        data (dict): The deleted volunteer data.
-
-    Returns:
-        str: A formatted string representing the deleted volunteer.
     """
     data = _ensure_dict(data)
     skills = ", ".join(data.get('skills', '').split(',')) if data.get('skills') else "None"
