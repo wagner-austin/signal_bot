@@ -9,6 +9,7 @@ Name Matching Note:
     The volunteer's name comparison in `assign_task` is case-insensitive.
     If the DB has 'John Doe', you can assign with 'john doe' or 'JOHN DOE' etc.
 """
+
 from typing import List, Dict, Optional
 from core.database.repository import TaskRepository
 from core.database.helpers import execute_sql
@@ -75,5 +76,14 @@ def close_task(task_id: int) -> bool:
     update_query = "UPDATE Tasks SET status = 'closed' WHERE task_id = ?"
     execute_sql(update_query, (task_id,), commit=True)
     return True
+
+def list_all_tasks() -> List[Dict]:
+    """
+    list_all_tasks - Retrieve all tasks.
+    
+    Returns:
+        List[Dict]: A list of task records.
+    """
+    return list_tasks()
 
 # End of core/task_manager.py
