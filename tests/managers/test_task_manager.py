@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-tests/core/test_task_manager.py - Tests for the Task Manager module.
+tests/managers/test_task_manager.py - Tests for the Task Manager module.
 Verifies that tasks can be added, listed, assigned, and closed.
 Also tests concurrency in task assignment to confirm final DB consistency,
 and checks that volunteer name matching is case-insensitive.
@@ -141,4 +141,4 @@ def test_list_all_tasks():
     matching = [task for task in tasks if task["task_id"] == task_id]
     assert matching, "Added task should appear in list_all_tasks"
 
-# End of tests/core/test_task_manager.py
+# End of tests/managers/test_task_manager.py

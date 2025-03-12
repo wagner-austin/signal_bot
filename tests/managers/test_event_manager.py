@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-tests/core/test_event_manager.py --- Test for core/event_manager.py.
+tests/managers/test_event_manager.py --- Test for core/event_manager.py.
 Verifies event CRUD and speaker management functions using the event manager functions.
 """
 
@@ -51,4 +51,4 @@ def test_assign_list_remove_speaker():
     assert "Speaker One" not in names_after
     delete_event(event_id)
 
-# End of tests/core/test_event_manager.py
+# End of tests/managers/test_event_manager.py
