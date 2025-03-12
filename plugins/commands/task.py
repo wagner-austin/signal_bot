@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 """
 plugins/commands/task.py - Task command plugins - Manages shared to-do tasks with consistent argument validation and error logging.
+This module now uses local imports for task manager functions to avoid circular import issues.
 """
 
 from typing import Optional
 from plugins.manager import plugin
 from core.state import BotStateMachine
-from core.task_manager import add_task, list_tasks, assign_task, close_task
 from parsers.argument_parser import parse_plugin_arguments
 from parsers.plugin_arg_parser import (
     PluginArgError,
@@ -49,9 +49,12 @@ def task_command(args: str, sender: str, state_machine: BotStateMachine, msg_tim
             if not rest:
                 raise PluginArgError("Usage: @bot task add <description>")
             validated = validate_model({"description": " ".join(rest)}, TaskAddModel, "task add <description>")
+            # Local import to break circular dependency.
+            from core.task_manager import add_task
             task_id = add_task(sender, validated.description)
             return f"Task added with ID {task_id}."
         elif subcommand == "list":
+            from core.task_manager import list_tasks
             tasks = list_tasks()
             if not tasks:
                 return "No tasks found."
@@ -74,6 +77,7 @@ def task_command(args: str, sender: str, state_machine: BotStateMachine, msg_tim
             except PluginArgError as e:
                 logger.warning(f"task_command PluginArgError in assign subcommand: {e}")
                 return "invalid task_id"
+            from core.task_manager import assign_task
             error = assign_task(validated.task_id, validated.volunteer_display_name)
             if error:
                 return error
@@ -86,6 +90,7 @@ def task_command(args: str, sender: str, state_machine: BotStateMachine, msg_tim
             except PluginArgError as e:
                 logger.warning(f"task_command PluginArgError in close subcommand: {e}")
                 return "invalid task_id"
+            from core.task_manager import close_task
             close_task(validated.task_id)
             return f"Task {validated.task_id} has been closed."
         else:
