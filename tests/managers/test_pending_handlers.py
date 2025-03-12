@@ -90,7 +90,7 @@ def test_event_creation_pending_handler_cancel():
     response = handler.process_event_creation_response(parsed, "+70000000005")
     assert "Event creation cancelled." in response
 
-from core.event_manager import create_event
+from managers.event_manager import create_event
 
 def _create_dummy_event(handler, sender: str, body: str):
     """Helper function for concurrency test."""

@@ -5,7 +5,7 @@ Verifies event listing and event speaker functionalities by using the core/event
 """
 
 from tests.cli.cli_test_helpers import run_cli_command
-from core.event_manager import create_event, assign_speaker
+from managers.event_manager import create_event, assign_speaker
 
 def test_list_events():
     """

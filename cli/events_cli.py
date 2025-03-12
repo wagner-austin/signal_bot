@@ -7,7 +7,7 @@ Delegates data retrieval to the event manager.
 
 from cli.formatters import format_event, format_event_speaker
 from cli.common import print_results
-from core.event_manager import list_events, list_all_event_speakers
+from managers.event_manager import list_events, list_all_event_speakers
 
 def list_events_cli():
     """

@@ -9,7 +9,7 @@ Name or Topic in add_speaker_command, and removing a speaker that does not exist
 import pytest
 from plugins.commands.speaker import add_speaker_command, remove_speaker_command
 from core.state import BotStateMachine
-from core.event_manager import create_event, list_speakers
+from managers.event_manager import create_event, list_speakers
 
 @pytest.fixture
 def state_machine():

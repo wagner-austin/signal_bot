@@ -6,7 +6,7 @@ Verifies event CRUD and speaker management functions using the event manager fun
 
 import pytest
 import logging
-from core.event_manager import (
+from managers.event_manager import (
     create_event, update_event, list_events, get_event,
     delete_event, assign_speaker, list_speakers, remove_speaker
 )

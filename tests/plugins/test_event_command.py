@@ -9,7 +9,7 @@ Negative/edge cases are now in test_plugin_negatives.py.
 import pytest
 from plugins.commands.event import plan_event_command, edit_event_command, remove_event_command
 from core.state import BotStateMachine
-from core.event_manager import list_events, get_event
+from managers.event_manager import list_events, get_event
 
 @pytest.fixture
 def state_machine():

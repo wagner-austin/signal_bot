@@ -12,7 +12,7 @@ from plugins.manager import plugin
 from core.state import BotStateMachine
 from parsers.argument_parser import parse_plugin_arguments
 from parsers.plugin_arg_parser import PluginArgError
-from core.event_manager import list_events, assign_speaker, remove_speaker
+from managers.event_manager import list_events, assign_speaker, remove_speaker
 import logging
 
 logger = logging.getLogger(__name__)

@@ -17,7 +17,7 @@ from parsers.plugin_arg_parser import (
 )
 from pydantic import ValidationError
 from parsers.argument_parser import parse_plugin_arguments
-from core.event_manager import (
+from managers.event_manager import (
     list_events, create_event, update_event, delete_event, get_event
 )
 

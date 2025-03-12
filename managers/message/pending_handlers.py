@@ -133,7 +133,7 @@ class EventCreationPendingHandler(BasePendingHandler):
         Returns:
             Optional[str]: Confirmation or cancellation message.
         """
-        from core.event_manager import create_event
+        from managers.event_manager import create_event
         if not self.has_pending(sender):
             return None
         user_input = parsed.body.strip() if parsed.body else ""
