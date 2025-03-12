@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 """
-cli/tasks_cli.py --- CLI tool for task-related operations.
-Delegates logic to task_manager, which now has create_task, list_all_tasks, etc.
-Streamlined to a one-liner "list" command.
+tasks_cli.py - CLI tool for task-related operations.
+Delegates listing to managers.task_manager with a simple one-liner function.
 """
 
 from managers.task_manager import list_all_tasks
@@ -11,7 +10,7 @@ from cli.common import print_results
 
 def list_tasks_cli():
     """
-    list_tasks_cli - List all tasks (one-liner).
+    list_tasks_cli - List all tasks by calling managers.task_manager.list_all_tasks().
     """
     print_results(list_all_tasks(), format_task, "No tasks found.")
 

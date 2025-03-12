@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 """
-cli/resources_cli.py --- CLI tools for resource-related operations.
-Delegates all logic to managers/resources_manager.py.
-Now streamlined to a one-liner "list" command.
+resources_cli.py - CLI tools for resource-related operations.
+Delegates listing to managers.resources_manager.
 """
 
 import argparse
@@ -19,13 +18,13 @@ logger = logging.getLogger(__name__)
 
 def list_resources_cli():
     """
-    list_resources_cli - List all resource records (one-liner).
+    list_resources_cli - List all resource records by calling managers.resources_manager.list_all_resources().
     """
     print_results(list_all_resources(), format_resource, "No resources found.")
 
 def add_resource_cli(args: argparse.Namespace):
     """
-    add_resource_cli - Parse CLI args and call manager to create a new resource.
+    add_resource_cli - Parses CLI args and calls manager to create a new resource.
     """
     category = args.category
     url = args.url
@@ -35,7 +34,7 @@ def add_resource_cli(args: argparse.Namespace):
 
 def remove_resource_cli(args: argparse.Namespace):
     """
-    remove_resource_cli - Parse CLI args and call manager to delete a resource.
+    remove_resource_cli - Parses CLI args and calls manager to delete a resource by ID.
     """
     resource_id = args.id
     delete_resource(resource_id)
