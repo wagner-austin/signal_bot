@@ -1,9 +1,7 @@
 #!/usr/bin/env python
 """
-tests/core/test_event_manager.py --- Test for core/event_manager.py
-Verifies event CRUD and speaker management functions.
-Changes:
- - Added a caplog assertion to ensure event creation logs an info-level message.
+tests/core/test_event_manager.py --- Test for core/event_manager.py.
+Verifies event CRUD and speaker management functions using the event manager functions.
 """
 
 import pytest
