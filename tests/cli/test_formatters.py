@@ -94,14 +94,14 @@ def test_format_task():
     assert "Assigned To: Jane Smith" in output
 
 def test_format_volunteer():
-    phone = "+1111111111"
     sample = {
+        'phone': "+1111111111",
         'name': 'John Doe',
         'skills': ['Python', 'SQL'],
         'available': True,
         'current_role': 'Coordinator'
     }
-    output = format_volunteer(phone, sample)
+    output = format_volunteer(sample)
     assert "Phone: +1111111111" in output
     assert "Name: John Doe" in output
     assert "Skills: Python, SQL" in output
