@@ -129,6 +129,16 @@ def test_assign_task_name_casing():
             f"Expected stored name '{volunteer_name_stored}' but got '{assigned_name}'"
         )
 
-    # Clean up: optional - the fixture already cleans DB after each test.
+def test_list_all_tasks():
+    """
+    Test that list_all_tasks returns correct data.
+    """
+    created_by = "+5555555555"
+    description = "List All Task Test"
+    task_id = add_task(created_by, description)
+    from core.task_manager import list_all_tasks
+    tasks = list_all_tasks()
+    matching = [task for task in tasks if task["task_id"] == task_id]
+    assert matching, "Added task should appear in list_all_tasks"
 
 # End of tests/core/test_task_manager.py
