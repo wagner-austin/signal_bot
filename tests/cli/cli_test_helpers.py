@@ -28,7 +28,7 @@ def run_cli_command(command_args):
         captured_stderr = io.StringIO()
         sys.stdout = captured_stdout
         sys.stderr = captured_stderr
-        from cli_tools import main as cli_main
+        from cli.cli_tools import main as cli_main
         try:
             cli_main()
         except SystemExit:

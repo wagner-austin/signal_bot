@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-cli_tools.py - Aggregated CLI Tools Facade.
+cli/__main__.py - Aggregated CLI Tools Facade.
 Provides a unified command-line interface to perform various database operations.
 Now catches and logs VolunteerError and ResourceError exceptions.
 """
@@ -113,4 +113,4 @@ def main():
 if __name__ == "__main__":
     main()
 
-# End of cli_tools.py
+# End of cli/__main__.py
