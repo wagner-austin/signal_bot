@@ -1,13 +1,14 @@
 #!/usr/bin/env python
 """
-volunteer_operations.py
------------------------
+managers/volunteer/volunteer_operations.py
+------------------------------------------
 Volunteer operations. Renamed sign_up -> register_volunteer for consistency.
+Now includes manager-side validation for the 'available' parameter.
 """
 
 import logging
 import re
-from typing import List, Optional
+from typing import List, Optional, Any
 from core.database import (
     get_volunteer_record, add_volunteer_record, update_volunteer_record,
     delete_volunteer_record, add_deleted_volunteer_record, remove_deleted_volunteer_record
@@ -21,14 +22,22 @@ from core.validators import validate_phone_number
 
 logger = logging.getLogger(__name__)
 
-def register_volunteer(phone: str, name: str, skills: List[str], available: bool = True,
+def register_volunteer(phone: str, name: str, skills: List[str], available: Any = True,
                        current_role: Optional[str] = None) -> str:
     """
     register_volunteer - Creates/updates a volunteer in an atomic transaction.
     Raises VolunteerError if phone is invalid or an unexpected error occurs.
+    Now includes logic to parse 'available' from string/int into a boolean.
     """
     # Unified phone validation
     validate_phone_number(phone)
+
+    # Convert 'available' param to bool if needed
+    if not isinstance(available, bool):
+        try:
+            available = bool(int(available))
+        except (ValueError, TypeError):
+            raise VolunteerError("Available must be 0 or 1.")
 
     try:
         with per_phone_lock(phone):
