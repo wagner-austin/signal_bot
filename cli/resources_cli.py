@@ -1,25 +1,26 @@
 #!/usr/bin/env python
 """
-cli/resources_cli.py - CLI tools for resource-related operations.
+cli/resources_cli.py --- CLI tools for resource-related operations.
 Uses a dedicated formatter to present resource records.
-Raises ResourceError for invalid conditions instead of logging error messages.
+Delegates data retrieval to resources_manager and raises ResourceError for invalid inputs.
 """
 
 import argparse
 import logging
-from core.database.resources import add_resource, list_resources, remove_resource
+from core.database.resources import add_resource, remove_resource
 from cli.formatters import format_resource
 from cli.common import print_results
 from core.exceptions import ResourceError
+from managers.resources_manager import list_all_resources
 
 logger = logging.getLogger(__name__)
 
 def list_resources_cli():
     """
     list_resources_cli - List all resource records.
-    Retrieves resource data and prints formatted output.
+    Retrieves resource data via resources_manager and displays formatted output.
     """
-    resources = list_resources()
+    resources = list_all_resources()
     print_results(resources, format_resource, "No resources found.")
 
 def add_resource_cli(args: argparse.Namespace):
@@ -51,4 +52,4 @@ def remove_resource_cli(args: argparse.Namespace):
     remove_resource(resource_id)
     print(f"Resource with ID {resource_id} removed.")
 
-# End cli/resources_cli.py
+# End of cli/resources_cli.py
