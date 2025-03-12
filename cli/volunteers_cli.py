@@ -2,22 +2,22 @@
 """
 cli/volunteers_cli.py - CLI tools for volunteer-related operations.
 Uses dedicated formatters to present volunteer records in a consistent manner.
-Integrates a centralized volunteer sign up method for unified registration.
+Delegates volunteer data retrieval to volunteer_manager.
 """
 
 import argparse
 from managers.volunteer.volunteer_operations import sign_up
-from core.database.volunteers import get_all_volunteers
 from managers.volunteer.volunteer_common import normalize_name
 from cli.formatters import format_volunteer, format_deleted_volunteer
 from cli.common import print_results
+from managers.volunteer_manager import VOLUNTEER_MANAGER
 
 def list_volunteers_cli():
     """
     list_volunteers_cli - List all volunteer records in the database.
-    Uses a formatter to display volunteer details.
+    Uses volunteer_manager.list_volunteers to retrieve data and displays formatted output.
     """
-    volunteers = get_all_volunteers()
+    volunteers = VOLUNTEER_MANAGER.list_volunteers()
     if not volunteers:
         print("No volunteers found.")
         return
@@ -26,8 +26,7 @@ def list_volunteers_cli():
 
 def add_volunteer_cli(args: argparse.Namespace):
     """
-    cli/volunteers_cli.py - add_volunteer_cli
-    Adds a new volunteer record using the centralized sign up method.
+    add_volunteer_cli - Adds a new volunteer record using the centralized sign up method.
     
     Args:
         args (argparse.Namespace): Command-line arguments containing phone, name, skills, available, and role.
@@ -35,11 +34,9 @@ def add_volunteer_cli(args: argparse.Namespace):
     phone = args.phone
     name = args.name
     skills = [s.strip() for s in args.skills.split(",")] if args.skills else []
-    # Updated to gracefully handle invalid integer for --available
     try:
         available = bool(int(args.available))
     except ValueError:
-        # Raise to be caught in cli_tools.py for a consistent error message
         raise ValueError("--available must be 0 or 1.")
     current_role = args.role if args.role else None
     message = sign_up(phone, name, skills, available, current_role)

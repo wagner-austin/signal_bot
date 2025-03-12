@@ -4,8 +4,10 @@ managers/volunteer_manager.py - Aggregated volunteer management.
 Provides a unified interface for volunteer operations, queries, role management, and volunteer assignment.
 This module now uses a centralized sign up method that supports availability and role updates.
 Changes:
+ - Added list_volunteers method to retrieve all volunteer records.
  - Updated assign_volunteer to use atomic transactions for consistent, atomic volunteer assignment.
 """
+
 from typing import Optional
 from managers.volunteer.volunteer_operations import sign_up, delete_volunteer, check_in
 from managers.volunteer.volunteer_queries import volunteer_status, find_available_volunteer, get_all_skills
@@ -34,6 +36,15 @@ class VolunteerManager:
     
     def get_all_skills(self):
         return get_all_skills()
+    
+    def list_volunteers(self) -> dict:
+        """
+        list_volunteers - Retrieve all volunteer records.
+        
+        Returns:
+            dict: A dictionary mapping phone numbers to volunteer data.
+        """
+        return get_all_volunteers()
     
     # Role management
     def list_roles(self) -> list:
