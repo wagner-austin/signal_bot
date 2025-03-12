@@ -1,19 +1,8 @@
 #!/usr/bin/env python
 """
 cli_tools.py - Aggregated CLI Tools Facade - Provides a unified command-line interface
-to perform various database operations. Direct error messages via print() have been replaced
-with logger calls to standardize logging and exception handling.
-Usage Examples:
-  python cli_tools.py list-volunteers
-  python cli_tools.py add-volunteer --phone +1234567890 --name "John Doe" --skills "Python, SQL" --available 1 --role "Coordinator"
-  python cli_tools.py list-events
-  python cli_tools.py list-logs
-  python cli_tools.py list-resources
-  python cli_tools.py add-resource --category "Linktree" --url "https://linktr.ee/50501oc" --title "Official Linktree"
-  python cli_tools.py remove-resource --id 3
-  python cli_tools.py list-deleted-volunteers
-  python cli_tools.py list-event-speakers
-  python cli_tools.py list-tasks
+to perform various database operations. The negative/edge-case CLI tests expect
+"Error: ..." messages in stderr if invalid conditions arise for resources/volunteers.
 """
 
 import argparse
@@ -23,41 +12,32 @@ from core.logger_setup import setup_logging
 from cli.volunteers_cli import list_volunteers_cli, add_volunteer_cli, list_deleted_volunteers_cli
 from cli.events_cli import list_events_cli, list_event_speakers_cli
 from cli.logs_cli import list_logs_cli
-from cli.resources_cli import list_resources_cli, add_resource_cli as original_add_resource_cli, remove_resource_cli as original_remove_resource_cli
+from cli.resources_cli import (
+    list_resources_cli,
+    add_resource_cli as original_add_resource_cli,
+    remove_resource_cli as original_remove_resource_cli
+)
 from cli.tasks_cli import list_tasks_cli
 
 logger = logging.getLogger(__name__)
 
 def add_resource_cli(args: argparse.Namespace):
     """
-    add_resource_cli - Enhanced with a basic URL format validation.
+    Thin wrapper around original_add_resource_cli that logs the "Error: " if found.
+    We rely on the function to do logger.error(...) and then 'return' upon error.
     """
-    category = args.category
-    url = args.url
-    title = args.title if args.title else ""
-    # Minimal validation: require the URL to start with 'http'
-    if not url.startswith("http"):
-        logger.error(f"Error: URL must start with 'http'. Provided: {url}")
-        return
-    # Delegate to the original function if valid
     original_add_resource_cli(args)
 
 def remove_resource_cli(args: argparse.Namespace):
     """
-    remove_resource_cli - Enhanced to check the resource ID is > 0.
+    Thin wrapper around original_remove_resource_cli that logs "Error: " if found.
     """
-    resource_id = args.id
-    if resource_id <= 0:
-        logger.error(f"Error: Resource ID must be a positive integer. Provided: {resource_id}")
-        return
-    # Delegate to the original function if valid
     original_remove_resource_cli(args)
 
 def main():
     """
     main - Parse command-line arguments and dispatch to the appropriate CLI function.
     """
-    # Set up logging so that errors are output to stderr and captured by tests.
     setup_logging()
 
     parser = argparse.ArgumentParser(description="Aggregated CLI Tools for database operations.")

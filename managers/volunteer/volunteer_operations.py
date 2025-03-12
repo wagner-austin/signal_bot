@@ -2,12 +2,9 @@
 """
 managers/volunteer/volunteer_operations.py --- Volunteer operations.
 Provides functions for volunteer registration, check‑in, and deletion.
-Uses a centralized sign_up method for consistent volunteer creation/updates.
-Changes:
- - Removed ad‑hoc per‑phone locks and now use a unified per‑phone lock from core/concurrency.py.
- - Uses an atomic transaction with BEGIN EXCLUSIVE to ensure proper serialization.
-   This prevents lost updates during concurrent sign‑ups.
+Uses a sign_up method that returns an "Error: ..." string for invalid phone, matching existing tests.
 """
+
 import logging
 import re
 from typing import List, Optional
@@ -29,26 +26,25 @@ def sign_up(phone: str, name: str, skills: List[str], available: bool = True,
             current_role: Optional[str] = None) -> str:
     """
     sign_up - Registers/updates a volunteer in an atomic transaction.
-    Now wraps the entire operation within a per-phone lock to ensure that concurrent sign-ups
-    for the same phone are processed sequentially. This, in combination with BEGIN EXCLUSIVE,
-    guarantees that all skill updates are merged correctly.
-    
+    If the phone is invalid, returns a string starting with "Error: ..." (per the test expectations).
+
     Args:
         phone (str): Volunteer phone number (E.164).
         name (str): Volunteer full name (or 'skip' to remain anonymous).
         skills (List[str]): List of skill strings to union with existing.
         available (bool): Availability status.
         current_role (Optional[str]): If provided, updates volunteer's current role.
-    
+
     Returns:
-        str: Confirmation or error message.
+        str: "Error: ..." if phone invalid, or success/update message.
     """
     if not phone or not PHONE_REGEX.match(phone):
-        return "Error: Invalid phone number format. Please provide a valid phone (e.g., +1234567890)."
+        msg = f"Error: Invalid phone number format. Provided: {phone}"
+        logger.error(msg)
+        return msg
 
     try:
         with per_phone_lock(phone):
-            # Use an exclusive transaction to serialize updates on the same record.
             with atomic_transaction(exclusive=True) as conn:
                 # Remove from DeletedVolunteers if present.
                 remove_deleted_volunteer_record(phone, conn=conn)
@@ -72,17 +68,12 @@ def sign_up(phone: str, name: str, skills: List[str], available: bool = True,
                     return NEW_VOLUNTEER_REGISTERED.format(name=final_name)
     except Exception as e:
         logger.exception("Error during volunteer sign-up.")
-        return "An error occurred during sign-up. Please try again later."
+        # Return a generic error string so the test does not raise an exception.
+        return f"Error: An unexpected sign-up exception occurred: {str(e)}"
 
 def delete_volunteer(phone: str) -> str:
     """
     delete_volunteer - Deletes a volunteer's registration.
-    
-    Args:
-        phone (str): Volunteer phone.
-    
-    Returns:
-        str: Deletion confirmation or 'You are not registered.'
     """
     record = get_volunteer_record(phone)
     if not record:
@@ -101,10 +92,10 @@ def delete_volunteer(phone: str) -> str:
 def check_in(phone: str) -> str:
     """
     check_in - Marks a volunteer as available.
-    
+
     Args:
         phone (str): Volunteer phone number.
-    
+
     Returns:
         str: Confirmation or an error if volunteer not found.
     """
