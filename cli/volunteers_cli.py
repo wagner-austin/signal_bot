@@ -2,7 +2,7 @@
 """
 cli/volunteers_cli.py - CLI tools for volunteer-related operations.
 Uses dedicated formatters to present volunteer records in a consistent manner.
-Delegates volunteer data retrieval to volunteer_manager.
+Now avoids direct DB calls by delegating to volunteer_manager.
 """
 
 import argparse
@@ -45,10 +45,9 @@ def add_volunteer_cli(args: argparse.Namespace):
 def list_deleted_volunteers_cli():
     """
     list_deleted_volunteers_cli - List all deleted volunteer records.
-    Uses a formatter to display details from the DeletedVolunteers table.
+    Delegates data retrieval to volunteer_manager.
     """
-    query = "SELECT * FROM DeletedVolunteers ORDER BY deleted_at DESC"
-    rows = __import__("core.database.helpers", fromlist=["execute_sql"]).execute_sql(query, fetchall=True)
+    rows = VOLUNTEER_MANAGER.list_deleted_volunteers()
     print_results(rows, format_deleted_volunteer, "No deleted volunteers found.")
 
 # End of cli/volunteers_cli.py

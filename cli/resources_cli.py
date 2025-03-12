@@ -1,17 +1,19 @@
 #!/usr/bin/env python
 """
 cli/resources_cli.py --- CLI tools for resource-related operations.
-Uses a dedicated formatter to present resource records.
-Delegates data retrieval to resources_manager and raises ResourceError for invalid inputs.
+Now delegates all resource-related logic to the resources_manager.
 """
 
 import argparse
 import logging
-from core.database.resources import add_resource, remove_resource
 from cli.formatters import format_resource
 from cli.common import print_results
 from core.exceptions import ResourceError
-from managers.resources_manager import list_all_resources
+from managers.resources_manager import (
+    list_all_resources,
+    add_new_resource,
+    remove_resource_by_id
+)
 
 logger = logging.getLogger(__name__)
 
@@ -26,30 +28,23 @@ def list_resources_cli():
 def add_resource_cli(args: argparse.Namespace):
     """
     add_resource_cli - Add a new resource record.
-    Raises ResourceError if the URL does not start with 'http'.
+    Delegates all validation and data handling to the manager.
     """
     category = args.category
     url = args.url
     title = args.title if args.title else ""
 
-    if not url.startswith("http"):
-        error_msg = f"URL must start with 'http'. Provided: {url}"
-        raise ResourceError(error_msg)
-
-    resource_id = add_resource(category, url, title)
+    # Delegate business logic to the manager:
+    resource_id = add_new_resource(category, url, title)
     print(f"Resource added with ID {resource_id}.")
 
 def remove_resource_cli(args: argparse.Namespace):
     """
     remove_resource_cli - Remove a resource record by its ID.
-    Raises ResourceError if the ID is not a positive integer.
+    Delegates validation to the manager.
     """
     resource_id = args.id
-    if resource_id <= 0:
-        error_msg = f"Resource ID must be a positive integer. Provided: {resource_id}"
-        raise ResourceError(error_msg)
-
-    remove_resource(resource_id)
+    remove_resource_by_id(resource_id)
     print(f"Resource with ID {resource_id} removed.")
 
 # End of cli/resources_cli.py

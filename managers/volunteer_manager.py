@@ -2,10 +2,7 @@
 """
 managers/volunteer_manager.py - Aggregated volunteer management.
 Provides a unified interface for volunteer operations, queries, role management, and volunteer assignment.
-This module now uses a centralized sign up method that supports availability and role updates.
-Changes:
- - Added list_volunteers method to retrieve all volunteer records.
- - Updated assign_volunteer to use atomic transactions for consistent, atomic volunteer assignment.
+Now includes a method to list deleted volunteers, removing direct DB calls from the CLI.
 """
 
 from typing import Optional
@@ -13,7 +10,7 @@ from managers.volunteer.volunteer_operations import sign_up, delete_volunteer, c
 from managers.volunteer.volunteer_queries import volunteer_status, find_available_volunteer, get_all_skills
 from managers.volunteer.volunteer_roles import list_roles, assign_role, switch_role, unassign_role
 from core.database.volunteers import get_all_volunteers, get_volunteer_record, update_volunteer_record
-from managers.volunteer.volunteer_common import normalize_name  # Corrected import path
+from managers.volunteer.volunteer_common import normalize_name
 from core.transaction import atomic_transaction
 
 class VolunteerManager:
@@ -64,7 +61,8 @@ class VolunteerManager:
         volunteers = get_all_volunteers()
         target_phone = None
         for phone, data in volunteers.items():
-            if any(skill.lower() == s.lower() for s in data.get("skills", [])) and data.get("available") and data.get("current_role") is None:
+            if any(skill.lower() == s.lower() for s in data.get("skills", [])) \
+               and data.get("available") and data.get("current_role") is None:
                 target_phone = phone
                 break
         if target_phone:
@@ -72,11 +70,26 @@ class VolunteerManager:
                 with atomic_transaction() as conn:
                     record = get_volunteer_record(target_phone, conn=conn)
                     if record:
-                        update_volunteer_record(target_phone, record["name"], record.get("skills", []), record["available"], role, conn=conn)
+                        update_volunteer_record(
+                            target_phone,
+                            record["name"],
+                            record.get("skills", []),
+                            record["available"],
+                            role,
+                            conn=conn
+                        )
                         return normalize_name(record["name"], target_phone)
-            except Exception as e:
+            except Exception:
                 return None
         return None
+
+    def list_deleted_volunteers(self) -> list:
+        """
+        list_deleted_volunteers - Retrieves all deleted volunteer records.
+        """
+        from core.database.helpers import execute_sql
+        query = "SELECT * FROM DeletedVolunteers ORDER BY deleted_at DESC"
+        return execute_sql(query, fetchall=True)
 
 VOLUNTEER_MANAGER = VolunteerManager()
 
