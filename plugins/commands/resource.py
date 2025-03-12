@@ -1,9 +1,8 @@
 #!/usr/bin/env python
 """
-plugins/commands/resource.py --- Resource command plugins for link sharing.
-Now matches negative-test expectations by interpreting a single token that starts with 'http'
-as no category provided, thus "Error: Category is required".
-Also converts HttpUrl -> str before DB insertion to fix sqlite type error.
+plugins/commands/resource.py - Resource command plugins - Manages shared resource links for the bot.
+Now matches negative-test expectations by interpreting a single token that starts with 'http' as no category provided,
+and converts HttpUrl -> str before DB insertion.
 """
 
 import logging
@@ -27,7 +26,7 @@ def resource_command(args: str, sender: str, state_machine: BotStateMachine,
                      msg_timestamp: Optional[int] = None) -> str:
     """
     resource - Manage shared resource links.
-
+    
     Subcommands:
       add <category> <url> [title?]
       list [<category>]
@@ -51,14 +50,10 @@ def resource_command(args: str, sender: str, state_machine: BotStateMachine,
             positional = parse_plugin_arguments(rest, mode='positional')
             add_tokens = positional["tokens"]
 
-            # The tests want these exact error messages under specific conditions:
-            # - "Error: Category is required" if category is missing
-            # - "Error: URL is required" if URL is missing
             if len(add_tokens) == 0:
                 return "Error: Category is required"
             elif len(add_tokens) == 1:
                 first = add_tokens[0].strip()
-                # If the single token starts with 'http', interpret that as user only typed URL => no category
                 if first.lower().startswith("http"):
                     return "Error: Category is required"
                 else:
@@ -81,10 +76,8 @@ def resource_command(args: str, sender: str, state_machine: BotStateMachine,
             try:
                 validated = ResourceAddModel.model_validate(data)
             except ValidationError:
-                # e.g. invalid URL
                 return "Error: URL must start with 'http'"
 
-            # Convert HttpUrl -> string to avoid sqlite 'type HttpUrl not supported' error
             resource_id = add_resource(validated.category, str(validated.url), validated.title)
             return f"Resource added with ID {resource_id}."
 
@@ -118,6 +111,10 @@ def resource_command(args: str, sender: str, state_machine: BotStateMachine,
         else:
             raise PluginArgError("Invalid subcommand. Use add, list, or remove.")
     except PluginArgError as e:
+        logger.warning(f"resource_command PluginArgError: {e}")
         return str(e)
+    except Exception as e:
+        logger.error(f"resource_command unexpected error: {e}", exc_info=True)
+        return "An internal error occurred in resource_command."
 
 # End of plugins/commands/resource.py

@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 """
-plugins/commands/role.py --- Role command plugins.
-Now with Pydantic-based argument validation using the unified validate_model helper.
+plugins/commands/role.py - Role command plugins - Manages volunteer roles using unified validation.
 """
 
 from typing import Optional
@@ -15,6 +14,9 @@ from parsers.plugin_arg_parser import (
     RoleSwitchModel,
     validate_model
 )
+import logging
+
+logger = logging.getLogger(__name__)
 
 @plugin('role', canonical='role')
 def role_command(args: str, sender: str, state_machine: BotStateMachine,
@@ -58,6 +60,10 @@ def role_command(args: str, sender: str, state_machine: BotStateMachine,
                 "Invalid subcommand for role. Use 'list', 'set <role>', 'switch <role>', or 'unassign'."
             )
     except PluginArgError as e:
+        logger.warning(f"role_command PluginArgError: {e}")
         return str(e)
+    except Exception as e:
+        logger.error(f"role_command unexpected error: {e}", exc_info=True)
+        return "An internal error occurred in role_command."
 
-# End of plugins/commands/role.py
+#End of plugins/commands/role.py

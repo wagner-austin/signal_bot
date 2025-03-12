@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 """
-plugins/commands/speaker.py --- Speaker command plugins.
-Provides commands to add or remove a speaker from an event.
+plugins/commands/speaker.py - Speaker command plugins - Provides commands to add or remove a speaker from an event.
 Usage:
   "@bot add speaker [Event: <title>,] Name: <speaker name>, Topic: <speaker topic>"
   "@bot remove speaker [Event: <title>,] Name: <speaker name>"
@@ -14,6 +13,9 @@ from core.state import BotStateMachine
 from parsers.argument_parser import parse_plugin_arguments
 from parsers.plugin_arg_parser import PluginArgError
 from core.event_manager import list_events, assign_speaker, remove_speaker
+import logging
+
+logger = logging.getLogger(__name__)
 
 @plugin('add speaker', canonical='add speaker')
 def add_speaker_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
@@ -47,7 +49,11 @@ def add_speaker_command(args: str, sender: str, state_machine: BotStateMachine, 
         assign_speaker(event_id, speaker_name, speaker_topic)
         return f"Speaker '{speaker_name}' with topic '{speaker_topic}' assigned to event ID {event_id} successfully."
     except (PluginArgError, ValueError) as e:
+        logger.warning(f"add_speaker_command PluginArgError: {e}")
         return f"Error parsing speaker details: {str(e)}"
+    except Exception as e:
+        logger.error(f"add_speaker_command unexpected error: {e}", exc_info=True)
+        return "An internal error occurred in add_speaker_command."
 
 @plugin('remove speaker', canonical='remove speaker')
 def remove_speaker_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
@@ -80,6 +86,10 @@ def remove_speaker_command(args: str, sender: str, state_machine: BotStateMachin
         remove_speaker(event_id, speaker_name)
         return f"Speaker '{speaker_name}' removed from event ID {event_id} successfully."
     except (PluginArgError, ValueError) as e:
+        logger.warning(f"remove_speaker_command PluginArgError: {e}")
         return f"Error parsing speaker details: {str(e)}"
+    except Exception as e:
+        logger.error(f"remove_speaker_command unexpected error: {e}", exc_info=True)
+        return "An internal error occurred in remove_speaker_command."
 
 # End of plugins/commands/speaker.py
