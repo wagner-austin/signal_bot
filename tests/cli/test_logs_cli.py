@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 """
-tests/cli/test_logs_cli.py - Tests for logs-related CLI commands.
+tests/cli/test_logs_cli.py --- Tests for logs-related CLI commands.
 Verifies that command logs can be listed via the CLI.
+Delegates log retrieval to the logs_manager module.
 """
 
 from tests.cli.cli_test_helpers import run_cli_command
@@ -13,7 +14,6 @@ def test_list_logs():
         "INSERT INTO CommandLogs (sender, command, args) VALUES (?, ?, ?)",
         ("+3333333333", "test", "arg1 arg2")
     )
-
     output = run_cli_command(["list-logs"])["stdout"]
     assert "test" in output
     assert "+3333333333" in output
