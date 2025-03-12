@@ -2,7 +2,7 @@
 """
 managers/volunteer/volunteer_operations.py --- Volunteer operations.
 Provides functions for volunteer registration, check‑in, and deletion.
-Uses a sign_up method that returns an "Error: ..." string for invalid phone, matching existing tests.
+Now raises VolunteerError instead of returning error strings.
 """
 
 import logging
@@ -16,6 +16,7 @@ from core.messages import NEW_VOLUNTEER_REGISTERED, VOLUNTEER_UPDATED, VOLUNTEER
 from managers.volunteer.volunteer_common import normalize_name
 from core.transaction import atomic_transaction
 from core.concurrency import per_phone_lock
+from core.exceptions import VolunteerError
 
 logger = logging.getLogger(__name__)
 
@@ -26,22 +27,25 @@ def sign_up(phone: str, name: str, skills: List[str], available: bool = True,
             current_role: Optional[str] = None) -> str:
     """
     sign_up - Registers/updates a volunteer in an atomic transaction.
-    If the phone is invalid, returns a string starting with "Error: ..." (per the test expectations).
-
+    Raises VolunteerError if the phone is invalid or an exception occurs.
+    
     Args:
         phone (str): Volunteer phone number (E.164).
         name (str): Volunteer full name (or 'skip' to remain anonymous).
         skills (List[str]): List of skill strings to union with existing.
         available (bool): Availability status.
         current_role (Optional[str]): If provided, updates volunteer's current role.
-
+        
     Returns:
-        str: "Error: ..." if phone invalid, or success/update message.
+        str: Success/update message.
+        
+    Raises:
+        VolunteerError: If phone is invalid or an exception occurs during sign-up.
     """
     if not phone or not PHONE_REGEX.match(phone):
-        msg = f"Error: Invalid phone number format. Provided: {phone}"
+        msg = f"Invalid phone number format. Provided: {phone}"
         logger.error(msg)
-        return msg
+        raise VolunteerError(msg)
 
     try:
         with per_phone_lock(phone):
@@ -68,16 +72,18 @@ def sign_up(phone: str, name: str, skills: List[str], available: bool = True,
                     return NEW_VOLUNTEER_REGISTERED.format(name=final_name)
     except Exception as e:
         logger.exception("Error during volunteer sign-up.")
-        # Return a generic error string so the test does not raise an exception.
-        return f"Error: An unexpected sign-up exception occurred: {str(e)}"
+        raise VolunteerError(f"An unexpected sign-up exception occurred: {str(e)}")
 
 def delete_volunteer(phone: str) -> str:
     """
     delete_volunteer - Deletes a volunteer's registration.
+    
+    Raises:
+        VolunteerError: If the volunteer is not registered.
     """
     record = get_volunteer_record(phone)
     if not record:
-        return "You are not registered."
+        raise VolunteerError("You are not registered.")
     add_deleted_volunteer_record(
         phone,
         record["name"],
@@ -92,17 +98,20 @@ def delete_volunteer(phone: str) -> str:
 def check_in(phone: str) -> str:
     """
     check_in - Marks a volunteer as available.
-
+    
     Args:
         phone (str): Volunteer phone number.
-
+        
     Returns:
-        str: Confirmation or an error if volunteer not found.
+        str: Confirmation message.
+        
+    Raises:
+        VolunteerError: If the volunteer is not found.
     """
     record = get_volunteer_record(phone)
     if record:
         update_volunteer_record(phone, record["name"], record["skills"], True, record["current_role"])
         return VOLUNTEER_CHECKED_IN.format(name=normalize_name(record['name'], phone))
-    return "Volunteer not found."
+    raise VolunteerError("Volunteer not found.")
 
 # End of managers/volunteer/volunteer_operations.py

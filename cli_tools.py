@@ -1,13 +1,15 @@
 #!/usr/bin/env python
 """
-cli_tools.py - Aggregated CLI Tools Facade - Provides a unified command-line interface
-to perform various database operations. The negative/edge-case CLI tests expect
-"Error: ..." messages in stderr if invalid conditions arise for resources/volunteers.
+cli_tools.py - Aggregated CLI Tools Facade.
+Provides a unified command-line interface to perform various database operations.
+Now catches and logs VolunteerError and ResourceError exceptions.
 """
 
 import argparse
 import logging
 from core.logger_setup import setup_logging
+from core.exceptions import VolunteerError, ResourceError
+import sys
 
 from cli.volunteers_cli import list_volunteers_cli, add_volunteer_cli, list_deleted_volunteers_cli
 from cli.events_cli import list_events_cli, list_event_speakers_cli
@@ -23,20 +25,20 @@ logger = logging.getLogger(__name__)
 
 def add_resource_cli(args: argparse.Namespace):
     """
-    Thin wrapper around original_add_resource_cli that logs the "Error: " if found.
-    We rely on the function to do logger.error(...) and then 'return' upon error.
+    Thin wrapper around original_add_resource_cli.
     """
     original_add_resource_cli(args)
 
 def remove_resource_cli(args: argparse.Namespace):
     """
-    Thin wrapper around original_remove_resource_cli that logs "Error: " if found.
+    Thin wrapper around original_remove_resource_cli.
     """
     original_remove_resource_cli(args)
 
 def main():
     """
     main - Parse command-line arguments and dispatch to the appropriate CLI function.
+    Catches VolunteerError and ResourceError to log errors and exit.
     """
     setup_logging()
 
@@ -78,31 +80,35 @@ def main():
     
     args = parser.parse_args()
     
-    if args.command == "list-volunteers":
-        list_volunteers_cli()
-    elif args.command == "add-volunteer":
-        try:
+    try:
+        if args.command == "list-volunteers":
+            list_volunteers_cli()
+        elif args.command == "add-volunteer":
             add_volunteer_cli(args)
-        except ValueError as ve:
-            logger.error(f"Error parsing --available value: {ve}")
-    elif args.command == "list-deleted-volunteers":
-        list_deleted_volunteers_cli()
-    elif args.command == "list-events":
-        list_events_cli()
-    elif args.command == "list-event-speakers":
-        list_event_speakers_cli()
-    elif args.command == "list-logs":
-        list_logs_cli()
-    elif args.command == "list-resources":
-        list_resources_cli()
-    elif args.command == "add-resource":
-        add_resource_cli(args)
-    elif args.command == "remove-resource":
-        remove_resource_cli(args)
-    elif args.command == "list-tasks":
-        list_tasks_cli()
-    else:
-        parser.print_help()
+        elif args.command == "list-deleted-volunteers":
+            list_deleted_volunteers_cli()
+        elif args.command == "list-events":
+            list_events_cli()
+        elif args.command == "list-event-speakers":
+            list_event_speakers_cli()
+        elif args.command == "list-logs":
+            list_logs_cli()
+        elif args.command == "list-resources":
+            list_resources_cli()
+        elif args.command == "add-resource":
+            add_resource_cli(args)
+        elif args.command == "remove-resource":
+            remove_resource_cli(args)
+        elif args.command == "list-tasks":
+            list_tasks_cli()
+        else:
+            parser.print_help()
+    except (VolunteerError, ResourceError) as e:
+        logger.error(f"Error: {e}")
+        sys.exit(1)
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}")
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()
