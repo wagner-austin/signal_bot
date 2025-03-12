@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """
 volunteers_cli.py - CLI tools for volunteer-related operations.
-All 'list' logic delegates to managers.volunteer_manager.
+Now ensures all add/remove logic is handled by the manager.
 """
 
 import argparse
@@ -22,11 +22,14 @@ def list_volunteers_cli():
 
 def add_volunteer_cli(args: argparse.Namespace):
     """
-    add_volunteer_cli - Parses CLI args, then calls manager to register or update a volunteer.
+    add_volunteer_cli - Parse CLI args, then call the manager to register or update a volunteer.
+    
+    Any deeper checks (phone format, skill merging, etc.) occur in the manager.
     """
     phone = args.phone
     name = args.name
     skills = [s.strip() for s in args.skills.split(",")] if args.skills else []
+    # We do minimal parse of --available to bool; manager does real checks on phone, etc.
     try:
         available = bool(int(args.available))
     except ValueError:

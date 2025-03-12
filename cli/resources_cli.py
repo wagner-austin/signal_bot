@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """
 resources_cli.py - CLI tools for resource-related operations.
-Delegates listing to managers.resources_manager.
+Delegates add/remove logic to managers.resources_manager.
 """
 
 import argparse
@@ -24,7 +24,10 @@ def list_resources_cli():
 
 def add_resource_cli(args: argparse.Namespace):
     """
-    add_resource_cli - Parses CLI args and calls manager to create a new resource.
+    add_resource_cli - Parses CLI arguments, then calls the manager to create a new resource.
+    
+    The manager handles any validation (e.g., URL must start with http) and
+    raises ResourceError if invalid.
     """
     category = args.category
     url = args.url
@@ -34,7 +37,9 @@ def add_resource_cli(args: argparse.Namespace):
 
 def remove_resource_cli(args: argparse.Namespace):
     """
-    remove_resource_cli - Parses CLI args and calls manager to delete a resource by ID.
+    remove_resource_cli - Parses CLI arguments, then calls the manager to delete a resource by ID.
+    
+    The manager handles any validation (e.g., ID > 0) and raises ResourceError if invalid.
     """
     resource_id = args.id
     delete_resource(resource_id)
