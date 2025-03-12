@@ -1,15 +1,15 @@
 #!/usr/bin/env python
 """
-cli/__main__.py - Aggregated CLI Tools Facade.
+cli/cli_tools.py - Aggregated CLI Tools Facade.
 Provides a unified command-line interface to perform various database operations.
-Now catches and logs VolunteerError and ResourceError exceptions.
+Standardizes the thin-CLI pattern: parse -> delegate -> print/log errors.
 """
 
 import argparse
 import logging
+import sys
 from core.logger_setup import setup_logging
 from core.exceptions import VolunteerError, ResourceError
-import sys
 
 from cli.volunteers_cli import list_volunteers_cli, add_volunteer_cli, list_deleted_volunteers_cli
 from cli.events_cli import list_events_cli, list_event_speakers_cli
@@ -35,13 +35,10 @@ def remove_resource_cli(args: argparse.Namespace):
     """
     original_remove_resource_cli(args)
 
-def main():
+def create_arg_parser() -> argparse.ArgumentParser:
     """
-    main - Parse command-line arguments and dispatch to the appropriate CLI function.
-    Catches VolunteerError and ResourceError to log errors and exit.
+    create_arg_parser - Builds and returns the main argument parser with all subcommands.
     """
-    setup_logging()
-
     parser = argparse.ArgumentParser(description="Aggregated CLI Tools for database operations.")
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
     
@@ -78,31 +75,46 @@ def main():
     # Tasks command
     subparsers.add_parser("list-tasks", help="List all tasks")
     
+    return parser
+
+def _dispatch_subcommand(args: argparse.Namespace, parser: argparse.ArgumentParser):
+    """
+    _dispatch_subcommand - Checks which subcommand is invoked and calls the appropriate CLI function.
+    If no command is provided, prints parser help.
+    """
+    if args.command == "list-volunteers":
+        list_volunteers_cli()
+    elif args.command == "add-volunteer":
+        add_volunteer_cli(args)
+    elif args.command == "list-deleted-volunteers":
+        list_deleted_volunteers_cli()
+    elif args.command == "list-events":
+        list_events_cli()
+    elif args.command == "list-event-speakers":
+        list_event_speakers_cli()
+    elif args.command == "list-logs":
+        list_logs_cli()
+    elif args.command == "list-resources":
+        list_resources_cli()
+    elif args.command == "add-resource":
+        add_resource_cli(args)
+    elif args.command == "remove-resource":
+        remove_resource_cli(args)
+    elif args.command == "list-tasks":
+        list_tasks_cli()
+    else:
+        parser.print_help()
+
+def main():
+    """
+    main - Entry point: setup logging, parse CLI args, dispatch subcommand, handle manager-level errors.
+    """
+    setup_logging()
+    parser = create_arg_parser()
     args = parser.parse_args()
     
     try:
-        if args.command == "list-volunteers":
-            list_volunteers_cli()
-        elif args.command == "add-volunteer":
-            add_volunteer_cli(args)
-        elif args.command == "list-deleted-volunteers":
-            list_deleted_volunteers_cli()
-        elif args.command == "list-events":
-            list_events_cli()
-        elif args.command == "list-event-speakers":
-            list_event_speakers_cli()
-        elif args.command == "list-logs":
-            list_logs_cli()
-        elif args.command == "list-resources":
-            list_resources_cli()
-        elif args.command == "add-resource":
-            add_resource_cli(args)
-        elif args.command == "remove-resource":
-            remove_resource_cli(args)
-        elif args.command == "list-tasks":
-            list_tasks_cli()
-        else:
-            parser.print_help()
+        _dispatch_subcommand(args, parser)
     except (VolunteerError, ResourceError) as e:
         logger.error(f"Error: {e}")
         sys.exit(1)
@@ -113,4 +125,4 @@ def main():
 if __name__ == "__main__":
     main()
 
-# End of cli/__main__.py
+# End of cli/cli_tools.py
