@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 """
-plugins/commands/event.py - Event command plugins - Handles event creation and management including listing, planning, editing, and removing events.
+plugins/commands/event.py - Event command plugins.
+Leverages managers.event_manager for all event-related CRUD logic,
+ensuring a single source of truth shared with CLI code.
 """
 
 import logging
@@ -15,11 +17,11 @@ from parsers.plugin_arg_parser import (
     RemoveEventByTitleModel,
     validate_model
 )
-from pydantic import ValidationError
-from parsers.argument_parser import parse_plugin_arguments
 from managers.event_manager import (
     list_all_events, create_event, update_event, delete_event, get_event
 )
+from pydantic import ValidationError
+from parsers.argument_parser import parse_plugin_arguments
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +29,8 @@ logger = logging.getLogger(__name__)
 def event_command(args: str, sender: str, state_machine: BotStateMachine,
                   msg_timestamp: Optional[int] = None) -> str:
     """
-    event - List all upcoming events. No arguments required.
+    event - Lists upcoming events by calling managers.event_manager.list_all_events().
+    Also used by CLI subcommands for listing events.
     """
     try:
         events = list_all_events()
@@ -51,7 +54,8 @@ def event_command(args: str, sender: str, state_machine: BotStateMachine,
 def plan_event_command(args: str, sender: str, state_machine: BotStateMachine,
                        msg_timestamp: Optional[int] = None) -> str:
     """
-    plan event - Create a new event using comma-separated key:value pairs.
+    plan event - Create a new event by calling managers.event_manager.create_event(...).
+    Shares the same manager logic as the CLI, ensuring consistent behavior.
     """
     try:
         lowered = args.strip().lower()
@@ -105,7 +109,8 @@ def plan_event_command(args: str, sender: str, state_machine: BotStateMachine,
 def edit_event_command(args: str, sender: str, state_machine: BotStateMachine,
                        msg_timestamp: Optional[int] = None) -> str:
     """
-    edit event - Update an existing event, must include "EventID: <id>" in comma-separated kv pairs.
+    edit event - Update an existing event by calling managers.event_manager.update_event(...).
+    Uses the same manager logic as the CLI subcommand.
     """
     try:
         if not args.strip():
@@ -131,11 +136,7 @@ def edit_event_command(args: str, sender: str, state_machine: BotStateMachine,
             "description": parts.get("description"),
         }
 
-        try:
-            validated = validate_model(data, EditEventModel, "edit event: provide valid EventID and fields")
-        except PluginArgError:
-            return "Invalid EventID provided."
-
+        validated = validate_model(data, EditEventModel, "edit event: provide valid EventID and fields")
         existing_event = get_event(validated.event_id)
         if not existing_event:
             return f"No event found with ID {validated.event_id} to edit."
@@ -168,8 +169,8 @@ def edit_event_command(args: str, sender: str, state_machine: BotStateMachine,
 def remove_event_command(args: str, sender: str, state_machine: BotStateMachine,
                          msg_timestamp: Optional[int] = None) -> str:
     """
-    remove event - Delete an existing event.
-    Usage: "EventID: <id>" or "Title: <event title>" in comma-separated kv pairs.
+    remove event - Delete an existing event by calling managers.event_manager.delete_event(...).
+    Mirrors the same manager calls used by the CLI.
     """
     try:
         if not args.strip():
@@ -185,11 +186,7 @@ def remove_event_command(args: str, sender: str, state_machine: BotStateMachine,
 
         if "eventid" in parts:
             data = {"event_id": parts["eventid"]}
-            try:
-                validated = validate_model(data, RemoveEventByIdModel, "remove event: provide valid EventID")
-            except PluginArgError:
-                return "Invalid EventID provided."
-
+            validated = validate_model(data, RemoveEventByIdModel, "remove event: provide valid EventID")
             existing = get_event(validated.event_id)
             if not existing:
                 return f"No event found with ID {validated.event_id}."

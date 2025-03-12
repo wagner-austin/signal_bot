@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 """
-plugins/commands/resource.py - Resource command plugins - Manages shared resource links for the bot.
-Now matches negative-test expectations by interpreting a single token that starts with 'http' as no category provided,
-and converts HttpUrl -> str before DB insertion.
+plugins/commands/resource.py - Resource command plugins.
+Manages shared resource links by calling managers.resources_manager for all logic.
 """
 
 import logging
@@ -10,14 +9,10 @@ from typing import Optional
 from plugins.manager import plugin
 from core.state import BotStateMachine
 from core.database.resources import add_resource, list_resources, remove_resource
-from parsers.plugin_arg_parser import (
-    PluginArgError,
-    ResourceAddModel,
-    ResourceListModel,
-    ResourceRemoveModel
-)
-from pydantic import ValidationError
+from managers.resources_manager import create_resource, list_all_resources, delete_resource
 from parsers.argument_parser import parse_plugin_arguments
+from parsers.plugin_arg_parser import PluginArgError
+from pydantic import ValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -25,12 +20,15 @@ logger = logging.getLogger(__name__)
 def resource_command(args: str, sender: str, state_machine: BotStateMachine,
                      msg_timestamp: Optional[int] = None) -> str:
     """
-    resource - Manage shared resource links.
+    resource - Manage shared resource links via managers.resources_manager.
     
     Subcommands:
       add <category> <url> [title?]
       list [<category>]
       remove <resource_id>
+    
+    All underlying creation/removal/listing logic is in managers.resources_manager.
+    This plugin only parses arguments and calls that manager as the 'source of truth'.
     """
     try:
         parsed_main = parse_plugin_arguments(args, mode='positional', maxsplit=1)
@@ -68,26 +66,15 @@ def resource_command(args: str, sender: str, state_machine: BotStateMachine,
 
             title = " ".join(add_tokens[2:]) if len(add_tokens) > 2 else ""
 
-            data = {
-                "category": category,
-                "url": url_str,
-                "title": title
-            }
-            try:
-                validated = ResourceAddModel.model_validate(data)
-            except ValidationError:
-                return "Error: URL must start with 'http'"
-
-            resource_id = add_resource(validated.category, str(validated.url), validated.title)
+            resource_id = create_resource(category, url_str, title)
             return f"Resource added with ID {resource_id}."
 
         elif subcommand == "list":
             data = {"category": rest.strip()} if rest.strip() else {}
-            validated = ResourceListModel.model_validate(data)
-            resources = list_resources(validated.category)
+            resources = list_all_resources(data["category"]) if "category" in data else list_all_resources()
             if not resources:
-                if validated.category:
-                    return f"No resources found in category '{validated.category}'."
+                if data.get("category"):
+                    return f"No resources found in category '{data['category']}'."
                 else:
                     return "No resources found."
             response = "Resources:\n"
@@ -99,14 +86,14 @@ def resource_command(args: str, sender: str, state_machine: BotStateMachine,
             if not rest.strip():
                 raise PluginArgError("Usage: @bot resource remove <resource_id>")
 
-            data = {"id": rest.strip()}
+            resource_id_str = rest.strip()
             try:
-                validated = ResourceRemoveModel.model_validate(data)
-            except ValidationError:
+                resource_id = int(resource_id_str)
+            except ValueError:
                 return "Error: Resource ID must be a positive integer."
 
-            remove_resource(validated.id)
-            return f"Resource with ID {validated.id} removed."
+            delete_resource(resource_id)
+            return f"Resource with ID {resource_id} removed."
 
         else:
             raise PluginArgError("Invalid subcommand. Use add, list, or remove.")

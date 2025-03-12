@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 """
-plugins/commands/task.py - Task command plugins - Manages shared to-do tasks with consistent argument validation and error logging.
-This module now uses local imports for task manager functions to avoid circular import issues.
+plugins/commands/task.py - Task command plugins.
+Manages shared to-do items by calling managers.task_manager for add/list/assign/close,
+ensuring a single source of truth shared with CLI code.
 """
 
 from typing import Optional
@@ -22,13 +23,14 @@ logger = logging.getLogger(__name__)
 @plugin('task', canonical='task')
 def task_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
-    task - Manage shared to-do tasks.
-    
+    task - Manage shared to-do tasks by calling managers.task_manager.
     Subcommands:
-      add <description>                   : Add a new task.
-      list                                : List all tasks.
-      assign <task_id> <volunteer>        : Assign a task to a volunteer by display name.
-      close <task_id>                     : Close a task.
+      add <description>
+      list
+      assign <task_id> <volunteer>
+      close <task_id>
+    
+    This plugin is the same 'source of truth' used by the CLI, via managers.task_manager.
     """
     try:
         parsed_main = parse_plugin_arguments(args, mode='positional')
@@ -45,17 +47,17 @@ def task_command(args: str, sender: str, state_machine: BotStateMachine, msg_tim
         subcommand = tokens[0].lower()
         rest = tokens[1:] if len(tokens) > 1 else []
 
+        # Local import to avoid circular references
+        from managers.task_manager import create_task, list_all_tasks, assign_task, close_task
+
         if subcommand == "add":
             if not rest:
                 raise PluginArgError("Usage: @bot task add <description>")
             validated = validate_model({"description": " ".join(rest)}, TaskAddModel, "task add <description>")
-            # Local import to break circular dependency.
-            from managers.task_manager import create_task
             task_id = create_task(sender, validated.description)
             return f"Task added with ID {task_id}."
         elif subcommand == "list":
-            from managers.task_manager import _fetch_tasks
-            tasks = _fetch_tasks()
+            tasks = list_all_tasks()
             if not tasks:
                 return "No tasks found."
             response_lines = ["Tasks:"]
@@ -68,16 +70,8 @@ def task_command(args: str, sender: str, state_machine: BotStateMachine, msg_tim
         elif subcommand == "assign":
             if len(rest) < 2:
                 raise PluginArgError("Usage: @bot task assign <task_id> <volunteer_display_name>")
-            try:
-                validated = validate_model(
-                    {"task_id": rest[0], "volunteer_display_name": " ".join(rest[1:])},
-                    TaskAssignModel,
-                    "task assign <task_id> <volunteer_display_name>"
-                )
-            except PluginArgError as e:
-                logger.warning(f"task_command PluginArgError in assign subcommand: {e}")
-                return "invalid task_id"
-            from managers.task_manager import assign_task
+            data = {"task_id": rest[0], "volunteer_display_name": " ".join(rest[1:])}
+            validated = validate_model(data, TaskAssignModel, "task assign <task_id> <volunteer_display_name>")
             error = assign_task(validated.task_id, validated.volunteer_display_name)
             if error:
                 return error
@@ -85,12 +79,8 @@ def task_command(args: str, sender: str, state_machine: BotStateMachine, msg_tim
         elif subcommand == "close":
             if not rest:
                 raise PluginArgError("Usage: @bot task close <task_id>")
-            try:
-                validated = validate_model({"task_id": rest[0]}, TaskCloseModel, "task close <task_id>")
-            except PluginArgError as e:
-                logger.warning(f"task_command PluginArgError in close subcommand: {e}")
-                return "invalid task_id"
-            from managers.task_manager import close_task
+            data = {"task_id": rest[0]}
+            validated = validate_model(data, TaskCloseModel, "task close <task_id>")
             close_task(validated.task_id)
             return f"Task {validated.task_id} has been closed."
         else:

@@ -1,17 +1,20 @@
 #!/usr/bin/env python
 """
-plugins/commands/volunteer.py - Volunteer command plugins - Provides commands for volunteer registration, status, editing, deletion, skill display, and updates.
+plugins/commands/volunteer.py - Volunteer command plugins.
+Calls managers.volunteer_manager as the single source of truth for registering,
+editing, deleting, skill updates, etc., shared with CLI code.
 """
 
 from typing import Optional
 from plugins.manager import plugin
 from core.state import BotStateMachine
-from core.database.volunteers import get_volunteer_record
+from core.messages import (
+    REGISTRATION_PROMPT, ALREADY_REGISTERED, EDIT_PROMPT,
+    DELETION_PROMPT
+)
 from managers.volunteer_manager import VOLUNTEER_MANAGER
 from managers.pending_actions import PENDING_ACTIONS
-from core.messages import (
-    REGISTRATION_PROMPT, ALREADY_REGISTERED, EDIT_PROMPT, DELETION_PROMPT
-)
+from core.constants import SKIP_VALUES
 from parsers.argument_parser import parse_plugin_arguments
 from parsers.plugin_arg_parser import (
     PluginArgError,
@@ -26,7 +29,10 @@ logger = logging.getLogger(__name__)
 @plugin('volunteer status', canonical='volunteer status')
 def volunteer_status_command(args: str, sender: str, state_machine: BotStateMachine,
                              msg_timestamp: Optional[int] = None) -> str:
-    """ volunteer status - Display the current status of all volunteers. """
+    """
+    volunteer status - Display the current volunteer status by calling VOLUNTEER_MANAGER.volunteer_status().
+    Same manager logic as CLI 'list-volunteers' or similar.
+    """
     try:
         return VOLUNTEER_MANAGER.volunteer_status()
     except Exception as e:
@@ -36,7 +42,9 @@ def volunteer_status_command(args: str, sender: str, state_machine: BotStateMach
 @plugin('check in', canonical='check in')
 def check_in_command(args: str, sender: str, state_machine: BotStateMachine,
                      msg_timestamp: Optional[int] = None) -> str:
-    """ check in - Check in a volunteer (the sender). """
+    """
+    check in - Marks a volunteer as available by calling VOLUNTEER_MANAGER.check_in().
+    """
     try:
         return VOLUNTEER_MANAGER.check_in(sender)
     except Exception as e:
@@ -47,11 +55,11 @@ def check_in_command(args: str, sender: str, state_machine: BotStateMachine,
 def register_command(args: str, sender: str, state_machine: BotStateMachine,
                      msg_timestamp: Optional[int] = None) -> str:
     """
-    register - Interactive volunteer registration command.
-    If invoked with arguments, directly registers. Else sets pending registration.
+    register - Interactive volunteer registration command that calls VOLUNTEER_MANAGER.register_volunteer.
+    Mirrors CLI code but no duplication of logic.
     """
     try:
-        record = get_volunteer_record(sender)
+        record = VOLUNTEER_MANAGER.list_all_volunteers().get(sender)
         if args.strip():
             if record:
                 return ALREADY_REGISTERED.format(name=record['name'])
@@ -80,11 +88,11 @@ def register_command(args: str, sender: str, state_machine: BotStateMachine,
 def edit_command(args: str, sender: str, state_machine: BotStateMachine,
                  msg_timestamp: Optional[int] = None) -> str:
     """
-    edit - Edit your registered name.
-    If no arguments are provided, initiates an interactive edit; else updates name.
+    edit - Edit your registered name. Relies on VOLUNTEER_MANAGER.register_volunteer for changes,
+    ensuring no duplication with CLI.
     """
     try:
-        record = get_volunteer_record(sender)
+        record = VOLUNTEER_MANAGER.list_all_volunteers().get(sender)
         if not record:
             PENDING_ACTIONS.set_registration(sender, "register")
             return REGISTRATION_PROMPT
@@ -100,7 +108,8 @@ def edit_command(args: str, sender: str, state_machine: BotStateMachine,
 def delete_command(args: str, sender: str, state_machine: BotStateMachine,
                    msg_timestamp: Optional[int] = None) -> str:
     """
-    delete - Delete your registration. Without arguments, asks for deletion confirmation.
+    delete - Initiates volunteer deletion flow, calls VOLUNTEER_MANAGER.delete_volunteer if confirmed.
+    No duplication of manager logic from the CLI.
     """
     try:
         if not args.strip():
@@ -116,8 +125,8 @@ def delete_command(args: str, sender: str, state_machine: BotStateMachine,
 def skills_command(args: str, sender: str, state_machine: BotStateMachine,
                    msg_timestamp: Optional[int] = None) -> str:
     """
-    skills - Display your current skills and list available skills for addition.
-    If not registered, initiates registration.
+    skills - Display your current skills, listing from VOLUNTEER_MANAGER data,
+    and the relevant skill config. Same manager logic as CLI's 'list-volunteers' or skill-adding.
     """
     try:
         from core.database import get_volunteer_record
@@ -145,8 +154,8 @@ def skills_command(args: str, sender: str, state_machine: BotStateMachine,
 def find_command(args: str, sender: str, state_machine: BotStateMachine,
                  msg_timestamp: Optional[int] = None) -> str:
     """
-    find - Finds volunteers with the specified skill(s).
-    Usage: "@bot find <skill1> <skill2> ..."
+    find - Finds volunteers with the specified skill(s) by calling VOLUNTEER_MANAGER logic.
+    Same approach as the CLI 'find' command, no duplication.
     """
     try:
         from core.database import get_all_volunteers
@@ -157,10 +166,10 @@ def find_command(args: str, sender: str, state_machine: BotStateMachine,
         validated = validate_model(data, VolunteerFindModel, "find <skill1> <skill2> ...")
         volunteers = get_all_volunteers()
         matching_volunteers = []
-        for phone, data in volunteers.items():
-            volunteer_skills = [s.lower() for s in data.get("skills", [])]
+        for phone, data_v in volunteers.items():
+            volunteer_skills = [s.lower() for s in data_v.get("skills", [])]
             if all(req in volunteer_skills for req in validated.skills):
-                matching_volunteers.append(data.get("name", phone))
+                matching_volunteers.append(data_v.get("name", phone))
         if matching_volunteers:
             return "Volunteers with specified skills: " + ", ".join(matching_volunteers)
         else:
@@ -176,8 +185,8 @@ def find_command(args: str, sender: str, state_machine: BotStateMachine,
 def add_skills_command(args: str, sender: str, state_machine: BotStateMachine,
                        msg_timestamp: Optional[int] = None) -> str:
     """
-    add skills - Adds skills to your profile.
-    Usage: "@bot add skills <skill1>, <skill2>, ..."
+    add skills - Adds skills to your profile, by calling VOLUNTEER_MANAGER.register_volunteer.
+    Avoid re-implementing logic from CLI; rely on the manager calls.
     """
     try:
         if not args.strip():
