@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 """
-resources_cli.py - CLI tools for resource-related operations.
-Delegates add/remove logic to managers.resources_manager.
+cli/resources_cli.py - CLI tools for resource-related operations.
+Delegates listing, adding, and removing logic to managers.resources_manager,
+using print_results + format_resource for consistent listing output.
 """
 
 import argparse
@@ -18,16 +19,15 @@ logger = logging.getLogger(__name__)
 
 def list_resources_cli():
     """
-    list_resources_cli - List all resource records by calling managers.resources_manager.list_all_resources().
+    list_resources_cli - Lists all resource records by calling managers.resources_manager.list_all_resources(),
+    printing them via print_results + format_resource.
     """
     print_results(list_all_resources(), format_resource, "No resources found.")
 
 def add_resource_cli(args: argparse.Namespace):
     """
-    add_resource_cli - Parses CLI arguments, then calls the manager to create a new resource.
-    
-    The manager handles any validation (e.g., URL must start with http) and
-    raises ResourceError if invalid.
+    add_resource_cli - Minimal parse. Manager handles validation.
+    Prints a simple success message with the new resource ID.
     """
     category = args.category
     url = args.url
@@ -37,9 +37,8 @@ def add_resource_cli(args: argparse.Namespace):
 
 def remove_resource_cli(args: argparse.Namespace):
     """
-    remove_resource_cli - Parses CLI arguments, then calls the manager to delete a resource by ID.
-    
-    The manager handles any validation (e.g., ID > 0) and raises ResourceError if invalid.
+    remove_resource_cli - Minimal parse. Manager handles validation.
+    Prints a simple confirmation on success.
     """
     resource_id = args.id
     delete_resource(resource_id)
