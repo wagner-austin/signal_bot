@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 """
-plugins/commands/system.py --- System command plugins.
-Now uses Pydantic-based argument validation for the 'assign' subcommand via the unified validate_model helper.
+plugins/commands/system.py - System command plugins - Provides system-level commands such as assign, test, shutdown, info, weekly update, and theme.
 """
 
+import logging
 from typing import Optional
 from plugins.manager import plugin
 from core.state import BotStateMachine
@@ -17,9 +17,10 @@ from parsers.plugin_arg_parser import (
     validate_model
 )
 
+logger = logging.getLogger(__name__)
+
 @plugin('assign', canonical='assign')
-def assign_command(args: str, sender: str, state_machine: BotStateMachine,
-                   msg_timestamp: Optional[int] = None) -> str:
+def assign_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
     assign - Assign a volunteer based on a required skill.
     Usage: "@bot assign <Skill Name>"
@@ -36,11 +37,14 @@ def assign_command(args: str, sender: str, state_machine: BotStateMachine,
             return f"{validated.skill} assigned to {volunteer}."
         return f"No available volunteer for {validated.skill}."
     except PluginArgError as e:
+        logger.warning(f"assign_command PluginArgError: {e}")
         return str(e)
+    except Exception as e:
+        logger.error(f"assign_command unexpected error: {e}", exc_info=True)
+        return "An internal error occurred in assign_command."
 
 @plugin('test', canonical='test')
-def plugin_test_command(args: str, sender: str, state_machine: BotStateMachine,
-                        msg_timestamp: Optional[int] = None) -> str:
+def plugin_test_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
     test - Test command for verifying bot response.
     Usage: "@bot test"
@@ -52,11 +56,14 @@ def plugin_test_command(args: str, sender: str, state_machine: BotStateMachine,
             raise PluginArgError("Usage: @bot test")
         return "yes"
     except PluginArgError as e:
+        logger.warning(f"plugin_test_command PluginArgError: {e}")
         return str(e)
+    except Exception as e:
+        logger.error(f"plugin_test_command unexpected error: {e}", exc_info=True)
+        return "An internal error occurred in plugin_test_command."
 
 @plugin('shutdown', canonical='shutdown')
-def shutdown_command(args: str, sender: str, state_machine: BotStateMachine,
-                     msg_timestamp: Optional[int] = None) -> str:
+def shutdown_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
     shutdown - Shut down the bot gracefully.
     If extra arguments are provided, usage error.
@@ -69,11 +76,14 @@ def shutdown_command(args: str, sender: str, state_machine: BotStateMachine,
         state_machine.shutdown()
         return "Bot is shutting down."
     except PluginArgError as e:
+        logger.warning(f"shutdown_command PluginArgError: {e}")
         return str(e)
+    except Exception as e:
+        logger.error(f"shutdown_command unexpected error: {e}", exc_info=True)
+        return "An internal error occurred in shutdown_command."
 
 @plugin('info', canonical='info')
-def info_command(args: str, sender: str, state_machine: BotStateMachine,
-                 msg_timestamp: Optional[int] = None) -> str:
+def info_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
     info - Provides a brief overview of the 50501 OC Grassroots Movement.
     Usage: "@bot info"
@@ -90,11 +100,14 @@ def info_command(args: str, sender: str, state_machine: BotStateMachine,
             "through peaceful, visible, and sustained engagement."
         )
     except PluginArgError as e:
+        logger.warning(f"info_command PluginArgError: {e}")
         return str(e)
+    except Exception as e:
+        logger.error(f"info_command unexpected error: {e}", exc_info=True)
+        return "An internal error occurred in info_command."
 
 @plugin('weekly update', canonical='weekly update')
-def weekly_update_command(args: str, sender: str, state_machine: BotStateMachine,
-                          msg_timestamp: Optional[int] = None) -> str:
+def weekly_update_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
     weekly update - Provides a summary of Trump's actions and Democrat advances this week.
     """
@@ -109,11 +122,14 @@ def weekly_update_command(args: str, sender: str, state_machine: BotStateMachine
             "Democrat Advances:\n - Pushed key legislation, local election wins.\n"
         )
     except PluginArgError as e:
+        logger.warning(f"weekly_update_command PluginArgError: {e}")
         return str(e)
+    except Exception as e:
+        logger.error(f"weekly_update_command unexpected error: {e}", exc_info=True)
+        return "An internal error occurred in weekly_update_command."
 
 @plugin('theme', canonical='theme')
-def theme_command(args: str, sender: str, state_machine: BotStateMachine,
-                  msg_timestamp: Optional[int] = None) -> str:
+def theme_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
     theme - Displays the important theme for this week.
     Usage: "@bot theme"
@@ -123,56 +139,12 @@ def theme_command(args: str, sender: str, state_machine: BotStateMachine,
         tokens = parsed["tokens"]
         if tokens:
             raise PluginArgError("Usage: @bot theme")
-        return (
-            "This Week's Theme:\n"
-            "Community Engagement & Accountability."
-        )
+        return "This week's theme is: [Insert theme here]."
     except PluginArgError as e:
+        logger.warning(f"theme_command PluginArgError: {e}")
         return str(e)
-
-@plugin('plan theme', canonical='plan theme')
-def plan_theme_command(args: str, sender: str, state_machine: BotStateMachine,
-                       msg_timestamp: Optional[int] = None) -> str:
-    """
-    plan theme - Helps set or plan this week's theme.
-    Usage: "@bot plan theme"
-    """
-    try:
-        parsed = parse_plugin_arguments(args, mode='positional')
-        tokens = parsed["tokens"]
-        if tokens:
-            raise PluginArgError("Usage: @bot plan theme")
-        return (
-            "Plan Theme:\n"
-            "Provide the new theme in a format: 'Theme: <description>'."
-        )
-    except PluginArgError as e:
-        return str(e)
-
-@plugin('status', canonical='status')
-def status_command(args: str, sender: str, state_machine: BotStateMachine,
-                   msg_timestamp: Optional[int] = None) -> str:
-    """
-    status - Displays system status including messages per hour, total messages sent, and uptime.
-    Usage: "@bot status"
-    """
-    try:
-        parsed = parse_plugin_arguments(args, mode='positional')
-        tokens = parsed["tokens"]
-        if tokens:
-            raise PluginArgError("Usage: @bot status")
-        uptime_seconds = get_uptime()
-        uptime_hours = uptime_seconds / 3600 if uptime_seconds > 0 else 0
-        sent = core.metrics.messages_sent
-        mph = sent if uptime_hours < 1 else sent / uptime_hours
-        return (
-            f"Status:\n"
-            f"Messages sent: {sent}\n"
-            f"Uptime: {uptime_seconds:.0f} seconds (~{uptime_hours:.2f} hours)\n"
-            f"Messages per hour: {mph:.2f}\n"
-            f"System: operational."
-        )
-    except PluginArgError as e:
-        return str(e)
+    except Exception as e:
+        logger.error(f"theme_command unexpected error: {e}", exc_info=True)
+        return "An internal error occurred in theme_command."
 
 # End of plugins/commands/system.py

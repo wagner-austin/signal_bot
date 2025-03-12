@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 """
-plugins/commands/task.py --- Task command plugins, now catching invalid integer parsing explicitly.
-Uses unified validate_model for consistent argument validation.
+plugins/commands/task.py - Task command plugins - Manages shared to-do tasks with consistent argument validation and error logging.
 """
 
 from typing import Optional
@@ -16,10 +15,12 @@ from parsers.plugin_arg_parser import (
     TaskCloseModel,
     validate_model
 )
+import logging
+
+logger = logging.getLogger(__name__)
 
 @plugin('task', canonical='task')
-def task_command(args: str, sender: str, state_machine: BotStateMachine,
-                 msg_timestamp: Optional[int] = None) -> str:
+def task_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
     task - Manage shared to-do tasks.
     
@@ -70,7 +71,8 @@ def task_command(args: str, sender: str, state_machine: BotStateMachine,
                     TaskAssignModel,
                     "task assign <task_id> <volunteer_display_name>"
                 )
-            except PluginArgError:
+            except PluginArgError as e:
+                logger.warning(f"task_command PluginArgError in assign subcommand: {e}")
                 return "invalid task_id"
             error = assign_task(validated.task_id, validated.volunteer_display_name)
             if error:
@@ -81,13 +83,18 @@ def task_command(args: str, sender: str, state_machine: BotStateMachine,
                 raise PluginArgError("Usage: @bot task close <task_id>")
             try:
                 validated = validate_model({"task_id": rest[0]}, TaskCloseModel, "task close <task_id>")
-            except PluginArgError:
+            except PluginArgError as e:
+                logger.warning(f"task_command PluginArgError in close subcommand: {e}")
                 return "invalid task_id"
             close_task(validated.task_id)
             return f"Task {validated.task_id} has been closed."
         else:
             raise PluginArgError("Invalid subcommand for task. Use add, list, assign, or close.")
     except PluginArgError as e:
+        logger.warning(f"task_command PluginArgError: {e}")
         return str(e)
+    except Exception as e:
+        logger.error(f"task_command unexpected error: {e}", exc_info=True)
+        return "An internal error occurred in task_command."
 
 # End of plugins/commands/task.py
