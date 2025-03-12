@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 """
-managers/volunteer/volunteer_operations.py --- Volunteer operations.
-Renamed sign_up -> register_volunteer for consistency.
+volunteer_operations.py
+-----------------------
+Volunteer operations. Renamed sign_up -> register_volunteer for consistency.
 """
 
 import logging
@@ -16,21 +17,18 @@ from managers.volunteer.volunteer_common import normalize_name
 from core.transaction import atomic_transaction
 from core.concurrency import per_phone_lock
 from core.exceptions import VolunteerError
+from core.validators import validate_phone_number
 
 logger = logging.getLogger(__name__)
-
-PHONE_REGEX = re.compile(r'^\+?\d{7,15}$')
 
 def register_volunteer(phone: str, name: str, skills: List[str], available: bool = True,
                        current_role: Optional[str] = None) -> str:
     """
     register_volunteer - Creates/updates a volunteer in an atomic transaction.
-    Raises VolunteerError if phone is invalid or an exception occurs.
+    Raises VolunteerError if phone is invalid or an unexpected error occurs.
     """
-    if not phone or not PHONE_REGEX.match(phone):
-        msg = f"Invalid phone number format. Provided: {phone}"
-        logger.error(msg)
-        raise VolunteerError(msg)
+    # Unified phone validation
+    validate_phone_number(phone)
 
     try:
         with per_phone_lock(phone):
