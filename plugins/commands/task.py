@@ -50,12 +50,12 @@ def task_command(args: str, sender: str, state_machine: BotStateMachine, msg_tim
                 raise PluginArgError("Usage: @bot task add <description>")
             validated = validate_model({"description": " ".join(rest)}, TaskAddModel, "task add <description>")
             # Local import to break circular dependency.
-            from managers.task_manager import add_task
-            task_id = add_task(sender, validated.description)
+            from managers.task_manager import create_task
+            task_id = create_task(sender, validated.description)
             return f"Task added with ID {task_id}."
         elif subcommand == "list":
-            from managers.task_manager import list_tasks
-            tasks = list_tasks()
+            from managers.task_manager import _fetch_tasks
+            tasks = _fetch_tasks()
             if not tasks:
                 return "No tasks found."
             response_lines = ["Tasks:"]

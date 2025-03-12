@@ -18,7 +18,7 @@ from parsers.plugin_arg_parser import (
 from pydantic import ValidationError
 from parsers.argument_parser import parse_plugin_arguments
 from managers.event_manager import (
-    list_events, create_event, update_event, delete_event, get_event
+    list_all_events, create_event, update_event, delete_event, get_event
 )
 
 logger = logging.getLogger(__name__)
@@ -30,7 +30,7 @@ def event_command(args: str, sender: str, state_machine: BotStateMachine,
     event - List all upcoming events. No arguments required.
     """
     try:
-        events = list_events()
+        events = list_all_events()
         if not events:
             return "No upcoming events found."
         response = "Upcoming Events:\n"
@@ -198,7 +198,7 @@ def remove_event_command(args: str, sender: str, state_machine: BotStateMachine,
         elif "title" in parts:
             data = {"title": parts["title"]}
             validated = validate_model(data, RemoveEventByTitleModel, "remove event: provide a title")
-            events = list_events()
+            events = list_all_events()
             found_id = None
             for ev in events:
                 if ev.get("title", "").lower() == validated.title.lower():

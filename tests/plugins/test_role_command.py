@@ -6,7 +6,7 @@ Verifies listing roles, set/switch/unassign operations, and usage for invalid su
 
 import pytest
 from core.state import BotStateMachine
-from managers.volunteer.volunteer_operations import sign_up
+from managers.volunteer.volunteer_operations import register_volunteer
 from managers.volunteer.volunteer_roles import get_volunteer_record
 from plugins.commands.role import role_command
 
@@ -45,7 +45,7 @@ def test_role_set_command_success():
     """
     sender = "+70000000011"
     # Register volunteer with required skills for "greeter": communication + interpersonal
-    sign_up(sender, "Role Tester", ["communication", "interpersonal"], True, None)
+    register_volunteer(sender, "Role Tester", ["communication", "interpersonal"], True, None)
     state_machine = BotStateMachine()
     response = call_role_command("set greeter", sender, state_machine)
     assert "preferred role has been set to 'greeter'" in response.lower()
@@ -58,7 +58,7 @@ def test_role_switch_command_success():
     """
     sender = "+70000000013"
     # Register volunteer with enough skills for both greeter + emcee
-    sign_up(sender, "Role Tester 3", ["communication", "interpersonal", "public speaking"], True, "greeter")
+    register_volunteer(sender, "Role Tester 3", ["communication", "interpersonal", "public speaking"], True, "greeter")
     state_machine = BotStateMachine()
     response = call_role_command("switch emcee", sender, state_machine)
     assert "switching from 'greeter' to 'emcee'" in response.lower()
@@ -70,7 +70,7 @@ def test_role_unassign_command():
     Tests unassigning a role entirely.
     """
     sender = "+70000000014"
-    sign_up(sender, "Role Tester 4", ["communication", "interpersonal"], True, "greeter")
+    register_volunteer(sender, "Role Tester 4", ["communication", "interpersonal"], True, "greeter")
     state_machine = BotStateMachine()
     response = call_role_command("unassign", sender, state_machine)
     assert "cleared" in response.lower()

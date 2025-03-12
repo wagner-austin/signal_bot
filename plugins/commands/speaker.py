@@ -12,7 +12,7 @@ from plugins.manager import plugin
 from core.state import BotStateMachine
 from parsers.argument_parser import parse_plugin_arguments
 from parsers.plugin_arg_parser import PluginArgError
-from managers.event_manager import list_events, assign_speaker, remove_speaker
+from managers.event_manager import list_all_events, assign_speaker, remove_speaker
 import logging
 
 logger = logging.getLogger(__name__)
@@ -27,7 +27,7 @@ def add_speaker_command(args: str, sender: str, state_machine: BotStateMachine, 
         parts = parse_plugin_arguments(args, mode='kv')["kv"]
         if "event" in parts:
             event_title = parts["event"]
-            events = list_events()
+            events = list_all_events()
             event_id = None
             for event in events:
                 if event.get("title", "").lower() == event_title.lower():
@@ -36,7 +36,7 @@ def add_speaker_command(args: str, sender: str, state_machine: BotStateMachine, 
             if event_id is None:
                 return f"No event found with title '{event_title}'."
         else:
-            events = list_events()
+            events = list_all_events()
             if not events:
                 return "No upcoming events found to assign a speaker."
             event_id = events[0].get("event_id")
@@ -65,7 +65,7 @@ def remove_speaker_command(args: str, sender: str, state_machine: BotStateMachin
         parts = parse_plugin_arguments(args, mode='kv')["kv"]
         if "event" in parts:
             event_title = parts["event"]
-            events = list_events()
+            events = list_all_events()
             event_id = None
             for event in events:
                 if event.get("title", "").lower() == event_title.lower():
@@ -74,7 +74,7 @@ def remove_speaker_command(args: str, sender: str, state_machine: BotStateMachin
             if event_id is None:
                 return f"No event found with title '{event_title}'."
         else:
-            events = list_events()
+            events = list_all_events()
             if not events:
                 return "No upcoming events found."
             event_id = events[0].get("event_id")

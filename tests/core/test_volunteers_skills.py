@@ -15,7 +15,7 @@ from core.database.volunteers import (
     get_volunteer_record,
     delete_volunteer_record
 )
-from managers.volunteer.volunteer_operations import sign_up
+from managers.volunteer.volunteer_operations import register_volunteer
 
 
 def test_serialize_skills_empty():
@@ -57,10 +57,8 @@ def test_duplicate_skills_unified():
     # Repeated skill strings: "Python", "python", "PYTHON", " python "
     # plus duplicates "sql", "SQL"
     skill_list = ["Python", "python", "PYTHON", " python ", "sql", "SQL", "SQL"]
-    # The earliest typed form for python is "Python"
-    # The earliest typed form for sql is "sql"
 
-    sign_up(phone, "DupSkillTester", skill_list, True, None)
+    register_volunteer(phone, "DupSkillTester", skill_list, True, None)
     record = get_volunteer_record(phone)
     assert record is not None
 

@@ -7,7 +7,7 @@ Verifies event CRUD and speaker management functions using the event manager fun
 import pytest
 import logging
 from managers.event_manager import (
-    create_event, update_event, list_events, get_event,
+    create_event, update_event, list_all_events, get_event,
     delete_event, assign_speaker, list_speakers, remove_speaker
 )
 
@@ -33,7 +33,7 @@ def test_update_event():
 
 def test_list_and_delete_event():
     event_id = create_event("Event to Delete", "2025-03-09", "2-4PM", "Test Venue", "Description")
-    events = list_events()
+    events = list_all_events()
     assert any(e.get("event_id") == event_id for e in events)
     delete_event(event_id)
     assert get_event(event_id) is None

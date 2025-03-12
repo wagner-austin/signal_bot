@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 """
 managers/volunteer/volunteer_operations.py --- Volunteer operations.
-Provides functions for volunteer registration, check‑in, and deletion.
-Now raises VolunteerError instead of returning error strings.
+Renamed sign_up -> register_volunteer for consistency.
 """
 
 import logging
@@ -20,27 +19,13 @@ from core.exceptions import VolunteerError
 
 logger = logging.getLogger(__name__)
 
-# A basic phone regex that allows optional leading '+' and 7-15 digits.
 PHONE_REGEX = re.compile(r'^\+?\d{7,15}$')
 
-def sign_up(phone: str, name: str, skills: List[str], available: bool = True,
-            current_role: Optional[str] = None) -> str:
+def register_volunteer(phone: str, name: str, skills: List[str], available: bool = True,
+                       current_role: Optional[str] = None) -> str:
     """
-    sign_up - Registers/updates a volunteer in an atomic transaction.
-    Raises VolunteerError if the phone is invalid or an exception occurs.
-    
-    Args:
-        phone (str): Volunteer phone number (E.164).
-        name (str): Volunteer full name (or 'skip' to remain anonymous).
-        skills (List[str]): List of skill strings to union with existing.
-        available (bool): Availability status.
-        current_role (Optional[str]): If provided, updates volunteer's current role.
-        
-    Returns:
-        str: Success/update message.
-        
-    Raises:
-        VolunteerError: If phone is invalid or an exception occurs during sign-up.
+    register_volunteer - Creates/updates a volunteer in an atomic transaction.
+    Raises VolunteerError if phone is invalid or an exception occurs.
     """
     if not phone or not PHONE_REGEX.match(phone):
         msg = f"Invalid phone number format. Provided: {phone}"
@@ -63,7 +48,6 @@ def sign_up(phone: str, name: str, skills: List[str], available: bool = True,
                     update_volunteer_record(phone, updated_name, list(new_skills), available, new_role, conn=conn)
                     return VOLUNTEER_UPDATED.format(name=updated_name)
                 else:
-                    # Create new record.
                     final_name = "Anonymous" if name.lower() == "skip" or not name.strip() else name
                     final_name = normalize_name(final_name, phone)
                     role_to_set = current_role.strip() if current_role and current_role.strip() else None
@@ -71,15 +55,12 @@ def sign_up(phone: str, name: str, skills: List[str], available: bool = True,
                     add_volunteer_record(phone, final_name, skills, available, role_to_set, role_to_set, conn=conn)
                     return NEW_VOLUNTEER_REGISTERED.format(name=final_name)
     except Exception as e:
-        logger.exception("Error during volunteer sign-up.")
+        logger.exception("Error during volunteer registration.")
         raise VolunteerError(f"An unexpected sign-up exception occurred: {str(e)}")
 
 def delete_volunteer(phone: str) -> str:
     """
     delete_volunteer - Deletes a volunteer's registration.
-    
-    Raises:
-        VolunteerError: If the volunteer is not registered.
     """
     record = get_volunteer_record(phone)
     if not record:
@@ -98,15 +79,6 @@ def delete_volunteer(phone: str) -> str:
 def check_in(phone: str) -> str:
     """
     check_in - Marks a volunteer as available.
-    
-    Args:
-        phone (str): Volunteer phone number.
-        
-    Returns:
-        str: Confirmation message.
-        
-    Raises:
-        VolunteerError: If the volunteer is not found.
     """
     record = get_volunteer_record(phone)
     if record:

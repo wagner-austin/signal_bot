@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 """
 tests/managers/test_logs_manager.py --- Tests for the logs manager.
-Verifies that logs_manager.list_logs() returns a list of command log records.
+Verifies that logs_manager.list_all_logs() returns a list of command log records.
 """
 
-from managers.logs_manager import list_logs
+from managers.logs_manager import list_all_logs
 from core.database.connection import get_connection
 
 def test_logs_manager_list_logs():
@@ -23,7 +23,7 @@ def test_logs_manager_list_logs():
     conn.commit()
     conn.close()
 
-    logs = list_logs()
+    logs = list_all_logs()
     # Verify that logs is a list containing our test log.
     assert isinstance(logs, list)
     assert any("test_command" in log.get("command", "") for log in logs)

@@ -2,7 +2,7 @@
 """
 tests/cli/test_volunteers_cli.py - Tests for volunteer-related CLI commands.
 Verifies volunteer addition, listing, deletion, and update functionalities.
-Delegates listing to VOLUNTEER_MANAGER.list_volunteers() for modularity.
+Delegates listing to VOLUNTEER_MANAGER.list_all_volunteers() for modularity.
 """
 
 from tests.cli.cli_test_helpers import run_cli_command
@@ -74,10 +74,10 @@ def test_volunteer_cli_list_deleted():
 
 def test_volunteer_cli_list_mocked(monkeypatch):
     """
-    Test that the 'list-volunteers' CLI command calls VOLUNTEER_MANAGER.list_volunteers()
+    Test that the 'list-volunteers' CLI command calls VOLUNTEER_MANAGER.list_all_volunteers()
     and outputs the data as expected.
     """
-    # Monkeypatch the list_volunteers method to return a controlled dummy dictionary.
+    # Monkeypatch the list_all_volunteers method to return a controlled dummy dictionary.
     dummy_data = {
         "+3333333333": {
             "name": "Mock Volunteer",
@@ -87,7 +87,7 @@ def test_volunteer_cli_list_mocked(monkeypatch):
             "preferred_role": None
         }
     }
-    monkeypatch.setattr(VOLUNTEER_MANAGER, "list_volunteers", lambda: dummy_data)
+    monkeypatch.setattr(VOLUNTEER_MANAGER, "list_all_volunteers", lambda: dummy_data)
     
     output = run_cli_command(["list-volunteers"])["stdout"]
     assert "Mock Volunteer" in output

@@ -1,23 +1,18 @@
 #!/usr/bin/env python
 """
-core/task_manager.py --- Task Manager for shared to-do items using repository pattern.
-Provides functions to add, list, assign, and close tasks.
-Concurrency Note:
-    The `assign_task` function now uses an atomic transaction to ensure consistent assignment.
-    We rely on SQLite's BEGIN IMMEDIATE to lock the database during task assignment.
-Name Matching Note:
-    The volunteer's name comparison in `assign_task` is case-insensitive.
-    If the DB has 'John Doe', you can assign with 'john doe' or 'JOHN DOE' etc.
+managers/task_manager.py --- Task Manager for shared to-do items.
+Renamed add_task -> create_task; made list_tasks an internal function _fetch_tasks.
 """
 
 from typing import List, Dict, Optional
-from core.database.repository import TaskRepository
 from core.database.helpers import execute_sql
-from core.database.connection import get_connection
-from managers.volunteer.volunteer_common import normalize_name
 from core.transaction import atomic_transaction
+from managers.volunteer.volunteer_common import normalize_name
 
-def add_task(created_by: str, description: str) -> int:
+def create_task(created_by: str, description: str) -> int:
+    """
+    create_task - Create a new task in the database.
+    """
     repo = TaskRepository()
     data = {
         "description": description,
@@ -25,7 +20,10 @@ def add_task(created_by: str, description: str) -> int:
     }
     return repo.create(data)
 
-def list_tasks() -> List[Dict]:
+def _fetch_tasks() -> List[Dict]:
+    """
+    _fetch_tasks - Internal helper to query the Task table for all tasks.
+    """
     query = """
     SELECT t.task_id, t.description, t.status, t.created_at,
            t.created_by,
@@ -53,11 +51,16 @@ def list_tasks() -> List[Dict]:
             })
     return tasks
 
+def list_all_tasks() -> List[Dict]:
+    """
+    list_all_tasks - Retrieve all tasks from the database.
+    """
+    return _fetch_tasks()
+
 def assign_task(task_id: int, volunteer_display_name: str) -> Optional[str]:
     """
-    assign_task - Assigns the given task to the volunteer identified by volunteer_display_name
-    (matching is case-insensitive). Uses an atomic transaction for consistency.
-    If the volunteer is not found, returns an error message; otherwise returns None.
+    assign_task - Assigns a task to a volunteer based on the volunteer's display name.
+    Returns an error message if not found, otherwise None.
     """
     try:
         with atomic_transaction() as conn:
@@ -73,17 +76,14 @@ def assign_task(task_id: int, volunteer_display_name: str) -> Optional[str]:
     return None
 
 def close_task(task_id: int) -> bool:
+    """
+    close_task - Mark a task as closed in the database.
+    """
     update_query = "UPDATE Tasks SET status = 'closed' WHERE task_id = ?"
     execute_sql(update_query, (task_id,), commit=True)
     return True
 
-def list_all_tasks() -> List[Dict]:
-    """
-    list_all_tasks - Retrieve all tasks.
-    
-    Returns:
-        List[Dict]: A list of task records.
-    """
-    return list_tasks()
+# We need the TaskRepository import near the top:
+from core.database.repository import TaskRepository
 
-# End of core/task_manager.py
+# End of managers/task_manager.py

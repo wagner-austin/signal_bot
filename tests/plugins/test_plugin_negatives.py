@@ -14,7 +14,7 @@ from plugins.commands.task import task_command
 from plugins.commands.role import role_command
 from plugins.commands.system import shutdown_command
 from plugins.commands.donate import donate_command  # <-- Newly added import
-from managers.volunteer.volunteer_operations import sign_up
+from managers.volunteer.volunteer_operations import register_volunteer
 from managers.volunteer.volunteer_roles import get_volunteer_record
 
 ####################################
@@ -120,7 +120,7 @@ def test_donate_command_invalid_amount():
 def test_role_command_set_failure():
     sender = "+70000000012"
     # Register volunteer without required skills for "emcee"
-    sign_up(sender, "Role Tester 2", ["interpersonal"], True, None)
+    register_volunteer(sender, "Role Tester 2", ["interpersonal"], True, None)
     state_machine = BotStateMachine()
     response = role_command("set emcee", sender, state_machine, msg_timestamp=123)
     assert "do not have the necessary skills" in response.lower()

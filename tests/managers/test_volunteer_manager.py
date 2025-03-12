@@ -1,16 +1,16 @@
 #!/usr/bin/env python
 """
 tests/managers/test_volunteer_manager.py - Tests for aggregated volunteer management functionalities.
-Verifies that operations like sign‑up, check‑in, deletion, status retrieval, and role management work correctly.
-Now includes concurrency testing for multiple sign-ups on the same phone number,
-and a new test for list_volunteers() to ensure unified volunteer data retrieval.
+Verifies that operations like register_volunteer, check_in, deletion, status retrieval, and role management work correctly.
+Now includes concurrency testing for multiple register_volunteer calls on the same phone number,
+and a new test for list_all_volunteers() to ensure unified volunteer data retrieval.
 """
 
 import pytest
 import concurrent.futures
 from managers.volunteer_manager import VOLUNTEER_MANAGER
 from core.database.volunteers import get_volunteer_record
-from managers.volunteer.volunteer_operations import sign_up
+from managers.volunteer.volunteer_operations import register_volunteer
 
 @pytest.mark.parametrize(
     "phone, name, skills, expected_substring",
@@ -20,12 +20,12 @@ from managers.volunteer.volunteer_operations import sign_up
         ("+10000000003", "Alice Johnson", ["Logistics Oversight"], "Alice Johnson"),
     ]
 )
-def test_sign_up_and_status(phone, name, skills, expected_substring):
+def test_register_volunteer_and_status(phone, name, skills, expected_substring):
     """
-    Test signing up volunteers and verifying their status.
+    Test registering volunteers and verifying their status.
     Uses parametrization for different phone/name/skills combos.
     """
-    result = VOLUNTEER_MANAGER.sign_up(phone, name, skills)
+    result = VOLUNTEER_MANAGER.register_volunteer(phone, name, skills)
     assert "registered" in result.lower() or "updated" in result.lower()
     status = VOLUNTEER_MANAGER.volunteer_status()
     assert expected_substring in status
@@ -41,7 +41,7 @@ def test_check_in(phone, name, skills):
     """
     Test checking in a volunteer with multiple scenarios.
     """
-    VOLUNTEER_MANAGER.sign_up(phone, name, skills)
+    VOLUNTEER_MANAGER.register_volunteer(phone, name, skills)
     result = VOLUNTEER_MANAGER.check_in(phone)
     assert "checked in" in result.lower()
 
@@ -56,7 +56,7 @@ def test_delete_volunteer(phone, name, skills):
     """
     Test deleting volunteers using parametrization for multiple phone/name combos.
     """
-    VOLUNTEER_MANAGER.sign_up(phone, name, skills)
+    VOLUNTEER_MANAGER.register_volunteer(phone, name, skills)
     result = VOLUNTEER_MANAGER.delete_volunteer(phone)
     assert "deleted" in result.lower()
     record = get_volunteer_record(phone)
@@ -69,12 +69,12 @@ def test_delete_volunteer(phone, name, skills):
         ("+10000000010", "Another Volunteer", ["SkillA", "SkillB"], True, "Coordinator"),
     ]
 )
-def test_sign_up_with_availability_and_role(phone, name, skills, is_available, role):
+def test_register_volunteer_with_availability_and_role(phone, name, skills, is_available, role):
     """
-    Tests that sign_up correctly handles availability and role for different volunteers.
+    Tests that register_volunteer correctly handles availability and role for different volunteers.
     """
     # Create a new volunteer with the specified availability and role
-    result_create = VOLUNTEER_MANAGER.sign_up(phone, name, skills, is_available, role)
+    result_create = VOLUNTEER_MANAGER.register_volunteer(phone, name, skills, is_available, role)
     assert "registered" in result_create.lower()
 
     record = get_volunteer_record(phone)
@@ -87,7 +87,7 @@ def test_sign_up_with_availability_and_role(phone, name, skills, is_available, r
 
     # Update the volunteer with an additional skill, to ensure union behavior
     new_skill = ["ExtraSkill"]
-    result_update = VOLUNTEER_MANAGER.sign_up(phone, name + " Updated", new_skill, not is_available, role)
+    result_update = VOLUNTEER_MANAGER.register_volunteer(phone, name + " Updated", new_skill, not is_available, role)
     # Expect an update message (the message should indicate the volunteer was updated).
     assert "updated" in result_update.lower()
 
@@ -102,20 +102,19 @@ def test_sign_up_with_availability_and_role(phone, name, skills, is_available, r
     # Role remains the same
     assert updated_record["current_role"] == role
 
-def test_concurrent_sign_up_same_user():
+def test_concurrent_register_volunteer_same_user():
     """
-    Test concurrent sign-ups using the same phone number, with different names and skills.
-    Verifies that the final record merges all skills (union) and ends up with whichever name
-    was written last, ensuring no partial merges or errors under concurrency.
+    Test concurrent register_volunteer calls using the same phone number, with different names and skills.
+    Verifies that the final record merges all skills (union) and ends with whichever name
+    was last, ensuring no partial merges or errors under concurrency.
     """
     phone = "+10000000042"
 
-    # Prepare a fresh record if it exists
+    # If volunteer exists, remove them
     existing = get_volunteer_record(phone)
     if existing:
         VOLUNTEER_MANAGER.delete_volunteer(phone)
 
-    # Each thread uses a different (Name, [Skills...]) tuple
     concurrency_data = [
         ("ConcurrentOne", ["SkillA"]),
         ("ConcurrentTwo", ["SkillB", "SkillC"]),
@@ -124,53 +123,47 @@ def test_concurrent_sign_up_same_user():
         ("ConcurrentFive", ["SkillZ"]),
     ]
 
-    def sign_up_task(name, skills):
-        return VOLUNTEER_MANAGER.sign_up(phone, name, skills, True, None)
+    def register_task(name, skills):
+        return VOLUNTEER_MANAGER.register_volunteer(phone, name, skills, True, None)
 
-    # Run sign_up calls in parallel threads
     with concurrent.futures.ThreadPoolExecutor(max_workers=len(concurrency_data)) as executor:
         futures = [
-            executor.submit(sign_up_task, name, skills)
+            executor.submit(register_task, name, skills)
             for (name, skills) in concurrency_data
         ]
         results = [f.result() for f in concurrent.futures.as_completed(futures)]
 
-    # Check sign-up results (not strictly necessary, but confirm no obvious error)
     for res in results:
         # Should all say "registered" or "updated"
         assert any(word in res.lower() for word in ["registered", "updated", "volunteer"])
 
-    # Check final DB record
     final_record = get_volunteer_record(phone)
-    assert final_record is not None, "Expected a final volunteer record after concurrency sign-ups."
+    assert final_record is not None, "Expected a final volunteer record after concurrency register_volunteer."
 
-    # The final name should match whichever sign-up call wrote last
-    # (we don't know exactly which thread finishes last, but it must be one of them)
+    # final name is whichever thread finished last
     possible_names = {cd[0] for cd in concurrency_data}
     assert final_record["name"] in possible_names, (
-        f"Final name '{final_record['name']}' must be from among: {possible_names}"
+        f"Final name '{final_record['name']}' must be among: {possible_names}"
     )
 
-    # The final skills should be the union of all skill sets provided
+    # The final skills is the union of all skill sets
     merged_skills = set()
     for _, skill_list in concurrency_data:
         merged_skills.update(skill_list)
-
-    # Ensure all are present
     for skl in merged_skills:
         assert skl in final_record["skills"], (
-            f"Final record lacks skill '{skl}' from concurrency sign-up set."
+            f"Final record lacks skill '{skl}' from concurrency data set."
         )
 
 def test_list_volunteers_method():
     """
-    Test that VOLUNTEER_MANAGER.list_volunteers() returns a dictionary mapping phone numbers to volunteer data.
+    Test that VOLUNTEER_MANAGER.list_all_volunteers() returns a dictionary mapping phone numbers to volunteer data.
     """
     phone = "+7777777777"
     # Register a volunteer.
-    result = VOLUNTEER_MANAGER.sign_up(phone, "List Test Volunteer", ["SkillX"], True, None)
+    result = VOLUNTEER_MANAGER.register_volunteer(phone, "List Test Volunteer", ["SkillX"], True, None)
     assert "registered" in result.lower() or "updated" in result.lower()
-    volunteers = VOLUNTEER_MANAGER.list_volunteers()
+    volunteers = VOLUNTEER_MANAGER.list_all_volunteers()
     assert phone in volunteers
     assert volunteers[phone]["name"] == "List Test Volunteer"
 

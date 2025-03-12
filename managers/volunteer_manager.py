@@ -1,12 +1,11 @@
 #!/usr/bin/env python
 """
 managers/volunteer_manager.py - Aggregated volunteer management.
-Provides a unified interface for volunteer operations, queries, role management, and volunteer assignment.
-Now includes a method to list deleted volunteers, removing direct DB calls from the CLI.
+Renamed sign_up -> register_volunteer, list_volunteers -> list_all_volunteers.
 """
 
 from typing import Optional
-from managers.volunteer.volunteer_operations import sign_up, delete_volunteer, check_in
+from managers.volunteer.volunteer_operations import register_volunteer, delete_volunteer, check_in
 from managers.volunteer.volunteer_queries import volunteer_status, find_available_volunteer, get_all_skills
 from managers.volunteer.volunteer_roles import list_roles, assign_role, switch_role, unassign_role
 from core.database.volunteers import get_all_volunteers, get_volunteer_record, update_volunteer_record
@@ -15,8 +14,9 @@ from core.transaction import atomic_transaction
 
 class VolunteerManager:
     # Operations
-    def sign_up(self, phone: str, name: str, skills: list, available: bool = True, current_role: Optional[str] = None) -> str:
-        return sign_up(phone, name, skills, available, current_role)
+    def register_volunteer(self, phone: str, name: str, skills: list,
+                           available: bool = True, current_role: Optional[str] = None) -> str:
+        return register_volunteer(phone, name, skills, available, current_role)
     
     def delete_volunteer(self, phone: str) -> str:
         return delete_volunteer(phone)
@@ -34,12 +34,9 @@ class VolunteerManager:
     def get_all_skills(self):
         return get_all_skills()
     
-    def list_volunteers(self) -> dict:
+    def list_all_volunteers(self) -> dict:
         """
-        list_volunteers - Retrieve all volunteer records.
-        
-        Returns:
-            dict: A dictionary mapping phone numbers to volunteer data.
+        list_all_volunteers - Retrieve all volunteer records.
         """
         return get_all_volunteers()
     
@@ -56,7 +53,7 @@ class VolunteerManager:
     def unassign_role(self, phone: str) -> str:
         return unassign_role(phone)
     
-    # Assignment: automatically assign a volunteer based on required skill.
+    # Auto-assignment
     def assign_volunteer(self, skill: str, role: str) -> Optional[str]:
         volunteers = get_all_volunteers()
         target_phone = None

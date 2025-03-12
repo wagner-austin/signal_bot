@@ -31,8 +31,8 @@ def test_assign_command_with_multiple_matches():
     phone2 = "+9000000002"
 
     # Create two volunteers with the same skill, both available, and no current_role.
-    VOLUNTEER_MANAGER.sign_up(phone1, "First Volunteer", ["Photography"], True, None)
-    VOLUNTEER_MANAGER.sign_up(phone2, "Second Volunteer", ["Photography"], True, None)
+    VOLUNTEER_MANAGER.register_volunteer(phone1, "First Volunteer", ["Photography"], True, None)
+    VOLUNTEER_MANAGER.register_volunteer(phone2, "Second Volunteer", ["Photography"], True, None)
 
     state_machine = BotStateMachine()
     response = assign_command("Photography", "+dummy", state_machine, msg_timestamp=123)

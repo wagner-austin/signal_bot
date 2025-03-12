@@ -56,7 +56,7 @@ def register_command(args: str, sender: str, state_machine: BotStateMachine,
             if record:
                 return ALREADY_REGISTERED.format(name=record['name'])
             else:
-                return VOLUNTEER_MANAGER.sign_up(sender, args.strip(), [])
+                return VOLUNTEER_MANAGER.register_volunteer(sender, args.strip(), [])
         else:
             if record:
                 return ALREADY_REGISTERED.format(name=record['name'])
@@ -91,7 +91,7 @@ def edit_command(args: str, sender: str, state_machine: BotStateMachine,
         if not args.strip():
             PENDING_ACTIONS.set_registration(sender, "edit")
             return EDIT_PROMPT.format(name=record['name'])
-        return VOLUNTEER_MANAGER.sign_up(sender, args.strip(), [])
+        return VOLUNTEER_MANAGER.register_volunteer(sender, args.strip(), [])
     except Exception as e:
         logger.error(f"edit_command unexpected error: {e}", exc_info=True)
         return "An internal error occurred in edit_command."
@@ -191,7 +191,7 @@ def add_skills_command(args: str, sender: str, state_machine: BotStateMachine,
             raise PluginArgError("Usage: @bot add skills <skill1>, <skill2>, ...")
         data = {"skills": raw_tokens}
         validated = validate_model(data, VolunteerAddSkillsModel, "add skills <skill1>, <skill2>, ...")
-        return VOLUNTEER_MANAGER.sign_up(sender, "skip", validated.skills)
+        return VOLUNTEER_MANAGER.register_volunteer(sender, "skip", validated.skills)
     except PluginArgError as e:
         logger.warning(f"add_skills_command PluginArgError: {e}")
         return str(e)
