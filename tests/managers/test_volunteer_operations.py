@@ -1,17 +1,15 @@
 #!/usr/bin/env python
 """
-tests/managers/test_volunteer_operations.py --- Tests for volunteer operations.
-Verifies sign_up, delete_volunteer, check_in, and registration without role functionalities,
-now covered with multiple parametrized inputs.
-Changes:
- - Added a caplog assertion to ensure the volunteer deletion logs an info-level message.
- - NEW TEST: sign_up invalid/empty phone scenario.
+tests/managers/test_volunteer_operations.py - Tests for volunteer operations.
+Verifies sign_up, delete_volunteer, check_in, and registration without role functionalities.
+Now updated to assert raised VolunteerError for invalid operations.
 """
 
 import pytest
 import logging
 from managers.volunteer.volunteer_operations import sign_up, delete_volunteer, check_in
 from core.database.volunteers import get_volunteer_record
+from core.exceptions import VolunteerError  # New import for error handling
 
 @pytest.mark.parametrize(
     "phone, name, skills, available, current_role",
@@ -22,7 +20,7 @@ from core.database.volunteers import get_volunteer_record
 )
 def test_sign_up_creates_volunteer(phone, name, skills, available, current_role):
     """
-    Tests that sign_up creates volunteers with multiple sets of parameters.
+    Test that sign_up creates volunteers with multiple sets of parameters.
     """
     # Ensure volunteer isn't already registered
     record = get_volunteer_record(phone)
@@ -50,7 +48,7 @@ def test_sign_up_creates_volunteer(phone, name, skills, available, current_role)
 )
 def test_delete_volunteer(phone, name, skills, caplog):
     """
-    Test deleting multiple volunteers in a single parameterized test.
+    Test deleting volunteers using parametrization for multiple phone/name combos.
     Added caplog usage to ensure volunteer deletion logs an info message.
     """
     sign_up(phone, name, skills)
@@ -101,23 +99,6 @@ def test_sign_up_with_empty_role(phone, name, skills):
     assert record.get("current_role") is None
 
 @pytest.mark.parametrize(
-    "phone",
-    [
-        ("+40000000007"),
-        ("+40000000008"),
-    ]
-)
-def test_delete_unregistered_volunteer(phone):
-    """
-    Confirm that attempting to delete an unregistered volunteer returns a user-friendly message.
-    """
-    msg = delete_volunteer(phone)
-    assert msg == "You are not registered."
-
-# ---------------------------------------------------------------------------
-# NEW TEST FOR INVALID / EMPTY PHONE
-# ---------------------------------------------------------------------------
-@pytest.mark.parametrize(
     "invalid_phone",
     [
         "",               # empty
@@ -129,11 +110,25 @@ def test_delete_unregistered_volunteer(phone):
 )
 def test_sign_up_invalid_phone(invalid_phone):
     """
-    Test that sign_up returns an error message if phone is invalid or empty.
+    Test that sign_up raises VolunteerError if phone is invalid or empty.
     """
     name = "Invalid Phone"
     skills = ["SkillX"]
-    msg = sign_up(invalid_phone, name, skills, True, None)
-    assert "Invalid phone number format" in msg
+    with pytest.raises(VolunteerError, match="Invalid phone number format"):
+        sign_up(invalid_phone, name, skills, True, None)
+
+@pytest.mark.parametrize(
+    "phone",
+    [
+        ("+40000000007"),
+        ("+40000000008"),
+    ]
+)
+def test_delete_unregistered_volunteer(phone):
+    """
+    Confirm that attempting to delete an unregistered volunteer raises VolunteerError.
+    """
+    with pytest.raises(VolunteerError, match="not registered"):
+        delete_volunteer(phone)
 
 # End of tests/managers/test_volunteer_operations.py
