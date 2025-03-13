@@ -1,7 +1,8 @@
 """
 plugins/manager.py - Unified plugin manager with alias support.
 Handles registration, loading, and retrieval of plugins using centralized and standardized alias definitions.
-Now includes enhanced error handling for import-time exceptions and optional concurrent module loading.
+Now includes enhanced error handling for import-time exceptions, optional concurrent module loading,
+and automatic plugin categorization.
 """
 
 import sys
@@ -13,7 +14,7 @@ from typing import Callable, Any, Optional, Dict, List, Union
 # Setup logger for the module
 logger = logging.getLogger(__name__)
 
-# Registry: key = canonical command, value = dict with function, aliases, and help_visible flag.
+# Registry: key = canonical command, value = dict with function, aliases, help_visible flag, and category.
 plugin_registry: Dict[str, Dict[str, Any]] = {}
 # Alias mapping: key = alias (normalized), value = canonical command.
 alias_mapping: Dict[str, str] = {}
@@ -24,10 +25,14 @@ def normalize_alias(alias: str) -> str:
     """
     return alias.strip().lower()
 
-def plugin(commands: Union[str, List[str]], canonical: Optional[str] = None, help_visible: bool = True) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+def plugin(commands: Union[str, List[str]],
+           canonical: Optional[str] = None,
+           help_visible: bool = True,
+           category: Optional[str] = None) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """
     Decorator to register a function as a command plugin with one or more aliases.
-    Optionally specify a canonical name that will be used in help listings.
+    Optionally specify a canonical name and a category (e.g., "Volunteer Commands", "Admin Commands").
+    The category is used for help grouping.
     """
     if isinstance(commands, str):
         commands = [commands]
@@ -40,11 +45,12 @@ def plugin(commands: Union[str, List[str]], canonical: Optional[str] = None, hel
         canonical = normalize_alias(canonical)
     
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
-        # Register canonical command with its aliases and help visibility.
+        # Register canonical command with its aliases, help visibility, and category.
         plugin_registry[canonical] = {
             "function": func,
             "aliases": normalized_commands,
-            "help_visible": help_visible
+            "help_visible": help_visible,
+            "category": category if category is not None else "Miscellaneous Commands"
         }
         # Map each alias to the canonical command.
         for alias in normalized_commands:

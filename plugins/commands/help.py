@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 """
-plugins/commands/help.py - Help command plugin - Provides a concise help listing for a select set of available commands.
+plugins/commands/help.py - Help command plugin.
+Provides a concise help listing for available commands based on help_visible flag.
+Usage: "@bot help"
 """
 
 from typing import Optional
@@ -10,30 +12,22 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Whitelist of canonical commands to display in help.
-ALLOWED_HELP_COMMANDS = {
-    "info",
-    "weekly update",
-    "register",
-    "event",
-    "help",
-}
-
 @plugin('help', canonical='help')
 def help_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
     help - Provides a concise list of available commands.
+    Only commands with help_visible=True are displayed.
     Usage: "@bot help"
     """
     try:
         plugins_info = get_all_plugins()
         lines = []
+        # Automatically include plugins marked as help_visible.
         for canonical, info in sorted(plugins_info.items()):
-            if canonical not in ALLOWED_HELP_COMMANDS:
-                continue
-            func = info["function"]
-            doc_line = func.__doc__.strip().splitlines()[0] if func.__doc__ else "No description"
-            lines.append(f"@bot {canonical} - {doc_line}")
+            if info.get("help_visible", True):
+                func = info["function"]
+                doc_line = (func.__doc__ or "No description").strip().splitlines()[0]
+                lines.append(f"@bot {canonical} - {doc_line}")
         return "\n\n".join(lines)
     except Exception as e:
         logger.error(f"help_command unexpected error: {e}", exc_info=True)
