@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 """
 tests/plugins/test_volunteer_commands.py - Tests volunteer command plugins.
-Ensures normal usage for register, edit, delete, etc., and includes tests for interactive (partial) registration input.
+Ensures normal usage for register, edit, delete, etc., and verifies that when a volunteer record is missing,
+the response directs the user with the proper welcome prompt.
 """
 
 import pytest
@@ -17,6 +18,7 @@ from core.state import BotStateMachine
 from core.database.volunteers import get_volunteer_record
 from managers.pending_actions import PENDING_ACTIONS
 from core.plugin_usage import USAGE_REGISTER_PARTIAL
+from core.messages import REGISTRATION_WELCOME, GETTING_STARTED, ALREADY_REGISTERED
 
 def test_volunteer_register_new():
     """
@@ -40,6 +42,17 @@ def test_volunteer_register_existing():
     response = register_command("Any Name", phone, state_machine, msg_timestamp=123)
     # This is a normal "already registered" path.
     assert "you are registered as" in response.lower()
+
+def test_volunteer_register_no_args_shows_welcome():
+    """
+    Tests that when a new volunteer sends no arguments and no record exists,
+    the registration welcome message is returned.
+    """
+    phone = "+80000000009"
+    state_machine = BotStateMachine()
+    # Ensure no volunteer record exists for this phone.
+    response = register_command("", phone, state_machine, msg_timestamp=123)
+    assert REGISTRATION_WELCOME in response
 
 def test_volunteer_edit_command_interactive():
     """

@@ -10,6 +10,7 @@ from core.state import BotStateMachine
 from parsers.message_parser import ParsedMessage, parse_message
 from managers.pending_actions import PendingActions
 from managers.volunteer_manager import VOLUNTEER_MANAGER
+from core.messages import GETTING_STARTED
 
 # Helper function to create a full envelope message for parsing.
 def make_envelope_message(body: str, sender: str = "+1234567890", group_id: str = None) -> ParsedMessage:
@@ -56,6 +57,7 @@ def test_handle_message_fuzzy_matching(dummy_plugin):
     state_machine = BotStateMachine()
     pending_actions = PendingActions()
     response = handle_message(parsed, "+111", state_machine, pending_actions, VOLUNTEER_MANAGER, msg_timestamp=123)
+    # This test assumes a certain fuzzy match behavior (here expecting "yes")
     assert response == "yes"
 
 def test_group_command_with_extra_text(volunteer_status_plugin):
@@ -85,15 +87,17 @@ def test_group_command_with_extra_text(volunteer_status_plugin):
 def test_message_manager_process_message():
     """
     Test that MessageManager.process_message correctly dispatches the dummy command.
+    Since the volunteer record is missing, the GETTING_STARTED message should be prepended.
     """
     from managers.message_manager import MessageManager
     state_machine = BotStateMachine()
     message_manager = MessageManager(state_machine)
     parsed = make_envelope_message("@bot dummy", sender="+1111111111")
-    pending_actions = DummyPendingActions()
+    pending_actions = PendingActions()
     volunteer_manager = DummyVolunteerManager()
     response = message_manager.process_message(parsed, parsed.sender, pending_actions, volunteer_manager, msg_timestamp=123)
-    assert response == "dummy response"
+    expected_response = GETTING_STARTED + "\n" + "dummy response"
+    assert response == expected_response
 
 # --- Dummy Classes for Testing ---
 class DummyPendingActions:

@@ -12,7 +12,7 @@ from managers.message.pending_handlers import (
 )
 from parsers.message_parser import ParsedMessage
 from core.messages import (
-    DELETION_CONFIRM_PROMPT, ALREADY_REGISTERED,
+    DELETION_CONFIRM, ALREADY_REGISTERED,
     DELETION_PROMPT, EDIT_PROMPT, EDIT_CANCELED, EDIT_CANCELED_WITH_NAME
 )
 from managers.pending_actions import PENDING_ACTIONS
@@ -47,7 +47,8 @@ def test_deletion_pending_handler_confirm():
     handler = DeletionPendingHandler(PENDING_ACTIONS, DummyVolunteerManager())
     parsed = create_parsed_message("yes", "+70000000001")
     response = handler.process_deletion_response(parsed, "+70000000001")
-    assert response == DELETION_CONFIRM_PROMPT
+    # Verify that the deletion confirmation now uses DELETION_CONFIRM
+    assert response == DELETION_CONFIRM
 
 def test_deletion_pending_handler_cancel():
     PENDING_ACTIONS.set_deletion("+70000000002", "initial")
