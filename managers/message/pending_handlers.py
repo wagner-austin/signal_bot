@@ -9,8 +9,7 @@ from typing import Any, Optional
 from managers.message.base_pending_handler import BasePendingHandler
 from parsers.message_parser import ParsedMessage
 from core.messages import (
-    DELETION_CONFIRM, ALREADY_REGISTERED,
-    DELETION_PROMPT, EDIT_PROMPT, EDIT_CANCELED, EDIT_CANCELED_WITH_NAME
+    DELETION_CONFIRM, DELETION_CANCELED, DELETION_PROMPT, EDIT_PROMPT, EDIT_CANCELED, EDIT_CANCELED_WITH_NAME
 )
 from core.constants import SKIP_VALUES
 from core.database import get_volunteer_record
@@ -21,6 +20,8 @@ logger = logging.getLogger(__name__)
 class DeletionPendingHandler(BasePendingHandler):
     """
     DeletionPendingHandler - Handles pending deletion responses.
+    
+    Note: Ensure that the sender remains consistent across messages for deletion pending actions.
     """
     def __init__(self, pending_actions: Any, volunteer_manager: Any) -> None:
         super().__init__(pending_actions,
@@ -37,22 +38,18 @@ class DeletionPendingHandler(BasePendingHandler):
         if state == "initial":
             if user_input in {"yes", "y", "yea", "sure"}:
                 self.pending_actions.set_deletion(sender, "confirm")
-                return DELETION_CONFIRM
+                return DELETION_CONFIRM  # "Type 'YES' to confirm." prompt.
             else:
-                record = get_volunteer_record(sender)
-                confirmation = ALREADY_REGISTERED.format(name=record['name']) if record else "Deletion cancelled."
                 self.clear_pending(sender)
-                return confirmation
+                return DELETION_CANCELED
         elif state == "confirm":
-            if parsed.body.strip() == "DELETE":
+            if parsed.body.strip() in {"YES", "DELETE"}:
                 confirmation = self.volunteer_manager.delete_volunteer(sender)
                 self.clear_pending(sender)
                 return confirmation
             else:
-                record = get_volunteer_record(sender)
-                confirmation = ALREADY_REGISTERED.format(name=record['name']) if record else "Deletion cancelled."
                 self.clear_pending(sender)
-                return confirmation
+                return DELETION_CANCELED
         return None
 
 class RegistrationPendingHandler(BasePendingHandler):

@@ -3,7 +3,6 @@
 managers/message_manager.py - Aggregated message manager facade.
 Provides a unified interface for processing incoming messages by delegating to the message dispatcher.
 """
-
 from typing import Any, Optional, TYPE_CHECKING
 if TYPE_CHECKING:
     from parsers.message_parser import ParsedMessage
@@ -30,7 +29,8 @@ class MessageManager:
                         msg_timestamp: Optional[int] = None) -> str:
         """
         Processes an incoming message.
-        After parsing, if the sender is not recognized (no volunteer record), a welcome message is prepended.
+        After parsing, if the sender is not recognized (no volunteer record) and the response is not the deletion confirmation,
+        a welcome message is prepended.
 
         Parameters:
             parsed (ParsedMessage): The parsed message.
@@ -43,9 +43,10 @@ class MessageManager:
             str: The response message.
         """
         from core.database import get_volunteer_record
-        from core.messages import GETTING_STARTED
+        from core.messages import GETTING_STARTED, VOLUNTEER_DELETED
         response = dispatch_message(parsed, sender, self.state_machine, pending_actions, volunteer_manager, msg_timestamp)
-        if not get_volunteer_record(sender) and response:
+        # Prepend welcome message only if no volunteer record exists and response is not the deletion confirmation.
+        if not get_volunteer_record(sender) and response and response != VOLUNTEER_DELETED:
             response = GETTING_STARTED + "\n" + response
         return response
 
