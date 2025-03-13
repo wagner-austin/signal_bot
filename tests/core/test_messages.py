@@ -7,7 +7,7 @@ Verifies that key message constants are defined and non-empty, including new uni
 import core.messages as messages
 
 def test_registration_prompt():
-    assert messages.REGISTRATION_PROMPT and isinstance(messages.REGISTRATION_PROMPT, str)
+    assert messages.REGISTRATION_WELCOME and isinstance(messages.REGISTRATION_WELCOME, str)
 
 def test_already_registered():
     formatted = messages.ALREADY_REGISTERED.format(name="Test")
