@@ -9,6 +9,7 @@ from typing import List, Optional
 from core.database import get_volunteer_record
 from core.database.helpers import execute_sql
 from managers.volunteer.volunteer_common import normalize_name
+from core.exceptions import VolunteerError  # For domain-specific error handling
 
 # Recognized roles and their required skills.
 RECOGNIZED_ROLES = [
@@ -59,50 +60,65 @@ def update_volunteer_role(phone: str, role: Optional[str]) -> None:
 def assign_role(phone: str, role: str) -> str:
     """
     assign_role - Assigns a preferred role to a volunteer after validating required skills.
+    Raises VolunteerError for invalid role, unregistered volunteer, or insufficient skills.
     
     Args:
         phone (str): Volunteer phone number.
         role (str): Role to assign.
     
     Returns:
-        str: Confirmation or error message.
+        str: Confirmation message.
     """
     role_lower = role.lower()
     valid_roles = [r.lower() for r in RECOGNIZED_ROLES]
     if role_lower not in valid_roles:
-        return f"Role '{role}' is not recognized. Use '@bot role list' to see available roles."
+        raise VolunteerError(f"Role '{role}' is not recognized.")
     record = get_volunteer_record(phone)
     if not record:
-        return "You are not registered."
+        raise VolunteerError("You are not registered.")
     volunteer_skills = set(skill.lower() for skill in record.get("skills", []))
     required_skills = set(ROLE_SKILL_REQUIREMENTS.get(role_lower, []))
     if not required_skills.issubset(volunteer_skills):
-        return (f"You do not have the necessary skills for the role '{role}'. "
-                f"Required: {', '.join(required_skills)}. "
-                f"Your skills: {', '.join(volunteer_skills) if volunteer_skills else 'None'}.")
+        raise VolunteerError(f"You do not have the necessary skills for the role '{role}'. "
+                             f"Required: {', '.join(required_skills)}. "
+                             f"Your skills: {', '.join(volunteer_skills) if volunteer_skills else 'None'}.")
     update_volunteer_role(phone, role)
     return f"Your preferred role has been set to '{role}'."
 
 def switch_role(phone: str, role: str) -> str:
+    """
+    switch_role - Switches the volunteer's current role to a new role.
+    Raises VolunteerError if the volunteer is not registered or if role assignment fails.
+    
+    Args:
+        phone (str): Volunteer phone number.
+        role (str): New role to assign.
+    
+    Returns:
+        str: Confirmation message.
+    """
     record = get_volunteer_record(phone)
     if not record:
-        return "You are not registered."
+        raise VolunteerError("You are not registered.")
     current = record.get("preferred_role")
-    message = ""
-    if current:
-        message = f"Switching from '{current}' to '{role}'. "
-    else:
-        message = "Setting role to "
-    result = assign_role(phone, role)
-    if "do not have the necessary skills" in result:
-        return result
-    return message + result
+    message = f"Switching from '{current}' to '{role}'. " if current else "Setting role to "
+    confirmation = assign_role(phone, role)
+    return message + confirmation
 
 def unassign_role(phone: str) -> str:
+    """
+    unassign_role - Clears the volunteer's preferred role.
+    Raises VolunteerError if the volunteer is not registered.
+    
+    Args:
+        phone (str): Volunteer phone number.
+    
+    Returns:
+        str: Confirmation message.
+    """
     record = get_volunteer_record(phone)
     if not record:
-        return "You are not registered."
-    # Always update role to None, regardless of current value.
+        raise VolunteerError("You are not registered.")
     update_volunteer_role(phone, None)
     return "Your preferred role has been cleared."
 

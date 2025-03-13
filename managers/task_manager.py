@@ -1,13 +1,14 @@
 #!/usr/bin/env python
 """
 managers/task_manager.py --- Task Manager for shared to-do items.
-Renamed add_task -> create_task; made list_tasks an internal function _fetch_tasks.
+Provides functions for creating, listing, assigning, and closing tasks.
 """
 
-from typing import List, Dict, Optional
+from typing import List, Dict
 from core.database.helpers import execute_sql
 from core.transaction import atomic_transaction
 from managers.volunteer.volunteer_common import normalize_name
+from core.exceptions import VolunteerError  # Newly imported for error handling
 
 def create_task(created_by: str, description: str) -> int:
     """
@@ -57,10 +58,10 @@ def list_all_tasks() -> List[Dict]:
     """
     return _fetch_tasks()
 
-def assign_task(task_id: int, volunteer_display_name: str) -> Optional[str]:
+def assign_task(task_id: int, volunteer_display_name: str) -> None:
     """
     assign_task - Assigns a task to a volunteer based on the volunteer's display name.
-    Returns an error message if not found, otherwise None.
+    Raises VolunteerError if the volunteer is not found or if an error occurs during assignment.
     """
     try:
         with atomic_transaction() as conn:
@@ -68,12 +69,11 @@ def assign_task(task_id: int, volunteer_display_name: str) -> Optional[str]:
             cursor.execute("SELECT phone FROM Volunteers WHERE lower(name)=? LIMIT 1", (volunteer_display_name.lower(),))
             result = cursor.fetchone()
             if not result:
-                return f"Volunteer with name '{volunteer_display_name}' not found."
+                raise VolunteerError(f"Volunteer with name '{volunteer_display_name}' not found.")
             volunteer_phone = result["phone"]
             cursor.execute("UPDATE Tasks SET assigned_to = ? WHERE task_id = ?", (volunteer_phone, task_id))
     except Exception as e:
-        return f"Error assigning task: {str(e)}"
-    return None
+        raise VolunteerError(f"Error assigning task: {str(e)}")
 
 def close_task(task_id: int) -> bool:
     """
