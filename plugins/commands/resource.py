@@ -1,18 +1,22 @@
 #!/usr/bin/env python
 """
-plugins/commands/resource.py - Resource command plugins.
-Manages shared resource links by calling managers.resources_manager for all logic.
+plugins/commands/resource.py
+----------------------------
+Resource command plugins. Manages shared resource links by calling managers.resources_manager for all logic.
 """
 
 import logging
 from typing import Optional
+
 from plugins.manager import plugin
 from core.state import BotStateMachine
-from core.database.resources import add_resource, list_resources, remove_resource
 from managers.resources_manager import create_resource, list_all_resources, delete_resource
 from parsers.argument_parser import parse_plugin_arguments
 from parsers.plugin_arg_parser import PluginArgError
 from pydantic import ValidationError
+
+# New import to unify formatting:
+from cli.formatters import format_resource
 
 logger = logging.getLogger(__name__)
 
@@ -77,10 +81,10 @@ def resource_command(args: str, sender: str, state_machine: BotStateMachine,
                     return f"No resources found in category '{data['category']}'."
                 else:
                     return "No resources found."
-            response = "Resources:\n"
-            for res in resources:
-                response += f"ID {res['id']}: [{res['category']}] {res['title']} - {res['url']}\n"
-            return response.strip()
+
+            # Use the same formatting used by CLI:
+            output_lines = [format_resource(r) for r in resources]
+            return "\n".join(output_lines)
 
         elif subcommand == "remove":
             if not rest.strip():
@@ -97,6 +101,7 @@ def resource_command(args: str, sender: str, state_machine: BotStateMachine,
 
         else:
             raise PluginArgError("Invalid subcommand. Use add, list, or remove.")
+
     except PluginArgError as e:
         logger.warning(f"resource_command PluginArgError: {e}")
         return str(e)
