@@ -2,6 +2,7 @@
 """
 managers/task_manager.py --- Task Manager for shared to-do items.
 Provides functions for creating, listing, assigning, and closing tasks with proper logging.
+Exceptions from business logic propagate to the CLI/plugin layer.
 """
 
 from typing import List, Dict
@@ -67,21 +68,17 @@ def list_all_tasks() -> List[Dict]:
 def assign_task(task_id: int, volunteer_display_name: str) -> None:
     """
     assign_task - Assigns a task to a volunteer based on the volunteer's display name.
-    Raises VolunteerError if the volunteer is not found or if an error occurs during assignment.
+    Raises VolunteerError if the volunteer is not found.
     """
-    try:
-        with atomic_transaction() as conn:
-            cursor = conn.cursor()
-            cursor.execute("SELECT phone FROM Volunteers WHERE lower(name)=? LIMIT 1", (volunteer_display_name.lower(),))
-            result = cursor.fetchone()
-            if not result:
-                raise VolunteerError(f"Volunteer with name '{volunteer_display_name}' not found.")
-            volunteer_phone = result["phone"]
-            cursor.execute("UPDATE Tasks SET assigned_to = ? WHERE task_id = ?", (volunteer_phone, task_id))
-            logger.info(f"Task {task_id} assigned to volunteer '{volunteer_display_name}' (phone: {volunteer_phone}).")
-    except Exception as e:
-        logger.error(f"Error assigning task: {str(e)}", exc_info=True)
-        raise VolunteerError(f"Error assigning task: {str(e)}")
+    with atomic_transaction() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT phone FROM Volunteers WHERE lower(name)=? LIMIT 1", (volunteer_display_name.lower(),))
+        result = cursor.fetchone()
+        if not result:
+            raise VolunteerError(f"Volunteer with name '{volunteer_display_name}' not found.")
+        volunteer_phone = result["phone"]
+        cursor.execute("UPDATE Tasks SET assigned_to = ? WHERE task_id = ?", (volunteer_phone, task_id))
+        logger.info(f"Task {task_id} assigned to volunteer '{volunteer_display_name}' (phone: {volunteer_phone}).")
 
 def close_task(task_id: int) -> bool:
     """
