@@ -27,6 +27,6 @@ VOLUNTEER_UPDATED = "Volunteer '{name}' updated"
 VOLUNTEER_CHECKED_IN = "Volunteer '{name}' has been checked in and is now available."
 
 # Getting Started Message for New Users
-GETTING_STARTED = "Hi! I don’t recognize you yet. Try @bot register or type 'help' for instructions."
+GETTING_STARTED = "Hi! I don't recognize you yet. Try @bot register or type 'help' for instructions."
 
 # End of core/messages.py
