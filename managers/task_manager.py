@@ -1,25 +1,31 @@
 #!/usr/bin/env python
 """
 managers/task_manager.py --- Task Manager for shared to-do items.
-Provides functions for creating, listing, assigning, and closing tasks.
+Provides functions for creating, listing, assigning, and closing tasks with proper logging.
 """
 
 from typing import List, Dict
 from core.database.helpers import execute_sql
 from core.transaction import atomic_transaction
 from managers.volunteer.volunteer_common import normalize_name
-from core.exceptions import VolunteerError  # Newly imported for error handling
+from core.exceptions import VolunteerError
+import logging
+
+logger = logging.getLogger(__name__)
 
 def create_task(created_by: str, description: str) -> int:
     """
     create_task - Create a new task in the database.
     """
+    from core.database.repository import TaskRepository  # Local import to avoid circular references
     repo = TaskRepository()
     data = {
         "description": description,
         "created_by": created_by
     }
-    return repo.create(data)
+    task_id = repo.create(data)
+    logger.info(f"Task created with ID {task_id} by {created_by}.")
+    return task_id
 
 def _fetch_tasks() -> List[Dict]:
     """
@@ -72,7 +78,9 @@ def assign_task(task_id: int, volunteer_display_name: str) -> None:
                 raise VolunteerError(f"Volunteer with name '{volunteer_display_name}' not found.")
             volunteer_phone = result["phone"]
             cursor.execute("UPDATE Tasks SET assigned_to = ? WHERE task_id = ?", (volunteer_phone, task_id))
+            logger.info(f"Task {task_id} assigned to volunteer '{volunteer_display_name}' (phone: {volunteer_phone}).")
     except Exception as e:
+        logger.error(f"Error assigning task: {str(e)}", exc_info=True)
         raise VolunteerError(f"Error assigning task: {str(e)}")
 
 def close_task(task_id: int) -> bool:
@@ -81,9 +89,9 @@ def close_task(task_id: int) -> bool:
     """
     update_query = "UPDATE Tasks SET status = 'closed' WHERE task_id = ?"
     execute_sql(update_query, (task_id,), commit=True)
+    logger.info(f"Task {task_id} marked as closed.")
     return True
 
-# We need the TaskRepository import near the top:
 from core.database.repository import TaskRepository
 
 # End of managers/task_manager.py

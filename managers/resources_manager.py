@@ -1,12 +1,14 @@
 #!/usr/bin/env python
 """
-resources_manager.py - Resources Manager.
-Provides a unified interface for listing, creating, and deleting resources,
-with all validation and database logic centralized here.
+managers/resources_manager.py - Resources Manager.
+Provides a unified interface for listing, creating, and deleting resources with proper logging.
 """
 
 from core.database.resources import add_resource, list_resources, remove_resource
 from core.exceptions import ResourceError
+import logging
+
+logger = logging.getLogger(__name__)
 
 def list_all_resources(category: str = None):
     """
@@ -21,7 +23,9 @@ def create_resource(category: str, url: str, title: str = "") -> int:
     """
     if not url.startswith("http"):
         raise ResourceError(f"URL must start with 'http'. Provided: {url}")
-    return add_resource(category, url, title)
+    resource_id = add_resource(category, url, title)
+    logger.info(f"Resource created: ID {resource_id}, category: {category}, title: {title}")
+    return resource_id
 
 def delete_resource(resource_id: int) -> None:
     """
@@ -31,5 +35,6 @@ def delete_resource(resource_id: int) -> None:
     if resource_id <= 0:
         raise ResourceError(f"Resource ID must be a positive integer. Provided: {resource_id}")
     remove_resource(resource_id)
+    logger.info(f"Resource with ID {resource_id} deleted.")
 
 # End of managers/resources_manager.py

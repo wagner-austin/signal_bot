@@ -1,9 +1,7 @@
 #!/usr/bin/env python
 """
-managers/volunteer/volunteer_operations.py
-------------------------------------------
-Volunteer operations. Renamed sign_up -> register_volunteer for consistency.
-Now includes manager-side validation for the 'available' parameter.
+managers/volunteer/volunteer_operations.py - Volunteer operations.
+Handles volunteer registration, deletion, and check-in with proper logging.
 """
 
 import logging
@@ -27,12 +25,9 @@ def register_volunteer(phone: str, name: str, skills: List[str], available: Any 
     """
     register_volunteer - Creates/updates a volunteer in an atomic transaction.
     Raises VolunteerError if phone is invalid or an unexpected error occurs.
-    Now includes logic to parse 'available' from string/int into a boolean.
     """
-    # Unified phone validation
     validate_phone_number(phone)
 
-    # Convert 'available' param to bool if needed
     if not isinstance(available, bool):
         try:
             available = bool(int(available))
@@ -42,7 +37,6 @@ def register_volunteer(phone: str, name: str, skills: List[str], available: Any 
     try:
         with per_phone_lock(phone):
             with atomic_transaction(exclusive=True) as conn:
-                # Remove from DeletedVolunteers if present.
                 remove_deleted_volunteer_record(phone, conn=conn)
 
                 record = get_volunteer_record(phone, conn=conn)
@@ -53,6 +47,7 @@ def register_volunteer(phone: str, name: str, skills: List[str], available: Any 
                     new_role = current_role.strip() if current_role and current_role.strip() else record["current_role"]
 
                     update_volunteer_record(phone, updated_name, list(new_skills), available, new_role, conn=conn)
+                    logger.info(f"Volunteer {phone} updated: name='{updated_name}', skills={list(new_skills)}, available={available}, role='{new_role}'")
                     return VOLUNTEER_UPDATED.format(name=updated_name)
                 else:
                     final_name = "Anonymous" if name.lower() == "skip" or not name.strip() else name
@@ -60,6 +55,7 @@ def register_volunteer(phone: str, name: str, skills: List[str], available: Any 
                     role_to_set = current_role.strip() if current_role and current_role.strip() else None
 
                     add_volunteer_record(phone, final_name, skills, available, role_to_set, role_to_set, conn=conn)
+                    logger.info(f"New volunteer {phone} registered: name='{final_name}', skills={skills}, available={available}, role='{role_to_set}'")
                     return NEW_VOLUNTEER_REGISTERED.format(name=final_name)
     except Exception as e:
         logger.exception("Error during volunteer registration.")
@@ -80,7 +76,7 @@ def delete_volunteer(phone: str) -> str:
         record["current_role"]
     )
     delete_volunteer_record(phone)
-    logger.info(f"Volunteer record for {phone} has been deleted from the system.")
+    logger.info(f"Volunteer {phone} record deleted from the system.")
     return VOLUNTEER_DELETED
 
 def check_in(phone: str) -> str:
@@ -90,6 +86,7 @@ def check_in(phone: str) -> str:
     record = get_volunteer_record(phone)
     if record:
         update_volunteer_record(phone, record["name"], record["skills"], True, record["current_role"])
+        logger.info(f"Volunteer {phone} checked in.")
         return VOLUNTEER_CHECKED_IN.format(name=normalize_name(record['name'], phone))
     raise VolunteerError("Volunteer not found.")
 
