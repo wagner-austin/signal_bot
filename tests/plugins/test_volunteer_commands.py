@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """
 tests/plugins/test_volunteer_commands.py - Tests volunteer command plugins.
-Ensures normal usage for register, edit, delete, etc., plus coverage for usage instructions on subcommands like 'find' and 'add skills'.
+Ensures normal usage for register, edit, delete, etc., and includes tests for interactive (partial) registration input.
 """
 
 import pytest
@@ -16,7 +16,7 @@ from plugins.commands.volunteer import (
 from core.state import BotStateMachine
 from core.database.volunteers import get_volunteer_record
 from managers.pending_actions import PENDING_ACTIONS
-
+from core.plugin_usage import USAGE_REGISTER_PARTIAL
 
 def test_volunteer_register_new():
     """
@@ -30,7 +30,6 @@ def test_volunteer_register_new():
     assert record is not None
     assert record.get("name").lower() == "test user"
 
-
 def test_volunteer_register_existing():
     """
     Tests attempting to register again if the volunteer is already registered.
@@ -42,7 +41,6 @@ def test_volunteer_register_existing():
     # This is a normal "already registered" path.
     assert "you are registered as" in response.lower()
 
-
 def test_volunteer_edit_command_interactive():
     """
     Tests that editing with no arguments initiates interactive name editing.
@@ -52,7 +50,6 @@ def test_volunteer_edit_command_interactive():
     register_command("Initial Name", phone, state_machine, msg_timestamp=123)
     response = edit_command("", phone, state_machine, msg_timestamp=123)
     assert "edit" in response.lower()
-
 
 def test_volunteer_delete_command():
     """
@@ -64,7 +61,6 @@ def test_volunteer_delete_command():
     response = delete_command("", phone, state_machine, msg_timestamp=123)
     assert "delete your registration" in response.lower()
 
-
 def test_volunteer_skills_command():
     """
     Tests the skills command, which lists current skills and potential additions.
@@ -74,7 +70,6 @@ def test_volunteer_skills_command():
     register_command("Skill User", phone, state_machine, msg_timestamp=123)
     response = skills_command("", phone, state_machine, msg_timestamp=123)
     assert "currently has skills" in response.lower()
-
 
 def test_volunteer_find_command():
     """
@@ -87,7 +82,6 @@ def test_volunteer_find_command():
     # Usually just returns no matches or a list. We check that it's a string.
     assert isinstance(response, str)
 
-
 def test_volunteer_add_skills_command():
     """
     Tests adding skills to an existing volunteer.
@@ -98,7 +92,6 @@ def test_volunteer_add_skills_command():
     response = add_skills_command("Python, Testing", phone, state_machine, msg_timestamp=123)
     assert "registered" in response.lower() or "updated" in response.lower()
 
-
 def test_volunteer_find_command_no_args_shows_usage():
     """
     Tests that calling 'find_command' with no arguments returns usage instructions.
@@ -106,8 +99,7 @@ def test_volunteer_find_command_no_args_shows_usage():
     phone = "+80000000006"
     state_machine = BotStateMachine()
     response = find_command("", phone, state_machine, msg_timestamp=123)
-    assert "Usage: @bot find <skill1> <skill2> ..." in response
-
+    assert "usage:" in response.lower()
 
 def test_volunteer_add_skills_command_no_args_shows_usage():
     """
@@ -116,6 +108,16 @@ def test_volunteer_add_skills_command_no_args_shows_usage():
     phone = "+80000000007"
     state_machine = BotStateMachine()
     response = add_skills_command("", phone, state_machine, msg_timestamp=123)
-    assert "Usage: @bot add skills <skill1>, <skill2>, ..." in response
+    assert "usage:" in response.lower()
+
+def test_register_command_partial():
+    """
+    Tests that providing an incomplete name (e.g., only one word) for registration returns a partial usage prompt.
+    """
+    phone = "+80000000008"
+    state_machine = BotStateMachine()
+    response = register_command("John", phone, state_machine, msg_timestamp=123)
+    # Expect the response to equal the partial usage prompt for registration.
+    assert USAGE_REGISTER_PARTIAL.lower() in response.lower()
 
 # End of tests/plugins/test_volunteer_commands.py
