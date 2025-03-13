@@ -1,10 +1,8 @@
 #!/usr/bin/env python
 """
-plugins/commands/speaker.py - Speaker command plugins - Provides commands to add or remove a speaker from an event.
-Usage:
-  "@bot add speaker [Event: <title>,] Name: <speaker name>, Topic: <speaker topic>"
-  "@bot remove speaker [Event: <title>,] Name: <speaker name>"
-If "Event:" is omitted, the latest event is used.
+plugins/commands/speaker.py - Speaker command plugins.
+Provides commands to add or remove a speaker from an event.
+USAGE: Refer to usage constants in core/plugin_usage.py (USAGE_ADD_SPEAKER, USAGE_REMOVE_SPEAKER)
 """
 
 from typing import Optional
@@ -14,6 +12,7 @@ from parsers.argument_parser import parse_plugin_arguments
 from parsers.plugin_arg_parser import PluginArgError
 from managers.event_manager import list_all_events, assign_speaker, remove_speaker
 import logging
+from core.plugin_usage import USAGE_ADD_SPEAKER, USAGE_REMOVE_SPEAKER
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +21,8 @@ def add_speaker_command(args: str, sender: str, state_machine: BotStateMachine, 
     """
     add speaker - Adds a speaker to an event.
     If "Event:" is omitted, the latest event is used.
+    
+    USAGE: {USAGE_ADD_SPEAKER}
     """
     try:
         parts = parse_plugin_arguments(args, mode='kv')["kv"]
@@ -42,7 +43,7 @@ def add_speaker_command(args: str, sender: str, state_machine: BotStateMachine, 
             event_id = events[0].get("event_id")
 
         if "name" not in parts or "topic" not in parts:
-            return "Missing required fields. Please provide both 'Name' and 'Topic'."
+            return USAGE_ADD_SPEAKER
 
         speaker_name = parts["name"]
         speaker_topic = parts["topic"]
@@ -60,6 +61,8 @@ def remove_speaker_command(args: str, sender: str, state_machine: BotStateMachin
     """
     remove speaker - Removes a speaker from an event.
     If "Event:" is omitted, the latest event is used.
+    
+    USAGE: {USAGE_REMOVE_SPEAKER}
     """
     try:
         parts = parse_plugin_arguments(args, mode='kv')["kv"]
@@ -80,7 +83,7 @@ def remove_speaker_command(args: str, sender: str, state_machine: BotStateMachin
             event_id = events[0].get("event_id")
 
         if "name" not in parts:
-            return "Missing required field 'Name'. Please provide the speaker's name to remove."
+            return USAGE_REMOVE_SPEAKER
 
         speaker_name = parts["name"]
         remove_speaker(event_id, speaker_name)

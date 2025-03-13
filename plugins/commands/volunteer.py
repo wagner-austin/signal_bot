@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 """
 plugins/commands/volunteer.py - Volunteer command plugins.
-Handles volunteer registration, editing, deletion, skill updates, and more.
-Centralizes exception handling to convert domain errors to user-friendly messages.
+Handles volunteer registration, editing, deletion, and skill management.
+USAGE: Refer to usage constants in core/plugin_usage.py (USAGE_VOLUNTEER_STATUS, USAGE_REGISTER, USAGE_REGISTER_PARTIAL, USAGE_EDIT, USAGE_DELETE, USAGE_SKILLS, USAGE_FIND, USAGE_ADD_SKILLS)
 """
 
 from typing import Optional
@@ -24,6 +24,10 @@ from parsers.plugin_arg_parser import (
 )
 import logging
 from core.exceptions import ResourceError, VolunteerError
+from core.plugin_usage import (
+    USAGE_VOLUNTEER_STATUS, USAGE_REGISTER, USAGE_REGISTER_PARTIAL, USAGE_EDIT, USAGE_DELETE, 
+    USAGE_SKILLS, USAGE_FIND, USAGE_ADD_SKILLS
+)
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +36,8 @@ def volunteer_status_command(args: str, sender: str, state_machine: BotStateMach
                              msg_timestamp: Optional[int] = None) -> str:
     """
     volunteer status - Display the current volunteer status.
+    
+    USAGE: {USAGE_VOLUNTEER_STATUS}
     """
     try:
         return VOLUNTEER_MANAGER.volunteer_status()
@@ -50,6 +56,8 @@ def check_in_command(args: str, sender: str, state_machine: BotStateMachine,
                      msg_timestamp: Optional[int] = None) -> str:
     """
     check in - Marks a volunteer as available.
+    
+    USAGE: {USAGE_VOLUNTEER_STATUS}
     """
     try:
         return VOLUNTEER_MANAGER.check_in(sender)
@@ -67,9 +75,15 @@ def check_in_command(args: str, sender: str, state_machine: BotStateMachine,
 def register_command(args: str, sender: str, state_machine: BotStateMachine,
                      msg_timestamp: Optional[int] = None) -> str:
     """
-    register - Interactive volunteer registration command.
+    register - Interactive volunteer registration.
+    
+    USAGE: {USAGE_REGISTER}
     """
     try:
+        # If user provided input but it appears incomplete (e.g. only one word) and not "skip"
+        if args.strip() and len(args.strip().split()) < 2 and args.strip().lower() not in SKIP_VALUES:
+            return USAGE_REGISTER_PARTIAL
+
         record = VOLUNTEER_MANAGER.list_all_volunteers().get(sender)
         if args.strip():
             if record:
@@ -106,6 +120,8 @@ def edit_command(args: str, sender: str, state_machine: BotStateMachine,
                  msg_timestamp: Optional[int] = None) -> str:
     """
     edit - Edit your registered name.
+    
+    USAGE: {USAGE_EDIT}
     """
     try:
         record = VOLUNTEER_MANAGER.list_all_volunteers().get(sender)
@@ -131,6 +147,8 @@ def delete_command(args: str, sender: str, state_machine: BotStateMachine,
                    msg_timestamp: Optional[int] = None) -> str:
     """
     delete - Initiates volunteer deletion flow.
+    
+    USAGE: {USAGE_DELETE}
     """
     try:
         if not args.strip():
@@ -153,6 +171,8 @@ def skills_command(args: str, sender: str, state_machine: BotStateMachine,
                    msg_timestamp: Optional[int] = None) -> str:
     """
     skills - Display your current skills.
+    
+    USAGE: {USAGE_SKILLS}
     """
     try:
         from core.database import get_volunteer_record
@@ -183,15 +203,17 @@ def skills_command(args: str, sender: str, state_machine: BotStateMachine,
 def find_command(args: str, sender: str, state_machine: BotStateMachine,
                  msg_timestamp: Optional[int] = None) -> str:
     """
-    find - Finds volunteers with specified skill(s).
+    find - Finds volunteers with specified skills.
+    
+    USAGE: {USAGE_FIND}
     """
     try:
         from core.database import get_all_volunteers
         raw_tokens = args.split()
         if not raw_tokens:
-            raise PluginArgError("Usage: @bot find <skill1> <skill2> ...")
+            raise PluginArgError(USAGE_FIND)
         data = {"skills": [s.lower() for s in raw_tokens]}
-        validated = validate_model(data, VolunteerFindModel, "find <skill1> <skill2> ...")
+        validated = validate_model(data, VolunteerFindModel, USAGE_FIND)
         volunteers = get_all_volunteers()
         matching_volunteers = []
         for phone, data_v in volunteers.items():
@@ -220,19 +242,21 @@ def add_skills_command(args: str, sender: str, state_machine: BotStateMachine,
                        msg_timestamp: Optional[int] = None) -> str:
     """
     add skills - Adds skills to your profile.
+    
+    USAGE: {USAGE_ADD_SKILLS}
     """
     try:
         if not args.strip():
-            raise PluginArgError("Usage: @bot add skills <skill1>, <skill2>, ...")
+            raise PluginArgError(USAGE_ADD_SKILLS)
         from core.database import get_volunteer_record
         record = get_volunteer_record(sender)
         if not record:
             return "You are not registered. Please register first."
         raw_tokens = [t.strip() for t in args.split(",") if t.strip()]
         if not raw_tokens:
-            raise PluginArgError("Usage: @bot add skills <skill1>, <skill2>, ...")
+            raise PluginArgError(USAGE_ADD_SKILLS)
         data = {"skills": raw_tokens}
-        validated = validate_model(data, VolunteerAddSkillsModel, "add skills <skill1>, <skill2>, ...")
+        validated = validate_model(data, VolunteerAddSkillsModel, USAGE_ADD_SKILLS)
         return VOLUNTEER_MANAGER.register_volunteer(sender, "skip", validated.skills)
     except PluginArgError as e:
         logger.warning(f"add_skills_command PluginArgError: {e}")

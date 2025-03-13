@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 """
 plugins/commands/resource.py
-----------------------------
-Resource command plugins. Manages shared resource links by calling managers.resources_manager for all logic.
+Manages shared resource links.
+USAGE: Refer to USAGE_RESOURCE in core/plugin_usage.py
 """
 
 import logging
@@ -15,8 +15,8 @@ from parsers.argument_parser import parse_plugin_arguments
 from parsers.plugin_arg_parser import PluginArgError
 from pydantic import ValidationError
 
-# New import to unify formatting:
 from cli.formatters import format_resource
+from core.plugin_usage import USAGE_RESOURCE
 
 logger = logging.getLogger(__name__)
 
@@ -24,26 +24,15 @@ logger = logging.getLogger(__name__)
 def resource_command(args: str, sender: str, state_machine: BotStateMachine,
                      msg_timestamp: Optional[int] = None) -> str:
     """
-    resource - Manage shared resource links via managers.resources_manager.
+    resource - Manage shared resource links.
     
-    Subcommands:
-      add <category> <url> [title?]
-      list [<category>]
-      remove <resource_id>
-    
-    All underlying creation/removal/listing logic is in managers.resources_manager.
-    This plugin only parses arguments and calls that manager as the 'source of truth'.
+    USAGE: {USAGE_RESOURCE}
     """
     try:
         parsed_main = parse_plugin_arguments(args, mode='positional', maxsplit=1)
         tokens = parsed_main["tokens"]
         if not tokens:
-            raise PluginArgError(
-                "Usage:\n"
-                "  @bot resource add <category> <url> [title?]\n"
-                "  @bot resource list [<category>]\n"
-                "  @bot resource remove <resource_id>"
-            )
+            raise PluginArgError(USAGE_RESOURCE)
 
         subcommand = tokens[0].lower()
         rest = tokens[1] if len(tokens) > 1 else ""
@@ -82,13 +71,12 @@ def resource_command(args: str, sender: str, state_machine: BotStateMachine,
                 else:
                     return "No resources found."
 
-            # Use the same formatting used by CLI:
             output_lines = [format_resource(r) for r in resources]
             return "\n".join(output_lines)
 
         elif subcommand == "remove":
             if not rest.strip():
-                raise PluginArgError("Usage: @bot resource remove <resource_id>")
+                raise PluginArgError(USAGE_RESOURCE)
 
             resource_id_str = rest.strip()
             try:
@@ -100,7 +88,7 @@ def resource_command(args: str, sender: str, state_machine: BotStateMachine,
             return f"Resource with ID {resource_id} removed."
 
         else:
-            raise PluginArgError("Invalid subcommand. Use add, list, or remove.")
+            raise PluginArgError(USAGE_RESOURCE)
 
     except PluginArgError as e:
         logger.warning(f"resource_command PluginArgError: {e}")

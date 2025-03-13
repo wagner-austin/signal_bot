@@ -1,14 +1,15 @@
 #!/usr/bin/env python
 """
 plugins/commands/help.py - Help command plugin.
-Provides a concise help listing for available commands based on help_visible flag.
-Usage: "@bot help"
+Provides a concise help listing for available commands.
+USAGE: {USAGE_HELP} (see core/plugin_usage.py)
 """
 
 from typing import Optional
 from plugins.manager import plugin, get_all_plugins
 from core.state import BotStateMachine
 import logging
+from core.plugin_usage import USAGE_HELP
 
 logger = logging.getLogger(__name__)
 
@@ -16,13 +17,12 @@ logger = logging.getLogger(__name__)
 def help_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
     help - Provides a concise list of available commands.
-    Only commands with help_visible=True are displayed.
-    Usage: "@bot help"
+    
+    USAGE: {USAGE_HELP}
     """
     try:
         plugins_info = get_all_plugins()
         lines = []
-        # Automatically include plugins marked as help_visible.
         for canonical, info in sorted(plugins_info.items()):
             if info.get("help_visible", True):
                 func = info["function"]

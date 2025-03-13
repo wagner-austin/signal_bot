@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 """
 plugins/commands/event.py - Event command plugins.
-Leverages managers.event_manager for all event-related CRUD logic,
-ensuring a single source of truth shared with CLI code.
+Provides commands for listing, planning, editing, and removing events.
+USAGE: Refer to usage constants in core/plugin_usage.py (USAGE_PLAN_EVENT, USAGE_PLAN_EVENT_PARTIAL, etc.)
 """
 
 import logging
@@ -22,6 +22,7 @@ from managers.event_manager import (
 )
 from pydantic import ValidationError
 from parsers.argument_parser import parse_plugin_arguments
+from core.plugin_usage import USAGE_PLAN_EVENT, USAGE_PLAN_EVENT_PARTIAL, USAGE_EDIT_EVENT, USAGE_REMOVE_EVENT
 
 logger = logging.getLogger(__name__)
 
@@ -29,8 +30,7 @@ logger = logging.getLogger(__name__)
 def event_command(args: str, sender: str, state_machine: BotStateMachine,
                   msg_timestamp: Optional[int] = None) -> str:
     """
-    event - Lists upcoming events by calling managers.event_manager.list_all_events().
-    Also used by CLI subcommands for listing events.
+    event - Lists upcoming events.
     """
     try:
         events = list_all_events()
@@ -54,18 +54,14 @@ def event_command(args: str, sender: str, state_machine: BotStateMachine,
 def plan_event_command(args: str, sender: str, state_machine: BotStateMachine,
                        msg_timestamp: Optional[int] = None) -> str:
     """
-    plan event - Create a new event by calling managers.event_manager.create_event(...).
-    Shares the same manager logic as the CLI, ensuring consistent behavior.
+    plan event - Create a new event.
+    
+    USAGE: {USAGE_PLAN_EVENT}
     """
     try:
         lowered = args.strip().lower()
         if not lowered:
-            raise PluginArgError(
-                "Plan Event:\n\n"
-                "Please reply with event details in the format:\n"
-                "Title: <title>, Date: <date>, Time: <time>, Location: <loc>, Description: <desc>\n"
-                "Or 'skip' to cancel."
-            )
+            raise PluginArgError(USAGE_PLAN_EVENT)
 
         if lowered in {"skip", "cancel"}:
             return "Event creation cancelled."
@@ -74,22 +70,23 @@ def plan_event_command(args: str, sender: str, state_machine: BotStateMachine,
         for chunk in args.split(","):
             chunk = chunk.strip()
             if ":" not in chunk:
-                raise PluginArgError("Missing one or more required fields. Event creation cancelled.")
+                raise PluginArgError(USAGE_PLAN_EVENT)
             k, v = chunk.split(":", 1)
             parts[k.strip().lower()] = v.strip()
 
-        try:
-            data = {
-                "title": parts["title"],
-                "date": parts["date"],
-                "time": parts["time"],
-                "location": parts["location"],
-                "description": parts["description"],
-            }
-        except KeyError:
-            return "Missing one or more required fields. Event creation cancelled."
+        required_fields = ["title", "date", "time", "location", "description"]
+        missing_fields = [field for field in required_fields if field not in parts]
+        if missing_fields:
+            return f"Missing required fields: {', '.join(missing_fields)}. {USAGE_PLAN_EVENT_PARTIAL}"
 
-        validated = validate_model(data, PlanEventModel, "plan event: Title, Date, Time, Location, Description required")
+        data = {
+            "title": parts["title"],
+            "date": parts["date"],
+            "time": parts["time"],
+            "location": parts["location"],
+            "description": parts["description"],
+        }
+        validated = validate_model(data, PlanEventModel, USAGE_PLAN_EVENT)
         event_id = create_event(
             validated.title,
             validated.date,
@@ -109,18 +106,19 @@ def plan_event_command(args: str, sender: str, state_machine: BotStateMachine,
 def edit_event_command(args: str, sender: str, state_machine: BotStateMachine,
                        msg_timestamp: Optional[int] = None) -> str:
     """
-    edit event - Update an existing event by calling managers.event_manager.update_event(...).
-    Uses the same manager logic as the CLI subcommand.
+    edit event - Update an existing event.
+    
+    USAGE: {USAGE_EDIT_EVENT}
     """
     try:
         if not args.strip():
-            raise PluginArgError("Usage: @bot edit event EventID: <id>, <key>:<value>, ...")
+            raise PluginArgError(USAGE_EDIT_EVENT)
 
         parts = {}
         for chunk in args.split(","):
             chunk = chunk.strip()
             if ":" not in chunk:
-                raise PluginArgError("Invalid format. Use key:value pairs separated by commas.")
+                raise PluginArgError(USAGE_EDIT_EVENT)
             k, v = chunk.split(":", 1)
             parts[k.strip().lower()] = v.strip()
 
@@ -136,7 +134,7 @@ def edit_event_command(args: str, sender: str, state_machine: BotStateMachine,
             "description": parts.get("description"),
         }
 
-        validated = validate_model(data, EditEventModel, "edit event: provide valid EventID and fields")
+        validated = validate_model(data, EditEventModel, USAGE_EDIT_EVENT)
         existing_event = get_event(validated.event_id)
         if not existing_event:
             return f"No event found with ID {validated.event_id} to edit."
@@ -169,24 +167,25 @@ def edit_event_command(args: str, sender: str, state_machine: BotStateMachine,
 def remove_event_command(args: str, sender: str, state_machine: BotStateMachine,
                          msg_timestamp: Optional[int] = None) -> str:
     """
-    remove event - Delete an existing event by calling managers.event_manager.delete_event(...).
-    Mirrors the same manager calls used by the CLI.
+    remove event - Delete an existing event.
+    
+    USAGE: {USAGE_REMOVE_EVENT}
     """
     try:
         if not args.strip():
-            raise PluginArgError("Usage: @bot remove event EventID: <id> or Title: <event title>")
+            raise PluginArgError(USAGE_REMOVE_EVENT)
 
         parts = {}
         for chunk in args.split(","):
             chunk = chunk.strip()
             if ":" not in chunk:
-                raise PluginArgError("Invalid format. Use key:value pairs separated by commas.")
+                raise PluginArgError(USAGE_REMOVE_EVENT)
             k, v = chunk.split(":", 1)
             parts[k.strip().lower()] = v.strip()
 
         if "eventid" in parts:
             data = {"event_id": parts["eventid"]}
-            validated = validate_model(data, RemoveEventByIdModel, "remove event: provide valid EventID")
+            validated = validate_model(data, RemoveEventByIdModel, USAGE_REMOVE_EVENT)
             existing = get_event(validated.event_id)
             if not existing:
                 return f"No event found with ID {validated.event_id}."
@@ -194,7 +193,7 @@ def remove_event_command(args: str, sender: str, state_machine: BotStateMachine,
             return f"Event with ID {validated.event_id} removed successfully."
         elif "title" in parts:
             data = {"title": parts["title"]}
-            validated = validate_model(data, RemoveEventByTitleModel, "remove event: provide a title")
+            validated = validate_model(data, RemoveEventByTitleModel, USAGE_REMOVE_EVENT)
             events = list_all_events()
             found_id = None
             for ev in events:
@@ -206,7 +205,7 @@ def remove_event_command(args: str, sender: str, state_machine: BotStateMachine,
             delete_event(found_id)
             return f"Event with ID {found_id} removed successfully."
         else:
-            raise PluginArgError("Please provide either EventID or Title to remove an event.")
+            raise PluginArgError(USAGE_REMOVE_EVENT)
     except PluginArgError as e:
         logger.warning(f"remove_event_command PluginArgError: {e}")
         return str(e)

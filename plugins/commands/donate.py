@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 """
-plugins/commands/donate.py - Donation command plugin - Unified under the new Pydantic approach, reusing typed models and unified validation helper.
+plugins/commands/donate.py - Donation command plugin.
+Provides donation logging for cash, in-kind, or donation interest.
+Usage: See USAGE_DONATE in core/plugin_usage.py
 """
 
 from typing import Optional
@@ -16,6 +18,7 @@ from parsers.plugin_arg_parser import (
     validate_model
 )
 import logging
+from core.plugin_usage import USAGE_DONATE
 
 logger = logging.getLogger(__name__)
 
@@ -24,31 +27,24 @@ def donate_command(args: str, sender: str, state_machine: BotStateMachine,
                    msg_timestamp: Optional[int] = None) -> str:
     """
     donate - Log donation interest or record a donation.
-    Subcommands:
-      donate <amount> <description>         -> Cash donation.
-      donate in-kind <description>          -> In-kind donation.
-      donate register <method> [<description>]     -> Register donation interest.
+    
+    USAGE: {USAGE_DONATE}
     """
     try:
         parsed = parse_plugin_arguments(args.strip(), mode='positional')
         tokens = parsed["tokens"]
         if not tokens:
-            raise PluginArgError(
-                "Usage:\n"
-                "  @bot donate <amount> <description>\n"
-                "  @bot donate in-kind <description>\n"
-                "  @bot donate register <method> [<description>]"
-            )
+            raise PluginArgError(USAGE_DONATE)
 
         first = tokens[0].lower()
         if first == "register":
             if len(tokens) < 2:
-                raise PluginArgError("Usage: @bot donate register <method> [<description>]")
+                raise PluginArgError(USAGE_DONATE)
             data = {
                 "method": tokens[1],
                 "description": " ".join(tokens[2:]) if len(tokens) > 2 else ""
             }
-            validated = validate_model(data, RegisterDonationArgs, "donate register <method> [<description>]")
+            validated = validate_model(data, RegisterDonationArgs, USAGE_DONATE)
             combined_description = f"{validated.method} {validated.description}".strip()
             donation_id = add_donation(sender, 0.0, "register", combined_description)
             return f"Donation logged with ID {donation_id}."
@@ -56,21 +52,19 @@ def donate_command(args: str, sender: str, state_machine: BotStateMachine,
             data = {
                 "description": " ".join(tokens[1:]) if len(tokens) > 1 else ""
             }
-            validated = validate_model(data, InKindDonationArgs, "donate in-kind <description>")
+            validated = validate_model(data, InKindDonationArgs, USAGE_DONATE)
             donation_id = add_donation(sender, 0.0, "in-kind", validated.description)
             return f"Donation logged with ID {donation_id}."
         else:
             try:
                 amount = float(tokens[0])
             except ValueError:
-                raise PluginArgError(
-                    "Invalid donation amount. Provide a numeric value, or use 'in-kind'/'register'."
-                )
+                raise PluginArgError(USAGE_DONATE)
             data = {
                 "amount": amount,
                 "description": " ".join(tokens[1:]) if len(tokens) > 1 else ""
             }
-            validated = validate_model(data, CashDonationArgs, "donate <amount> <description>")
+            validated = validate_model(data, CashDonationArgs, USAGE_DONATE)
             donation_id = add_donation(sender, validated.amount, "cash", validated.description)
             return f"Donation logged with ID {donation_id}."
     except PluginArgError as e:

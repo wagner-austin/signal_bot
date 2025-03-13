@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 """
 plugins/commands/task.py - Task command plugins.
-Manages shared to-do items by calling managers.task_manager for add/list/assign/close.
-Ensures centralized exception handling for domain errors.
+Manages shared to-do items.
+USAGE: Refer to usage constants in core/plugin_usage.py (USAGE_TASK_ADD, USAGE_TASK_LIST, USAGE_TASK_ASSIGN, USAGE_TASK_CLOSE)
 """
 
 from typing import Optional
@@ -18,43 +18,41 @@ from parsers.plugin_arg_parser import (
 )
 import logging
 from core.exceptions import ResourceError, VolunteerError
+from managers.task_manager import create_task, list_all_tasks, assign_task, close_task
+from core.plugin_usage import USAGE_TASK_ADD, USAGE_TASK_LIST, USAGE_TASK_ASSIGN, USAGE_TASK_CLOSE
 
 logger = logging.getLogger(__name__)
 
 @plugin('task', canonical='task')
 def task_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
-    task - Manage shared to-do tasks by calling managers.task_manager.
+    task - Manage shared to-do tasks.
+    
     Subcommands:
-      add <description>
-      list
-      assign <task_id> <volunteer_display_name>
-      close <task_id>
-
-    This plugin is the same 'source of truth' used by the CLI, via managers.task_manager.
+      add <description>       : Add a new task.
+      list                    : List all tasks.
+      assign <task_id> <name> : Assign a task.
+      close <task_id>         : Close a task.
+    
+    USAGE:
+      Add: {USAGE_TASK_ADD}
+      List: {USAGE_TASK_LIST}
+      Assign: {USAGE_TASK_ASSIGN}
+      Close: {USAGE_TASK_CLOSE}
     """
     try:
         parsed_main = parse_plugin_arguments(args, mode='positional')
         tokens = parsed_main["tokens"]
         if not tokens:
-            raise PluginArgError(
-                "Usage:\n"
-                "  @bot task add <description>\n"
-                "  @bot task list\n"
-                "  @bot task assign <task_id> <volunteer_display_name>\n"
-                "  @bot task close <task_id>"
-            )
+            raise PluginArgError(f"{USAGE_TASK_ADD}\n{USAGE_TASK_LIST}\n{USAGE_TASK_ASSIGN}\n{USAGE_TASK_CLOSE}")
 
         subcommand = tokens[0].lower()
         rest = tokens[1:] if len(tokens) > 1 else []
 
-        # Local import to avoid circular references
-        from managers.task_manager import create_task, list_all_tasks, assign_task, close_task
-
         if subcommand == "add":
             if not rest:
-                raise PluginArgError("Usage: @bot task add <description>")
-            validated = validate_model({"description": " ".join(rest)}, TaskAddModel, "task add <description>")
+                raise PluginArgError(USAGE_TASK_ADD)
+            validated = validate_model({"description": " ".join(rest)}, TaskAddModel, USAGE_TASK_ADD)
             task_id = create_task(sender, validated.description)
             return f"Task added with ID {task_id}."
         elif subcommand == "list":
@@ -70,20 +68,20 @@ def task_command(args: str, sender: str, state_machine: BotStateMachine, msg_tim
             return "\n".join(response_lines)
         elif subcommand == "assign":
             if len(rest) < 2:
-                raise PluginArgError("Usage: @bot task assign <task_id> <volunteer_display_name>")
+                raise PluginArgError(USAGE_TASK_ASSIGN)
             data = {"task_id": rest[0], "volunteer_display_name": " ".join(rest[1:])}
-            validated = validate_model(data, TaskAssignModel, "task assign <task_id> <volunteer_display_name>")
+            validated = validate_model(data, TaskAssignModel, USAGE_TASK_ASSIGN)
             assign_task(validated.task_id, validated.volunteer_display_name)
             return f"Task {validated.task_id} assigned to {validated.volunteer_display_name}."
         elif subcommand == "close":
             if not rest:
-                raise PluginArgError("Usage: @bot task close <task_id>")
+                raise PluginArgError(USAGE_TASK_CLOSE)
             data = {"task_id": rest[0]}
-            validated = validate_model(data, TaskCloseModel, "task close <task_id>")
+            validated = validate_model(data, TaskCloseModel, USAGE_TASK_CLOSE)
             close_task(validated.task_id)
             return f"Task {validated.task_id} has been closed."
         else:
-            raise PluginArgError("Invalid subcommand for task. Use add, list, assign, or close.")
+            raise PluginArgError(f"{USAGE_TASK_ADD}\n{USAGE_TASK_LIST}\n{USAGE_TASK_ASSIGN}\n{USAGE_TASK_CLOSE}")
     except PluginArgError as e:
         logger.warning(f"task_command PluginArgError: {e}")
         return str(e)

@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 """
-plugins/commands/system.py - System command plugins - Provides system-level commands such as assign, test, shutdown, info, weekly update, and theme.
+plugins/commands/system.py - System command plugins.
+Provides system-level commands such as assign, test, shutdown, info, weekly update, and theme.
+USAGE: Refer to usage constants in core/plugin_usage.py (USAGE_ASSIGN, USAGE_TEST, USAGE_SHUTDOWN, USAGE_INFO, USAGE_WEEKLY_UPDATE_SYSTEM, USAGE_THEME_SYSTEM)
 """
 
 import logging
@@ -16,6 +18,7 @@ from parsers.plugin_arg_parser import (
     SystemAssignModel,
     validate_model
 )
+from core.plugin_usage import USAGE_ASSIGN, USAGE_TEST, USAGE_SHUTDOWN, USAGE_INFO, USAGE_WEEKLY_UPDATE_SYSTEM, USAGE_THEME_SYSTEM
 
 logger = logging.getLogger(__name__)
 
@@ -23,15 +26,16 @@ logger = logging.getLogger(__name__)
 def assign_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
     assign - Assign a volunteer based on a required skill.
-    Usage: "@bot assign <Skill Name>"
+    
+    USAGE: {USAGE_ASSIGN}
     """
     try:
         parsed = parse_plugin_arguments(args, mode='positional')
         tokens = parsed["tokens"]
         if not tokens:
-            raise PluginArgError("Usage: @bot assign <Skill Name>")
+            raise PluginArgError(USAGE_ASSIGN)
         data = {"skill": " ".join(tokens)}
-        validated = validate_model(data, SystemAssignModel, "assign <Skill Name>")
+        validated = validate_model(data, SystemAssignModel, USAGE_ASSIGN)
         volunteer = VOLUNTEER_MANAGER.assign_volunteer(validated.skill, validated.skill)
         if volunteer:
             return f"{validated.skill} assigned to {volunteer}."
@@ -47,13 +51,14 @@ def assign_command(args: str, sender: str, state_machine: BotStateMachine, msg_t
 def plugin_test_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
     test - Test command for verifying bot response.
-    Usage: "@bot test"
+    
+    USAGE: {USAGE_TEST}
     """
     try:
         parsed = parse_plugin_arguments(args, mode='positional')
         tokens = parsed["tokens"]
         if tokens:
-            raise PluginArgError("Usage: @bot test")
+            raise PluginArgError(USAGE_TEST)
         return "yes"
     except PluginArgError as e:
         logger.warning(f"plugin_test_command PluginArgError: {e}")
@@ -66,13 +71,14 @@ def plugin_test_command(args: str, sender: str, state_machine: BotStateMachine, 
 def shutdown_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
     shutdown - Shut down the bot gracefully.
-    If extra arguments are provided, usage error.
+    
+    USAGE: {USAGE_SHUTDOWN}
     """
     try:
         parsed = parse_plugin_arguments(args, mode='positional')
         tokens = parsed["tokens"]
         if tokens:
-            raise PluginArgError("Usage: @bot shutdown")
+            raise PluginArgError(USAGE_SHUTDOWN)
         state_machine.shutdown()
         return "Bot is shutting down."
     except PluginArgError as e:
@@ -86,13 +92,14 @@ def shutdown_command(args: str, sender: str, state_machine: BotStateMachine, msg
 def info_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
     info - Provides a brief overview of the 50501 OC Grassroots Movement.
-    Usage: "@bot info"
+    
+    USAGE: {USAGE_INFO}
     """
     try:
         parsed = parse_plugin_arguments(args, mode='positional')
         tokens = parsed["tokens"]
         if tokens:
-            raise PluginArgError("Usage: @bot info")
+            raise PluginArgError(USAGE_INFO)
         return (
             "50501 OC Grassroots Movement is dedicated to upholding the Constitution "
             "and ending executive overreach.\n\n"
@@ -109,13 +116,15 @@ def info_command(args: str, sender: str, state_machine: BotStateMachine, msg_tim
 @plugin('weekly update', canonical='weekly update')
 def weekly_update_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
-    weekly update - Provides a summary of Trump's actions and Democrat advances this week.
+    weekly update - Provides a summary of Trump's actions and Democrat advances.
+    
+    USAGE: {USAGE_WEEKLY_UPDATE_SYSTEM}
     """
     try:
         parsed = parse_plugin_arguments(args, mode='positional')
         tokens = parsed["tokens"]
         if tokens:
-            raise PluginArgError("Usage: @bot weekly update")
+            raise PluginArgError(USAGE_WEEKLY_UPDATE_SYSTEM)
         return (
             "Weekly Update:\n\n"
             "Trump Actions:\n - Held rallies, executive orders.\n\n"
@@ -132,13 +141,14 @@ def weekly_update_command(args: str, sender: str, state_machine: BotStateMachine
 def theme_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
     theme - Displays the important theme for this week.
-    Usage: "@bot theme"
+    
+    USAGE: {USAGE_THEME_SYSTEM}
     """
     try:
         parsed = parse_plugin_arguments(args, mode='positional')
         tokens = parsed["tokens"]
         if tokens:
-            raise PluginArgError("Usage: @bot theme")
+            raise PluginArgError(USAGE_THEME_SYSTEM)
         return "This week's theme is: [Insert theme here]."
     except PluginArgError as e:
         logger.warning(f"theme_command PluginArgError: {e}")

@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 """
-plugins/commands/dbbackup.py - Database backup command plugin - Provides subcommands to create, list, and restore database backups.
+plugins/commands/dbbackup.py - Database backup command plugin.
+Provides subcommands to create, list, and restore database backups.
 Usage:
   "@bot dbbackup create"
   "@bot dbbackup list"
@@ -14,6 +15,7 @@ from core.database.backup import create_backup, list_backups, restore_backup
 from parsers.argument_parser import parse_plugin_arguments
 from parsers.plugin_arg_parser import PluginArgError
 import logging
+from core.plugin_usage import USAGE_DBBACKUP
 
 logger = logging.getLogger(__name__)
 
@@ -30,9 +32,7 @@ def dbbackup_command(args: str, sender: str, state_machine: BotStateMachine, msg
         parsed = parse_plugin_arguments(args, mode='positional')
         tokens = parsed["tokens"]
         if not tokens:
-            raise PluginArgError(
-                "Usage:\n  dbbackup create\n  dbbackup list\n  dbbackup restore <filename>"
-            )
+            raise PluginArgError(USAGE_DBBACKUP)
 
         subcommand = tokens[0].lower()
 
@@ -47,7 +47,7 @@ def dbbackup_command(args: str, sender: str, state_machine: BotStateMachine, msg
             return response
         elif subcommand == "restore":
             if len(tokens) < 2:
-                raise PluginArgError("Usage: dbbackup restore <filename>")
+                raise PluginArgError(USAGE_DBBACKUP)
             filename = tokens[1]
             success = restore_backup(filename)
             if success:
@@ -55,9 +55,7 @@ def dbbackup_command(args: str, sender: str, state_machine: BotStateMachine, msg
             else:
                 return f"Backup file '{filename}' not found."
         else:
-            raise PluginArgError(
-                "Invalid subcommand.\nUsage:\n  dbbackup create\n  dbbackup list\n  dbbackup restore <filename>"
-            )
+            raise PluginArgError(USAGE_DBBACKUP)
     except PluginArgError as e:
         logger.warning(f"dbbackup_command PluginArgError: {e}")
         return str(e)
