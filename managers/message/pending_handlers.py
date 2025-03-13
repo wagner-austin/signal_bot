@@ -9,7 +9,7 @@ from typing import Any, Optional
 from managers.message.base_pending_handler import BasePendingHandler
 from parsers.message_parser import ParsedMessage
 from core.messages import (
-    DELETION_CONFIRM_PROMPT, ALREADY_REGISTERED,
+    DELETION_CONFIRM, ALREADY_REGISTERED,
     DELETION_PROMPT, EDIT_PROMPT, EDIT_CANCELED, EDIT_CANCELED_WITH_NAME
 )
 from core.constants import SKIP_VALUES
@@ -37,7 +37,7 @@ class DeletionPendingHandler(BasePendingHandler):
         if state == "initial":
             if user_input in {"yes", "y", "yea", "sure"}:
                 self.pending_actions.set_deletion(sender, "confirm")
-                return DELETION_CONFIRM_PROMPT
+                return DELETION_CONFIRM
             else:
                 record = get_volunteer_record(sender)
                 confirmation = ALREADY_REGISTERED.format(name=record['name']) if record else "Deletion cancelled."

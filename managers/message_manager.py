@@ -30,6 +30,7 @@ class MessageManager:
                         msg_timestamp: Optional[int] = None) -> str:
         """
         Processes an incoming message.
+        After parsing, if the sender is not recognized (no volunteer record), a welcome message is prepended.
 
         Parameters:
             parsed (ParsedMessage): The parsed message.
@@ -41,6 +42,11 @@ class MessageManager:
         Returns:
             str: The response message.
         """
-        return dispatch_message(parsed, sender, self.state_machine, pending_actions, volunteer_manager, msg_timestamp)
+        from core.database import get_volunteer_record
+        from core.messages import GETTING_STARTED
+        response = dispatch_message(parsed, sender, self.state_machine, pending_actions, volunteer_manager, msg_timestamp)
+        if not get_volunteer_record(sender) and response:
+            response = GETTING_STARTED + "\n" + response
+        return response
 
 # End of managers/message_manager.py

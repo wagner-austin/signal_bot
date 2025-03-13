@@ -18,4 +18,9 @@ VOLUNTEER_UPDATED = "Volunteer '{name}' updated"
 VOLUNTEER_DELETED = "Your registration has been deleted. Thank you."
 VOLUNTEER_CHECKED_IN = "Volunteer '{name}' has been checked in and is now available."
 
+# New unified interactive prompts
+REGISTRATION_WELCOME = "Welcome! To register, reply with your full name. Or type 'skip' to remain anonymous."
+DELETION_CONFIRM = "Are you sure you want to delete your profile? Type 'YES' to confirm."
+GETTING_STARTED = "Hi! I don’t recognize you yet. Try @bot register or type 'help' for instructions."
+
 # End of core/messages.py

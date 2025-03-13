@@ -9,7 +9,7 @@ from typing import Optional
 from plugins.manager import plugin
 from core.state import BotStateMachine
 from core.messages import (
-    REGISTRATION_PROMPT, ALREADY_REGISTERED, EDIT_PROMPT,
+    REGISTRATION_WELCOME, ALREADY_REGISTERED, EDIT_PROMPT,
     DELETION_PROMPT
 )
 from managers.volunteer_manager import VOLUNTEER_MANAGER
@@ -95,7 +95,7 @@ def register_command(args: str, sender: str, state_machine: BotStateMachine,
                 return ALREADY_REGISTERED.format(name=record['name'])
             else:
                 PENDING_ACTIONS.set_registration(sender, "register")
-                return REGISTRATION_PROMPT
+                return REGISTRATION_WELCOME
     except (ResourceError, VolunteerError) as e:
         logger.error(f"register_command domain error: {e}", exc_info=True)
         error_msg = str(e)
@@ -127,7 +127,7 @@ def edit_command(args: str, sender: str, state_machine: BotStateMachine,
         record = VOLUNTEER_MANAGER.list_all_volunteers().get(sender)
         if not record:
             PENDING_ACTIONS.set_registration(sender, "register")
-            return REGISTRATION_PROMPT
+            return REGISTRATION_WELCOME
         if not args.strip():
             PENDING_ACTIONS.set_registration(sender, "edit")
             return EDIT_PROMPT.format(name=record['name'])
@@ -180,7 +180,7 @@ def skills_command(args: str, sender: str, state_machine: BotStateMachine,
         record = get_volunteer_record(sender)
         if not record:
             PENDING_ACTIONS.set_registration(sender, "register")
-            return REGISTRATION_PROMPT
+            return REGISTRATION_WELCOME
         else:
             current_skills = record.get("skills", [])
             current_skills_formatted = "\n".join([f" - {skill}" for skill in current_skills]) if current_skills else " - None"
