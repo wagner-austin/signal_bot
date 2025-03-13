@@ -69,7 +69,10 @@ def role_command(args: str, sender: str, state_machine: BotStateMachine,
         return str(e)
     except (ResourceError, VolunteerError) as e:
         logger.error(f"role_command domain error: {e}", exc_info=True)
-        return f"An error occurred: {str(e)}"
+        error_msg = str(e)
+        if ":" in error_msg:
+            error_msg = error_msg.split(":", 1)[1].strip()
+        return f"An error occurred: {error_msg}"
     except Exception as e:
         logger.error(f"role_command unexpected error: {e}", exc_info=True)
         return "An internal error occurred in role_command."

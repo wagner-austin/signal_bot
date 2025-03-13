@@ -37,7 +37,10 @@ def volunteer_status_command(args: str, sender: str, state_machine: BotStateMach
         return VOLUNTEER_MANAGER.volunteer_status()
     except (ResourceError, VolunteerError) as e:
         logger.error(f"volunteer_status_command domain error: {e}", exc_info=True)
-        return f"An error occurred: {str(e)}"
+        error_msg = str(e)
+        if ":" in error_msg:
+            error_msg = error_msg.split(":", 1)[1].strip()
+        return f"An error occurred: {error_msg}"
     except Exception as e:
         logger.error(f"volunteer_status_command unexpected error: {e}", exc_info=True)
         return "An internal error occurred in volunteer_status_command."
@@ -52,7 +55,10 @@ def check_in_command(args: str, sender: str, state_machine: BotStateMachine,
         return VOLUNTEER_MANAGER.check_in(sender)
     except (ResourceError, VolunteerError) as e:
         logger.error(f"check_in_command domain error: {e}", exc_info=True)
-        return f"An error occurred: {str(e)}"
+        error_msg = str(e)
+        if ":" in error_msg:
+            error_msg = error_msg.split(":", 1)[1].strip()
+        return f"An error occurred: {error_msg}"
     except Exception as e:
         logger.error(f"check_in_command unexpected error: {e}", exc_info=True)
         return "An internal error occurred in check_in_command."
@@ -78,7 +84,10 @@ def register_command(args: str, sender: str, state_machine: BotStateMachine,
                 return REGISTRATION_PROMPT
     except (ResourceError, VolunteerError) as e:
         logger.error(f"register_command domain error: {e}", exc_info=True)
-        return f"An error occurred: {str(e)}"
+        error_msg = str(e)
+        if ":" in error_msg:
+            error_msg = error_msg.split(":", 1)[1].strip()
+        return f"An error occurred: {error_msg}"
     except Exception as e:
         logger.error(f"register_command unexpected error: {e}", exc_info=True)
         return "An internal error occurred in register_command."
@@ -109,7 +118,10 @@ def edit_command(args: str, sender: str, state_machine: BotStateMachine,
         return VOLUNTEER_MANAGER.register_volunteer(sender, args.strip(), [])
     except (ResourceError, VolunteerError) as e:
         logger.error(f"edit_command domain error: {e}", exc_info=True)
-        return f"An error occurred: {str(e)}"
+        error_msg = str(e)
+        if ":" in error_msg:
+            error_msg = error_msg.split(":", 1)[1].strip()
+        return f"An error occurred: {error_msg}"
     except Exception as e:
         logger.error(f"edit_command unexpected error: {e}", exc_info=True)
         return "An internal error occurred in edit_command."
@@ -128,7 +140,10 @@ def delete_command(args: str, sender: str, state_machine: BotStateMachine,
         return DELETION_PROMPT
     except (ResourceError, VolunteerError) as e:
         logger.error(f"delete_command domain error: {e}", exc_info=True)
-        return f"An error occurred: {str(e)}"
+        error_msg = str(e)
+        if ":" in error_msg:
+            error_msg = error_msg.split(":", 1)[1].strip()
+        return f"An error occurred: {error_msg}"
     except Exception as e:
         logger.error(f"delete_command unexpected error: {e}", exc_info=True)
         return "An internal error occurred in delete_command."
@@ -156,7 +171,10 @@ def skills_command(args: str, sender: str, state_machine: BotStateMachine,
             return message
     except (ResourceError, VolunteerError) as e:
         logger.error(f"skills_command domain error: {e}", exc_info=True)
-        return f"An error occurred: {str(e)}"
+        error_msg = str(e)
+        if ":" in error_msg:
+            error_msg = error_msg.split(":", 1)[1].strip()
+        return f"An error occurred: {error_msg}"
     except Exception as e:
         logger.error(f"skills_command unexpected error: {e}", exc_info=True)
         return "An internal error occurred in skills_command."
@@ -189,7 +207,10 @@ def find_command(args: str, sender: str, state_machine: BotStateMachine,
         return str(e)
     except (ResourceError, VolunteerError) as e:
         logger.error(f"find_command domain error: {e}", exc_info=True)
-        return f"An error occurred: {str(e)}"
+        error_msg = str(e)
+        if ":" in error_msg:
+            error_msg = error_msg.split(":", 1)[1].strip()
+        return f"An error occurred: {error_msg}"
     except Exception as e:
         logger.error(f"find_command unexpected error: {e}", exc_info=True)
         return "An internal error occurred in find_command."
@@ -218,7 +239,10 @@ def add_skills_command(args: str, sender: str, state_machine: BotStateMachine,
         return str(e)
     except (ResourceError, VolunteerError) as e:
         logger.error(f"add_skills_command domain error: {e}", exc_info=True)
-        return f"An error occurred: {str(e)}"
+        error_msg = str(e)
+        if ":" in error_msg:
+            error_msg = error_msg.split(":", 1)[1].strip()
+        return f"An error occurred: {error_msg}"
     except Exception as e:
         logger.error(f"add_skills_command unexpected error: {e}", exc_info=True)
         return "An internal error occurred in add_skills_command."

@@ -28,7 +28,7 @@ def task_command(args: str, sender: str, state_machine: BotStateMachine, msg_tim
     Subcommands:
       add <description>
       list
-      assign <task_id> <volunteer>
+      assign <task_id> <volunteer_display_name>
       close <task_id>
 
     This plugin is the same 'source of truth' used by the CLI, via managers.task_manager.
@@ -73,7 +73,6 @@ def task_command(args: str, sender: str, state_machine: BotStateMachine, msg_tim
                 raise PluginArgError("Usage: @bot task assign <task_id> <volunteer_display_name>")
             data = {"task_id": rest[0], "volunteer_display_name": " ".join(rest[1:])}
             validated = validate_model(data, TaskAssignModel, "task assign <task_id> <volunteer_display_name>")
-            # assign_task now raises exceptions on errors
             assign_task(validated.task_id, validated.volunteer_display_name)
             return f"Task {validated.task_id} assigned to {validated.volunteer_display_name}."
         elif subcommand == "close":
@@ -90,7 +89,10 @@ def task_command(args: str, sender: str, state_machine: BotStateMachine, msg_tim
         return str(e)
     except (ResourceError, VolunteerError) as e:
         logger.error(f"task_command domain error: {e}", exc_info=True)
-        return f"An error occurred: {str(e)}"
+        error_msg = str(e)
+        if ":" in error_msg:
+            error_msg = error_msg.split(":", 1)[1].strip()
+        return f"An error occurred: {error_msg}"
     except Exception as e:
         logger.error(f"task_command unexpected error: {e}", exc_info=True)
         return "An internal error occurred in task_command."
