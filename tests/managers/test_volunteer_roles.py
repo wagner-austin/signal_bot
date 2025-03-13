@@ -2,13 +2,13 @@
 """
 tests/managers/test_volunteer_roles.py - Tests for volunteer role management.
 Verifies list_roles, assign_role, switch_role, and unassign_role functionalities.
-Now also includes coverage for case-insensitive skill matching, dynamic role assignment,
-and tests for incomplete skill coverage during role assignment.
+Also includes tests for case-insensitive matching, dynamic role assignment, and incomplete skill coverage using exception assertions.
 """
 
 import pytest
 from managers.volunteer.volunteer_roles import list_roles, assign_role, switch_role, unassign_role, ROLE_SKILL_REQUIREMENTS
 from core.database.volunteers import add_volunteer_record, get_volunteer_record
+from core.exceptions import VolunteerError
 
 def test_list_roles():
     """
@@ -24,21 +24,18 @@ def test_assign_and_switch_and_unassign_role():
     and finally unassigning the role.
     """
     phone = "+60000000001"
-    # Create a volunteer with partial skill requirements for a recognized role.
+    # Create a volunteer with the required skills for "greeter"
     add_volunteer_record(phone, "Role Volunteer", ["communication", "interpersonal"], True, None)
-    # Assign the role "greeter" (requires communication + interpersonal).
+    # Assign the role "greeter"
     response_assign = assign_role(phone, "greeter")
-    assert "your preferred role has been set" in response_assign.lower(), (
-        f"Expected assignment confirmation in response, got: {response_assign}"
-    )
+    assert "your preferred role has been set" in response_assign.lower()
 
     record = get_volunteer_record(phone)
     assert record["preferred_role"] == "greeter"
 
-    # Switch role to "emcee" (requires public speaking + communication).
-    # This should fail because the volunteer lacks "public speaking".
-    response_switch = switch_role(phone, "emcee")
-    assert "do not have the necessary skills" in response_switch.lower()
+    # Attempt to switch role to "emcee" which requires an additional skill ("public speaking")
+    with pytest.raises(VolunteerError, match="do not have the necessary skills"):
+        switch_role(phone, "emcee")
 
     # Now unassign role entirely:
     response_unassign = unassign_role(phone)
@@ -48,15 +45,12 @@ def test_assign_and_switch_and_unassign_role():
 
 def test_assign_role_case_insensitive_skills():
     """
-    Test that role assignment succeeds even if the volunteer's required skills are in different cases.
-    For example, 'Communication' and 'INTERPERSONAL' should match the needed 'communication' + 'interpersonal'.
+    Test that role assignment succeeds even if the volunteer's skills are in different cases.
     """
     phone = "+60000000002"
-    # The "greeter" role requires 'communication' and 'interpersonal'.
-    # We'll store them in mixed case to verify case-insensitive matching.
     add_volunteer_record(phone, "CaseTest Volunteer", ["Communication", "INTERPERSONAL"], True, None)
     response = assign_role(phone, "greeter")
-    assert "your preferred role has been set to" in response.lower()
+    assert "your preferred role has been set" in response.lower()
     record = get_volunteer_record(phone)
     assert record["preferred_role"] == "greeter"
 
@@ -68,39 +62,30 @@ def test_assign_role_case_insensitive_skills():
 ])
 def test_role_assignment_incomplete_skills(role, skills, expect_error):
     """
-    Test that a volunteer with an incomplete skill set for a recognized role receives an error,
-    while a volunteer with all required skills (even with extra skills) is correctly assigned.
+    Test that a volunteer with an incomplete skill set for a recognized role raises VolunteerError,
+    while a volunteer with all required skills is correctly assigned.
     """
-    # Generate a unique phone number based on role and skills
     phone = f"+60000000{abs(hash(role + str(skills))) % 100:02d}"
     add_volunteer_record(phone, "Incomplete Skill Volunteer", skills, True, None)
-    response = assign_role(phone, role)
     if expect_error:
-        assert "do not have the necessary skills" in response.lower(), (
-            f"Expected error for role '{role}' with skills {skills}, got: {response}"
-        )
+        with pytest.raises(VolunteerError, match="do not have the necessary skills"):
+            assign_role(phone, role)
     else:
-        assert "your preferred role has been set" in response.lower(), (
-            f"Expected success for role '{role}' with skills {skills}, got: {response}"
-        )
+        response = assign_role(phone, role)
+        assert "your preferred role has been set" in response.lower()
         record = get_volunteer_record(phone)
         assert record["preferred_role"] == role
 
 @pytest.mark.parametrize("role, required_skills", list(ROLE_SKILL_REQUIREMENTS.items()))
 def test_dynamic_role_assignment(role, required_skills):
     """
-    Test that each recognized role in ROLE_SKILL_REQUIREMENTS can be assigned if the volunteer
-    has the appropriate skills (in uppercase). Verifies coverage for newly added roles, too.
+    Test that each recognized role can be assigned if the volunteer has the appropriate skills (even in uppercase).
     """
     phone = f"+600000001{abs(hash(role)) % 9999}"
-    # Convert required_skills to uppercase to confirm assignment remains case-insensitive.
     uppercased_skills = [skill.upper() for skill in required_skills]
     add_volunteer_record(phone, f"DynamicTest {role}", uppercased_skills, True, None)
     response = assign_role(phone, role)
-    # If a role has no required skills, it should trivially succeed. Otherwise it should also succeed.
-    assert "your preferred role has been set to" in response.lower(), (
-        f"Expected successful assignment for role '{role}', but got: {response}"
-    )
+    assert "your preferred role has been set" in response.lower()
     record = get_volunteer_record(phone)
     assert record["preferred_role"] == role
 
