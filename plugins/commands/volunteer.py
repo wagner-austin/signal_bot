@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 """
 plugins/commands/volunteer.py - Volunteer command plugins.
-Calls managers.volunteer_manager as the single source of truth for registering,
-editing, deleting, skill updates, etc., shared with CLI code.
+Handles volunteer registration, editing, deletion, skill updates, and more.
+Centralizes exception handling to convert domain errors to user-friendly messages.
 """
 
 from typing import Optional
@@ -23,6 +23,7 @@ from parsers.plugin_arg_parser import (
     validate_model
 )
 import logging
+from core.exceptions import ResourceError, VolunteerError
 
 logger = logging.getLogger(__name__)
 
@@ -30,11 +31,13 @@ logger = logging.getLogger(__name__)
 def volunteer_status_command(args: str, sender: str, state_machine: BotStateMachine,
                              msg_timestamp: Optional[int] = None) -> str:
     """
-    volunteer status - Display the current volunteer status by calling VOLUNTEER_MANAGER.volunteer_status().
-    Same manager logic as CLI 'list-volunteers' or similar.
+    volunteer status - Display the current volunteer status.
     """
     try:
         return VOLUNTEER_MANAGER.volunteer_status()
+    except (ResourceError, VolunteerError) as e:
+        logger.error(f"volunteer_status_command domain error: {e}", exc_info=True)
+        return f"An error occurred: {str(e)}"
     except Exception as e:
         logger.error(f"volunteer_status_command unexpected error: {e}", exc_info=True)
         return "An internal error occurred in volunteer_status_command."
@@ -43,10 +46,13 @@ def volunteer_status_command(args: str, sender: str, state_machine: BotStateMach
 def check_in_command(args: str, sender: str, state_machine: BotStateMachine,
                      msg_timestamp: Optional[int] = None) -> str:
     """
-    check in - Marks a volunteer as available by calling VOLUNTEER_MANAGER.check_in().
+    check in - Marks a volunteer as available.
     """
     try:
         return VOLUNTEER_MANAGER.check_in(sender)
+    except (ResourceError, VolunteerError) as e:
+        logger.error(f"check_in_command domain error: {e}", exc_info=True)
+        return f"An error occurred: {str(e)}"
     except Exception as e:
         logger.error(f"check_in_command unexpected error: {e}", exc_info=True)
         return "An internal error occurred in check_in_command."
@@ -55,8 +61,7 @@ def check_in_command(args: str, sender: str, state_machine: BotStateMachine,
 def register_command(args: str, sender: str, state_machine: BotStateMachine,
                      msg_timestamp: Optional[int] = None) -> str:
     """
-    register - Interactive volunteer registration command that calls VOLUNTEER_MANAGER.register_volunteer.
-    Mirrors CLI code but no duplication of logic.
+    register - Interactive volunteer registration command.
     """
     try:
         record = VOLUNTEER_MANAGER.list_all_volunteers().get(sender)
@@ -71,6 +76,9 @@ def register_command(args: str, sender: str, state_machine: BotStateMachine,
             else:
                 PENDING_ACTIONS.set_registration(sender, "register")
                 return REGISTRATION_PROMPT
+    except (ResourceError, VolunteerError) as e:
+        logger.error(f"register_command domain error: {e}", exc_info=True)
+        return f"An error occurred: {str(e)}"
     except Exception as e:
         logger.error(f"register_command unexpected error: {e}", exc_info=True)
         return "An internal error occurred in register_command."
@@ -88,8 +96,7 @@ def register_command(args: str, sender: str, state_machine: BotStateMachine,
 def edit_command(args: str, sender: str, state_machine: BotStateMachine,
                  msg_timestamp: Optional[int] = None) -> str:
     """
-    edit - Edit your registered name. Relies on VOLUNTEER_MANAGER.register_volunteer for changes,
-    ensuring no duplication with CLI.
+    edit - Edit your registered name.
     """
     try:
         record = VOLUNTEER_MANAGER.list_all_volunteers().get(sender)
@@ -100,6 +107,9 @@ def edit_command(args: str, sender: str, state_machine: BotStateMachine,
             PENDING_ACTIONS.set_registration(sender, "edit")
             return EDIT_PROMPT.format(name=record['name'])
         return VOLUNTEER_MANAGER.register_volunteer(sender, args.strip(), [])
+    except (ResourceError, VolunteerError) as e:
+        logger.error(f"edit_command domain error: {e}", exc_info=True)
+        return f"An error occurred: {str(e)}"
     except Exception as e:
         logger.error(f"edit_command unexpected error: {e}", exc_info=True)
         return "An internal error occurred in edit_command."
@@ -108,8 +118,7 @@ def edit_command(args: str, sender: str, state_machine: BotStateMachine,
 def delete_command(args: str, sender: str, state_machine: BotStateMachine,
                    msg_timestamp: Optional[int] = None) -> str:
     """
-    delete - Initiates volunteer deletion flow, calls VOLUNTEER_MANAGER.delete_volunteer if confirmed.
-    No duplication of manager logic from the CLI.
+    delete - Initiates volunteer deletion flow.
     """
     try:
         if not args.strip():
@@ -117,6 +126,9 @@ def delete_command(args: str, sender: str, state_machine: BotStateMachine,
             return DELETION_PROMPT
         PENDING_ACTIONS.set_deletion(sender, "initial")
         return DELETION_PROMPT
+    except (ResourceError, VolunteerError) as e:
+        logger.error(f"delete_command domain error: {e}", exc_info=True)
+        return f"An error occurred: {str(e)}"
     except Exception as e:
         logger.error(f"delete_command unexpected error: {e}", exc_info=True)
         return "An internal error occurred in delete_command."
@@ -125,8 +137,7 @@ def delete_command(args: str, sender: str, state_machine: BotStateMachine,
 def skills_command(args: str, sender: str, state_machine: BotStateMachine,
                    msg_timestamp: Optional[int] = None) -> str:
     """
-    skills - Display your current skills, listing from VOLUNTEER_MANAGER data,
-    and the relevant skill config. Same manager logic as CLI's 'list-volunteers' or skill-adding.
+    skills - Display your current skills.
     """
     try:
         from core.database import get_volunteer_record
@@ -137,15 +148,15 @@ def skills_command(args: str, sender: str, state_machine: BotStateMachine,
             return REGISTRATION_PROMPT
         else:
             current_skills = record.get("skills", [])
-            if current_skills:
-                current_skills_formatted = "\n".join([f" - {skill}" for skill in current_skills])
-            else:
-                current_skills_formatted = " - None"
+            current_skills_formatted = "\n".join([f" - {skill}" for skill in current_skills]) if current_skills else " - None"
             available_skills_formatted = "\n".join([f" - {skill}" for skill in AVAILABLE_SKILLS])
             name = record.get("name", "Anonymous")
             message = f"{name} currently has skills:\n{current_skills_formatted}\n\n"
             message += "Here is a list of relevant skills you can add:\n" + available_skills_formatted
             return message
+    except (ResourceError, VolunteerError) as e:
+        logger.error(f"skills_command domain error: {e}", exc_info=True)
+        return f"An error occurred: {str(e)}"
     except Exception as e:
         logger.error(f"skills_command unexpected error: {e}", exc_info=True)
         return "An internal error occurred in skills_command."
@@ -154,8 +165,7 @@ def skills_command(args: str, sender: str, state_machine: BotStateMachine,
 def find_command(args: str, sender: str, state_machine: BotStateMachine,
                  msg_timestamp: Optional[int] = None) -> str:
     """
-    find - Finds volunteers with the specified skill(s) by calling VOLUNTEER_MANAGER logic.
-    Same approach as the CLI 'find' command, no duplication.
+    find - Finds volunteers with specified skill(s).
     """
     try:
         from core.database import get_all_volunteers
@@ -177,6 +187,9 @@ def find_command(args: str, sender: str, state_machine: BotStateMachine,
     except PluginArgError as e:
         logger.warning(f"find_command PluginArgError: {e}")
         return str(e)
+    except (ResourceError, VolunteerError) as e:
+        logger.error(f"find_command domain error: {e}", exc_info=True)
+        return f"An error occurred: {str(e)}"
     except Exception as e:
         logger.error(f"find_command unexpected error: {e}", exc_info=True)
         return "An internal error occurred in find_command."
@@ -185,8 +198,7 @@ def find_command(args: str, sender: str, state_machine: BotStateMachine,
 def add_skills_command(args: str, sender: str, state_machine: BotStateMachine,
                        msg_timestamp: Optional[int] = None) -> str:
     """
-    add skills - Adds skills to your profile, by calling VOLUNTEER_MANAGER.register_volunteer.
-    Avoid re-implementing logic from CLI; rely on the manager calls.
+    add skills - Adds skills to your profile.
     """
     try:
         if not args.strip():
@@ -204,6 +216,9 @@ def add_skills_command(args: str, sender: str, state_machine: BotStateMachine,
     except PluginArgError as e:
         logger.warning(f"add_skills_command PluginArgError: {e}")
         return str(e)
+    except (ResourceError, VolunteerError) as e:
+        logger.error(f"add_skills_command domain error: {e}", exc_info=True)
+        return f"An error occurred: {str(e)}"
     except Exception as e:
         logger.error(f"add_skills_command unexpected error: {e}", exc_info=True)
         return "An internal error occurred in add_skills_command."

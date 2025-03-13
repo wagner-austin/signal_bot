@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 """
 plugins/commands/task.py - Task command plugins.
-Manages shared to-do items by calling managers.task_manager for add/list/assign/close,
-ensuring a single source of truth shared with CLI code.
+Manages shared to-do items by calling managers.task_manager for add/list/assign/close.
+Ensures centralized exception handling for domain errors.
 """
 
 from typing import Optional
@@ -17,6 +17,7 @@ from parsers.plugin_arg_parser import (
     validate_model
 )
 import logging
+from core.exceptions import ResourceError, VolunteerError
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +30,7 @@ def task_command(args: str, sender: str, state_machine: BotStateMachine, msg_tim
       list
       assign <task_id> <volunteer>
       close <task_id>
-    
+
     This plugin is the same 'source of truth' used by the CLI, via managers.task_manager.
     """
     try:
@@ -72,9 +73,8 @@ def task_command(args: str, sender: str, state_machine: BotStateMachine, msg_tim
                 raise PluginArgError("Usage: @bot task assign <task_id> <volunteer_display_name>")
             data = {"task_id": rest[0], "volunteer_display_name": " ".join(rest[1:])}
             validated = validate_model(data, TaskAssignModel, "task assign <task_id> <volunteer_display_name>")
-            error = assign_task(validated.task_id, validated.volunteer_display_name)
-            if error:
-                return error
+            # assign_task now raises exceptions on errors
+            assign_task(validated.task_id, validated.volunteer_display_name)
             return f"Task {validated.task_id} assigned to {validated.volunteer_display_name}."
         elif subcommand == "close":
             if not rest:
@@ -88,6 +88,9 @@ def task_command(args: str, sender: str, state_machine: BotStateMachine, msg_tim
     except PluginArgError as e:
         logger.warning(f"task_command PluginArgError: {e}")
         return str(e)
+    except (ResourceError, VolunteerError) as e:
+        logger.error(f"task_command domain error: {e}", exc_info=True)
+        return f"An error occurred: {str(e)}"
     except Exception as e:
         logger.error(f"task_command unexpected error: {e}", exc_info=True)
         return "An internal error occurred in task_command."

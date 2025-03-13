@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 """
-plugins/commands/role.py - Role command plugins - Manages volunteer roles using unified validation.
+plugins/commands/role.py - Role command plugins.
+Manages volunteer roles using unified validation and centralized exception handling.
 """
 
 from typing import Optional
@@ -15,6 +16,7 @@ from parsers.plugin_arg_parser import (
     validate_model
 )
 import logging
+from core.exceptions import ResourceError, VolunteerError
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +25,7 @@ def role_command(args: str, sender: str, state_machine: BotStateMachine,
                  msg_timestamp: Optional[int] = None) -> str:
     """
     role - Manage volunteer roles.
-    
+
     Subcommands:
       list                : List all recognized volunteer roles with required skills.
       set <role>          : Set your preferred role.
@@ -47,14 +49,17 @@ def role_command(args: str, sender: str, state_machine: BotStateMachine,
             if not remainder:
                 raise PluginArgError("Usage: @bot role set <role>")
             validated = validate_model({"role": remainder}, RoleSetModel, "role set <role>")
-            return VOLUNTEER_MANAGER.assign_role(sender, validated.role)
+            confirmation = VOLUNTEER_MANAGER.assign_role(sender, validated.role)
+            return confirmation
         elif subcmd == "switch":
             if not remainder:
                 raise PluginArgError("Usage: @bot role switch <role>")
             validated = validate_model({"role": remainder}, RoleSwitchModel, "role switch <role>")
-            return VOLUNTEER_MANAGER.switch_role(sender, validated.role)
+            confirmation = VOLUNTEER_MANAGER.switch_role(sender, validated.role)
+            return confirmation
         elif subcmd in {"unassign", "unset"}:
-            return VOLUNTEER_MANAGER.unassign_role(sender)
+            confirmation = VOLUNTEER_MANAGER.unassign_role(sender)
+            return confirmation
         else:
             raise PluginArgError(
                 "Invalid subcommand for role. Use 'list', 'set <role>', 'switch <role>', or 'unassign'."
@@ -62,8 +67,11 @@ def role_command(args: str, sender: str, state_machine: BotStateMachine,
     except PluginArgError as e:
         logger.warning(f"role_command PluginArgError: {e}")
         return str(e)
+    except (ResourceError, VolunteerError) as e:
+        logger.error(f"role_command domain error: {e}", exc_info=True)
+        return f"An error occurred: {str(e)}"
     except Exception as e:
         logger.error(f"role_command unexpected error: {e}", exc_info=True)
         return "An internal error occurred in role_command."
 
-#End of plugins/commands/role.py
+# End of plugins/commands/role.py
