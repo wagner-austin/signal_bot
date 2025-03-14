@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 """
-managers/volunteer_manager.py - Core volunteer management for volunteers (registration, deletion, check-in).
-Bridges code for role/skill logic so older tests still pass.
+managers/volunteer_manager.py
+-----------------------------
+Core volunteer management for volunteers (registration, deletion, check_in).
+All multi-step flow logic is removed; name 'skip' or 'anonymous' checks happen only in FlowManager.
 """
 
 import logging
@@ -26,13 +28,19 @@ from managers.volunteer_skills_manager import (
     unify_skills_preserving_earliest,
     SKILLS_MANAGER
 )
+from core.messages import (
+    NEW_VOLUNTEER_REGISTERED,
+    VOLUNTEER_UPDATED,
+    VOLUNTEER_DELETED,
+    VOLUNTEER_CHECKED_IN
+)
 
 logger = logging.getLogger(__name__)
 
 class VolunteerManager:
     """
-    VolunteerManager - Orchestrates volunteer operations (register, delete, check_in, etc.)
-    and integrates role/skill assignment from subordinate managers.
+    VolunteerManager - Orchestrates volunteer operations (register, delete, check_in).
+    Multi-step flow logic (skip, anonymous, partial) is handled in FlowManager.
     """
 
     def register_volunteer(self, phone: str, name: str, skills: List[str],
@@ -48,40 +56,43 @@ class VolunteerManager:
         from db.volunteers import get_volunteer_record as gv_record
         with per_phone_lock(phone):
             with atomic_transaction(exclusive=True) as conn:
+                # If previously deleted, remove from DeletedVolunteers
                 remove_deleted_volunteer_record(phone, conn=conn)
 
                 record = gv_record(phone, conn=conn)
                 if record:
-                    # If "skip", become "Anonymous"
-                    updated_name = "Anonymous" if name.lower() == "skip" else name
+                    # Update existing
                     existing_skills = record["skills"]
                     merged_skills = set(existing_skills).union(s.strip() for s in skills)
-                    updated_name = normalize_name(updated_name, phone)
-                    new_role = (current_role.strip() if current_role and current_role.strip()
-                                else record["current_role"])
-
+                    new_role = current_role if current_role else record["current_role"]
                     merged_skills_list = unify_skills_preserving_earliest(list(merged_skills))
                     update_volunteer_record(
-                        phone, updated_name, merged_skills_list, available, new_role, record.get("preferred_role"),
+                        phone,
+                        name,
+                        merged_skills_list,
+                        available,
+                        new_role,
+                        record.get("preferred_role"),
                         conn=conn
                     )
-                    logger.info(f"Volunteer {phone} updated: name='{updated_name}', skills={merged_skills_list}, "
-                                f"available={available}, role='{new_role}'")
-                    from core.messages import VOLUNTEER_UPDATED
-                    return VOLUNTEER_UPDATED.format(name=updated_name)
+                    logger.info(
+                        f"Volunteer {phone} updated: name='{name}', skills={merged_skills_list}, "
+                        f"available={available}, role='{new_role}'"
+                    )
+                    return VOLUNTEER_UPDATED.format(name=normalize_name(name, phone))
                 else:
-                    final_name = "Anonymous" if name.lower() == "skip" or not name.strip() else name
-                    final_name = normalize_name(final_name, phone)
-                    role_to_set = (current_role.strip() if current_role and current_role.strip() else None)
+                    # New volunteer
                     merged_skills_list = unify_skills_preserving_earliest(skills)
+                    role_to_set = current_role if current_role else None
 
                     add_volunteer_record(
-                        phone, final_name, merged_skills_list, available, role_to_set, role_to_set, conn=conn
+                        phone, name, merged_skills_list, available, role_to_set, role_to_set, conn=conn
                     )
-                    logger.info(f"New volunteer {phone} registered: name='{final_name}', skills={merged_skills_list}, "
-                                f"available={available}, role='{role_to_set}'")
-                    from core.messages import NEW_VOLUNTEER_REGISTERED
-                    return NEW_VOLUNTEER_REGISTERED.format(name=final_name)
+                    logger.info(
+                        f"New volunteer {phone} registered: name='{name}', skills={merged_skills_list}, "
+                        f"available={available}, role='{role_to_set}'"
+                    )
+                    return NEW_VOLUNTEER_REGISTERED.format(name=normalize_name(name, phone))
 
     def delete_volunteer(self, phone: str) -> str:
         record = get_volunteer_record(phone)
@@ -98,7 +109,6 @@ class VolunteerManager:
         )
         delete_volunteer_record(phone)
         logger.info(f"Volunteer {phone} record deleted from the system.")
-        from core.messages import VOLUNTEER_DELETED
         return VOLUNTEER_DELETED
 
     def check_in(self, phone: str) -> str:
@@ -114,7 +124,6 @@ class VolunteerManager:
                 record.get("preferred_role")
             )
             logger.info(f"Volunteer {phone} checked in.")
-            from core.messages import VOLUNTEER_CHECKED_IN
             return VOLUNTEER_CHECKED_IN.format(name=normalize_name(record['name'], phone))
         raise VolunteerError("Volunteer not found.")
 
@@ -170,10 +179,6 @@ class VolunteerManager:
         return SKILLS_MANAGER.assign_volunteer(skill, role)
 
     def add_skills(self, phone: str, new_skills: List[str]) -> str:
-        """
-        add_skills - Preserves existing volunteer name and merges new skills.
-        Raises VolunteerError if volunteer does not exist.
-        """
         validate_phone_number(phone)
         with per_phone_lock(phone):
             with atomic_transaction(exclusive=True) as conn:
@@ -193,7 +198,6 @@ class VolunteerManager:
         return f"Skills updated for {record['name']}"
 
 VOLUNTEER_MANAGER = VolunteerManager()
-
 def register_volunteer(phone, name, skills, available=True, current_role=None):
     return VOLUNTEER_MANAGER.register_volunteer(phone, name, skills, available, current_role)
 

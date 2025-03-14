@@ -1,38 +1,42 @@
 #!/usr/bin/env python
 """
-managers/flow_manager.py - Centralized flow management for multi-step volunteer flows.
-This module orchestrates all multi-step volunteer flows using a unified approach via FlowManager and user_states_manager.
+managers/flow_manager.py
+------------------------
+Centralized flow management for multi-step volunteer flows: registration, edit, and deletion.
+All user inputs for these flows are handled here; no partial checks remain in plugin commands.
 """
 
 import logging
 from managers.user_states_manager import (
-    get_active_flow,
+    get_active_flow as userstate_get_active_flow,
     create_flow,
     pause_flow,
     set_flow_step,
-    get_flow_step,
-    resume_flow
+    get_flow_step
 )
 from managers.volunteer_manager import VOLUNTEER_MANAGER
 from db.volunteers import get_volunteer_record
-from core.plugin_usage import USAGE_REGISTER_PARTIAL  # Added for validation prompt
 
 logger = logging.getLogger(__name__)
 
 class FlowManager:
     """
-    FlowManager - Orchestrates all multi-step volunteer flows in a unified way.
-    Exposes methods to start a flow and handle user input for each step.
+    FlowManager - Orchestrates multi-step flows for volunteer registration, editing, and deletion.
     """
 
     REGISTRATION_FLOW = "volunteer_registration"
     EDIT_FLOW = "volunteer_edit"
     DELETION_FLOW = "volunteer_deletion"
 
+    def get_active_flow(self, phone: str):
+        """
+        get_active_flow - Simple wrapper so tests can call flow_manager.get_active_flow().
+        """
+        return userstate_get_active_flow(phone)
+
     def start_flow(self, phone: str, flow_name: str):
         """
-        start_flow - Begin the specified flow for the user, setting the initial step.
-        If the flow_name is unknown, create a "generic" flow with step="start".
+        start_flow - Begin the specified flow for the user, set initial step.
         """
         if flow_name == self.REGISTRATION_FLOW:
             create_flow(phone, flow_name, start_step="initial")
@@ -41,117 +45,122 @@ class FlowManager:
         elif flow_name == self.DELETION_FLOW:
             create_flow(phone, flow_name, start_step="initial")
         else:
-            logger.warning(f"Unknown flow_name={flow_name} used in start_flow, creating anyway with step='start'.")
+            logger.warning(f"Unknown flow_name={flow_name}; creating with step='start'.")
             create_flow(phone, flow_name, start_step="start")
 
     def handle_flow_input(self, phone: str, user_input: str) -> str:
         """
-        handle_flow_input - Central point to handle user replies while in a flow.
-        Looks up the user's active flow, current step, and processes logic accordingly.
+        handle_flow_input - Entry point for handling user replies in a multi-step flow.
         """
-        flow_name = get_active_flow(phone)
+        flow_name = userstate_get_active_flow(phone)
         if not flow_name:
-            return ""  # No active flow, do nothing
+            return ""
 
         step = get_flow_step(phone, flow_name)
         user_input_lower = user_input.strip().lower()
 
         if flow_name == self.REGISTRATION_FLOW:
             return self._handle_registration_flow(phone, step, user_input, user_input_lower)
-
-        if flow_name == self.EDIT_FLOW:
+        elif flow_name == self.EDIT_FLOW:
             return self._handle_edit_flow(phone, step, user_input, user_input_lower)
-
-        if flow_name == self.DELETION_FLOW:
+        elif flow_name == self.DELETION_FLOW:
             return self._handle_deletion_flow(phone, step, user_input, user_input_lower)
 
-        # For unknown flows, pause and return an empty response.
-        logger.info(f"Received input for unknown flow '{flow_name}', step '{step}' => returning empty string.")
+        # Unknown flow fallback
+        logger.info(f"Unknown flow '{flow_name}' at step '{step}'. Pausing.")
         pause_flow(phone, flow_name)
         return ""
 
-    # ---------------------------
+    # --------------------------
     # Registration Flow
-    # ---------------------------
-    def _handle_registration_flow(self, phone: str, step: str,
-                                  user_input: str, user_input_lower: str) -> str:
+    # --------------------------
+    def _handle_registration_flow(self, phone: str, step: str, user_input: str, user_input_lower: str) -> str:
         """
-        _handle_registration_flow - Handles the volunteer registration flow.
-        Steps: 'initial' => registration completion.
-        Validates that a full name (first and last) is provided unless skipped.
+        _handle_registration_flow - Guides user through volunteer registration steps.
         """
-        existing = get_volunteer_record(phone)
-        if existing:
+        record = get_volunteer_record(phone)
+        if record:
+            # Already registered, bail out
             pause_flow(phone, self.REGISTRATION_FLOW)
-            return (f"You are registered as \"{existing['name']}\".\n"
-                    "Use @bot edit to change your name or @bot delete to remove your profile.")
+            return (
+                f"You are already registered as \"{record['name']}\". "
+                "Use @bot edit to change your name or @bot delete to remove your profile."
+            )
 
         if step == "initial":
             if not user_input.strip() or user_input_lower == "skip":
-                VOLUNTEER_MANAGER.register_volunteer(phone, "skip", [])
+                # No name => register Anonymous
+                VOLUNTEER_MANAGER.register_volunteer(phone, "Anonymous", [], available=True)
                 pause_flow(phone, self.REGISTRATION_FLOW)
-                return "You have been registered as Anonymous."
+                return "Registration completed. You are now 'Anonymous'."
             else:
-                # Enforce full name requirement: must be at least two words.
+                # Must have at least two words
                 if len(user_input.strip().split()) < 2:
-                    return USAGE_REGISTER_PARTIAL
-                response = VOLUNTEER_MANAGER.register_volunteer(phone, user_input.strip(), [])
+                    return "Please provide your first and last name, or type 'skip' to remain anonymous."
+                response = VOLUNTEER_MANAGER.register_volunteer(phone, user_input.strip(), [], available=True)
                 pause_flow(phone, self.REGISTRATION_FLOW)
                 return response
 
+        # Unknown step => just pause
         pause_flow(phone, self.REGISTRATION_FLOW)
         return ""
 
-    # ---------------------------
+    # --------------------------
     # Edit Flow
-    # ---------------------------
-    def _handle_edit_flow(self, phone: str, step: str,
-                          user_input: str, user_input_lower: str) -> str:
+    # --------------------------
+    def _handle_edit_flow(self, phone: str, step: str, user_input: str, user_input_lower: str) -> str:
         """
-        _handle_edit_flow - Handles the volunteer edit flow.
-        Steps: 'ask_name' => update registration.
+        _handle_edit_flow - Allows user to change their registered name.
         """
-        from db.volunteers import get_volunteer_record
         record = get_volunteer_record(phone)
         if not record:
+            # Not registered => start registration flow instead
             pause_flow(phone, self.EDIT_FLOW)
             self.start_flow(phone, self.REGISTRATION_FLOW)
-            return ("You are not registered, starting registration flow.\n"
-                    "Please provide your full name or type 'skip' to remain anonymous.")
+            return (
+                "You are not registered, starting registration flow.\n"
+                "Please provide your full name or type 'skip' for anonymous."
+            )
 
         if step == "ask_name":
             if user_input_lower == "cancel":
                 pause_flow(phone, self.EDIT_FLOW)
-                return "Editing cancelled."
+                return f"Editing cancelled. You remain \"{record['name']}\"."
             if not user_input.strip() or user_input_lower == "skip":
                 pause_flow(phone, self.EDIT_FLOW)
-                return f"Editing cancelled. You remain registered as \"{record['name']}\"."
-            response = VOLUNTEER_MANAGER.register_volunteer(phone, user_input.strip(), [])
+                return f"Editing cancelled. You remain \"{record['name']}\"."
+
+            # Normal name update
+            response = VOLUNTEER_MANAGER.register_volunteer(
+                phone,
+                user_input.strip(),
+                [],
+                available=record["available"],
+                current_role=record["current_role"]
+            )
             pause_flow(phone, self.EDIT_FLOW)
             return response
 
         pause_flow(phone, self.EDIT_FLOW)
         return ""
 
-    # ---------------------------
+    # --------------------------
     # Deletion Flow
-    # ---------------------------
-    def _handle_deletion_flow(self, phone: str, step: str,
-                              user_input: str, user_input_lower: str) -> str:
+    # --------------------------
+    def _handle_deletion_flow(self, phone: str, step: str, user_input: str, user_input_lower: str) -> str:
         """
-        _handle_deletion_flow - Handles the volunteer deletion flow.
-        Steps: 'initial' => 'confirm' => deletion completion.
+        _handle_deletion_flow - Guides user through confirming profile deletion.
         """
-        from db.volunteers import get_volunteer_record
         record = get_volunteer_record(phone)
         if not record:
             pause_flow(phone, self.DELETION_FLOW)
             return "You are not currently registered; nothing to delete."
 
         if step == "initial":
+            # user_input_lower in {"yes", "y", "sure"} => proceed to confirm
             if user_input_lower in {"yes", "y", "sure"}:
                 set_flow_step(phone, self.DELETION_FLOW, "confirm")
-                return "Are you sure you want to delete your profile? Type 'delete' to confirm."
+                return "Type 'delete' to confirm removing your profile."
             else:
                 pause_flow(phone, self.DELETION_FLOW)
                 return "Deletion cancelled."

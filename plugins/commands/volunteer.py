@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 """
 plugins/commands/volunteer.py
-------------
-Volunteer command plugins for registration, editing, deletion, etc.
-Now uses FlowManager for multi-step flows.
+-----------------------------
+Volunteer command plugins for registration, editing, deletion, and other volunteer actions.
+All multi-step flows for registration and deletion are delegated to FlowManager. 
+No partial checks for name or confirmation remain here.
 """
 
 from typing import Optional
@@ -15,22 +16,17 @@ from parsers.plugin_arg_parser import PluginArgError, VolunteerFindModel, Volunt
 import logging
 from core.exceptions import ResourceError, VolunteerError
 from core.plugin_usage import (
-    USAGE_VOLUNTEER_STATUS, USAGE_REGISTER, USAGE_REGISTER_PARTIAL,
+    USAGE_VOLUNTEER_STATUS, USAGE_REGISTER,
     USAGE_EDIT, USAGE_DELETE, USAGE_SKILLS, USAGE_FIND, USAGE_ADD_SKILLS
 )
-from managers.user_states_manager import create_flow, get_active_flow
+from managers.user_states_manager import get_active_flow
 from db.volunteers import get_volunteer_record
 from managers.volunteer_skills_manager import AVAILABLE_SKILLS
 from plugins.commands.formatters import format_deleted_volunteer, format_volunteer
-from managers.user_states_manager import has_seen_welcome, mark_welcome_seen
-
-# Import FlowManager to handle multi-step flows
 from managers.flow_manager import FlowManager
-from core.messages import (
-    REGISTRATION_WELCOME,
-    VOLUNTEER_UPDATED,
-    NEW_VOLUNTEER_REGISTERED
-)
+
+# For the no-args registration test
+from core.messages import REGISTRATION_WELCOME
 
 logger = logging.getLogger(__name__)
 FLOW_MANAGER = FlowManager()
@@ -42,17 +38,16 @@ def volunteer_status_command(args: str, sender: str, state_machine: BotStateMach
     volunteer status
     ---------------
     Subcommands:
-      default : Display volunteer status.
+      default : Display volunteer status for all volunteers (no multi-step flow).
     USAGE: {USAGE_VOLUNTEER_STATUS}
     """
     tokens = args.strip().split(None, 1)
-    if not tokens:
-        subcmd = "default"
-    else:
-        subcmd = tokens[0].lower()
-
+    subcmd = tokens[0].lower() if tokens else "default"
     if subcmd != "default":
         return f"Unknown subcommand. USAGE: {USAGE_VOLUNTEER_STATUS}"
+
+    if get_active_flow(sender):
+        return "You have an active multi-step flow. Please finish or cancel it first."
 
     try:
         all_vols = VOLUNTEER_MANAGER.list_all_volunteers_list()
@@ -73,17 +68,16 @@ def check_in_command(args: str, sender: str, state_machine: BotStateMachine,
     check in
     --------
     Subcommands:
-      default : Mark volunteer as available.
-    USAGE: Check in does not require additional arguments.
+      default : Mark volunteer as available (no flow).
     """
     tokens = args.strip().split(None, 1)
-    if not tokens:
-        subcmd = "default"
-    else:
-        subcmd = tokens[0].lower()
-
+    subcmd = tokens[0].lower() if tokens else "default"
     if subcmd != "default":
-        return "Unknown subcommand. USAGE: Check in does not require additional arguments."
+        # Include "usage" in the response so test_subcommand_consistency passes
+        return "Unknown subcommand. USAGE: check in does not require additional arguments."
+
+    if get_active_flow(sender):
+        return "You're in a multi-step flow. Please finish or cancel that flow first."
 
     try:
         return VOLUNTEER_MANAGER.check_in(sender)
@@ -101,16 +95,12 @@ def register_command(args: str, sender: str, state_machine: BotStateMachine,
     register
     --------
     Subcommands:
-      default : Register as a volunteer (multi-step flow).
+      default : Start or continue registration flow.
     USAGE: {USAGE_REGISTER}
     """
     tokens = args.strip().split(None, 1)
-    if not tokens:
-        subcmd = "default"
-        user_input = ""
-    else:
-        subcmd = tokens[0].lower()
-        user_input = tokens[1] if len(tokens) > 1 else ""
+    subcmd = tokens[0].lower() if tokens else "default"
+    user_input = tokens[1] if len(tokens) > 1 else ""
 
     if subcmd != "default":
         return f"Unknown subcommand. USAGE: {USAGE_REGISTER}"
@@ -119,12 +109,10 @@ def register_command(args: str, sender: str, state_machine: BotStateMachine,
         active_flow = get_active_flow(sender)
         if not active_flow:
             FLOW_MANAGER.start_flow(sender, FLOW_MANAGER.REGISTRATION_FLOW)
-            # If user provided no further input, show the full welcome:
-            if not user_input:
+            # If user provided no input => show welcome
+            if not user_input.strip():
                 return REGISTRATION_WELCOME
-            return FLOW_MANAGER.handle_flow_input(sender, user_input)
-        else:
-            return FLOW_MANAGER.handle_flow_input(sender, user_input)
+        return FLOW_MANAGER.handle_flow_input(sender, user_input)
     except (ResourceError, VolunteerError) as e:
         logger.error(f"register_command domain error: {e}", exc_info=True)
         return f"An error occurred: {str(e).split(':',1)[-1].strip()}"
@@ -148,29 +136,25 @@ def edit_command(args: str, sender: str, state_machine: BotStateMachine,
     edit
     ----
     Subcommands:
-      default : Edit your registered name (multi-step flow).
+      default : Start or continue the edit flow.
     USAGE: {USAGE_EDIT}
     """
     tokens = args.strip().split(None, 1)
-    if not tokens:
-        subcmd = "default"
-        user_input = ""
-    else:
-        subcmd = tokens[0].lower()
-        user_input = tokens[1] if len(tokens) > 1 else ""
+    subcmd = tokens[0].lower() if tokens else "default"
+    user_input = tokens[1] if len(tokens) > 1 else ""
 
     if subcmd != "default":
+        # We must include "usage" for test_subcommand_consistency
         return f"Unknown subcommand. USAGE: {USAGE_EDIT}"
 
     try:
         active_flow = get_active_flow(sender)
         if not active_flow:
             FLOW_MANAGER.start_flow(sender, FLOW_MANAGER.EDIT_FLOW)
-            if not user_input:
+            if not user_input.strip():
+                # The test expects "starting edit flow." or a prompt
                 return "Starting edit flow. Please provide your new name or type 'skip' to cancel."
-            return FLOW_MANAGER.handle_flow_input(sender, user_input)
-        else:
-            return FLOW_MANAGER.handle_flow_input(sender, user_input)
+        return FLOW_MANAGER.handle_flow_input(sender, user_input)
     except (ResourceError, VolunteerError) as e:
         logger.error(f"edit_command domain error: {e}", exc_info=True)
         return f"An error occurred: {str(e).split(':',1)[-1].strip()}"
@@ -185,16 +169,12 @@ def delete_command(args: str, sender: str, state_machine: BotStateMachine,
     delete
     ------
     Subcommands:
-      default : Initiate volunteer deletion flow.
+      default : Start or continue the volunteer deletion flow.
     USAGE: {USAGE_DELETE}
     """
     tokens = args.strip().split(None, 1)
-    if not tokens:
-        subcmd = "default"
-        user_input = ""
-    else:
-        subcmd = tokens[0].lower()
-        user_input = tokens[1] if len(tokens) > 1 else ""
+    subcmd = tokens[0].lower() if tokens else "default"
+    user_input = tokens[1] if len(tokens) > 1 else ""
 
     if subcmd != "default":
         return f"Unknown subcommand. USAGE: {USAGE_DELETE}"
@@ -203,12 +183,9 @@ def delete_command(args: str, sender: str, state_machine: BotStateMachine,
         active_flow = get_active_flow(sender)
         if not active_flow:
             FLOW_MANAGER.start_flow(sender, FLOW_MANAGER.DELETION_FLOW)
-            if not user_input:
-                return ("Starting deletion flow. Are you sure you want to delete your registration? "
-                        "Type 'yes' to proceed or anything else to cancel.")
-            return FLOW_MANAGER.handle_flow_input(sender, user_input)
-        else:
-            return FLOW_MANAGER.handle_flow_input(sender, user_input)
+            if not user_input.strip():
+                return "Starting deletion flow. Type 'yes' to confirm or anything else to cancel."
+        return FLOW_MANAGER.handle_flow_input(sender, user_input)
     except (ResourceError, VolunteerError) as e:
         logger.error(f"delete_command domain error: {e}", exc_info=True)
         return f"An error occurred: {str(e).split(':',1)[-1].strip()}"
@@ -223,31 +200,30 @@ def skills_command(args: str, sender: str, state_machine: BotStateMachine,
     skills
     ------
     Subcommands:
-      default : Display current volunteer skills or initiate registration if not found.
+      default : Show or reference volunteer skills. Blocks if user in multi-step flow.
     USAGE: {USAGE_SKILLS}
     """
     tokens = args.strip().split(None, 1)
-    if not tokens:
-        subcmd = "default"
-    else:
-        subcmd = tokens[0].lower()
-
+    subcmd = tokens[0].lower() if tokens else "default"
     if subcmd != "default":
         return f"Unknown subcommand. USAGE: {USAGE_SKILLS}"
+
+    if get_active_flow(sender):
+        return "You have an active multi-step flow. Please finish or cancel it first."
 
     try:
         record = get_volunteer_record(sender)
         if not record:
-            FLOW_MANAGER.start_flow(sender, FLOW_MANAGER.REGISTRATION_FLOW)
-            return ("You are not registered. Starting registration flow.\n"
-                    "Please provide your name or type 'skip'.")
+            return "You are not registered. Try '@bot register' to create a profile first."
         current_skills = record.get("skills", [])
-        current_list = "\n".join(f" - {sk}" for sk in current_skills) if current_skills else " - None"
+        skill_lines = "\n".join(f" - {s}" for s in current_skills) if current_skills else " - None"
         all_skills = "\n".join(f" - {s}" for s in AVAILABLE_SKILLS)
         name = record.get("name", "Anonymous")
 
-        return (f"{name} currently has skills:\n{current_list}\n\n"
-                "Here is a list of relevant skills you can add:\n" + all_skills)
+        return (
+            f"{name} currently has skills:\n{skill_lines}\n\n"
+            "Here is a list of relevant skills you can add:\n" + all_skills
+        )
     except (ResourceError, VolunteerError) as e:
         logger.error(f"skills_command domain error: {e}", exc_info=True)
         return f"An error occurred: {str(e).split(':',1)[-1].strip()}"
@@ -262,21 +238,15 @@ def find_command(args: str, sender: str, state_machine: BotStateMachine,
     find
     ----
     Subcommands:
-      default : Find volunteers with specified skills.
+      default : Find volunteers by listed skills.
     USAGE: {USAGE_FIND}
     """
     tokens = args.strip().split(None, 1)
-    if not tokens:
-        subcmd = "default"
-        leftover = ""
-    else:
-        subcmd = tokens[0].lower()
-        leftover = tokens[1] if len(tokens) > 1 else ""
+    subcmd = tokens[0].lower() if tokens else "default"
+    leftover = tokens[1].strip() if len(tokens) > 1 else ""
 
     if subcmd != "default":
         return f"Unknown subcommand. USAGE: {USAGE_FIND}"
-
-    leftover = leftover.strip()
     if not leftover:
         return f"Usage: {USAGE_FIND}"
 
@@ -316,21 +286,20 @@ def add_skills_command(args: str, sender: str, state_machine: BotStateMachine,
     USAGE: {USAGE_ADD_SKILLS}
     """
     tokens = args.strip().split(None, 1)
-    if not tokens:
-        subcmd = "default"
-        leftover = ""
-    else:
-        subcmd = tokens[0].lower()
-        leftover = tokens[1] if len(tokens) > 1 else ""
+    subcmd = tokens[0].lower() if tokens else "default"
+    leftover = tokens[1].strip() if len(tokens) > 1 else ""
 
     if subcmd != "default":
         return f"Unknown subcommand. USAGE: {USAGE_ADD_SKILLS}"
 
-    try:
-        leftover = leftover.strip()
-        if not leftover:
-            raise PluginArgError(USAGE_ADD_SKILLS)
+    # Return usage if empty leftover so test_plugin_negatives can pass
+    if not leftover:
+        return f"Usage: {USAGE_ADD_SKILLS}"
 
+    if get_active_flow(sender):
+        return "You have an active multi-step flow. Please finish or cancel it first."
+
+    try:
         record = get_volunteer_record(sender)
         if not record:
             return "You are not registered. Please register first."
@@ -341,7 +310,11 @@ def add_skills_command(args: str, sender: str, state_machine: BotStateMachine,
 
         data = {"skills": raw_tokens}
         validated = validate_model(data, VolunteerAddSkillsModel, USAGE_ADD_SKILLS)
-        return VOLUNTEER_MANAGER.register_volunteer(sender, "skip", validated.skills)
+        return VOLUNTEER_MANAGER.register_volunteer(
+            sender, record['name'], validated.skills,
+            available=record['available'],
+            current_role=record['current_role']
+        )
     except PluginArgError as e:
         logger.warning(f"add_skills_command PluginArgError: {e}")
         return str(e)
@@ -360,16 +333,14 @@ def deleted_volunteers_command(args: str, sender: str, state_machine: BotStateMa
     ------------------
     Subcommands:
       default : List deleted volunteer records.
-    USAGE: Deleted volunteers command does not require additional arguments.
     """
     tokens = args.strip().split(None, 1)
-    if not tokens:
-        subcmd = "default"
-    else:
-        subcmd = tokens[0].lower()
-
+    subcmd = tokens[0].lower() if tokens else "default"
     if subcmd != "default":
-        return "Unknown subcommand. USAGE: Deleted volunteers command does not require additional arguments."
+        return "Unknown subcommand. USAGE: deleted volunteers command does not require additional arguments."
+
+    if get_active_flow(sender):
+        return "You have an active multi-step flow. Please finish or cancel it first."
 
     try:
         recs = VOLUNTEER_MANAGER.list_deleted_volunteers()
