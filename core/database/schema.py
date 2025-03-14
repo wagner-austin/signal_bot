@@ -1,9 +1,8 @@
 #!/usr/bin/env python
 """
 core/database/schema.py - Database schema initialization.
-Creates base tables for volunteers, command logs, and deleted volunteers.
+Creates base tables for volunteers, command logs, deleted volunteers, and user states.
 Automatically runs migrations to update the schema with new changes.
-Now includes the preferred_role column in Volunteers and DeletedVolunteers.
 """
 
 from .connection import db_connection
@@ -11,7 +10,7 @@ from .migrations import run_migrations
 
 def init_db() -> None:
     """
-    Initialize the database by creating necessary base tables if they do not exist,
+    init_db - Initialize the database by creating necessary base tables if they do not exist,
     then run any pending migrations to update the schema.
     """
     with db_connection() as conn:
@@ -44,6 +43,13 @@ def init_db() -> None:
             current_role TEXT,
             preferred_role TEXT,
             deleted_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+        """)
+        # New UserStates table for tracking if a user has seen the welcome message.
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS UserStates (
+            phone TEXT PRIMARY KEY,
+            has_seen_start INTEGER DEFAULT 0
         )
         """)
         conn.commit()

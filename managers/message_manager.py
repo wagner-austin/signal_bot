@@ -28,26 +28,20 @@ class MessageManager:
                         pending_actions: Any, volunteer_manager: Any,
                         msg_timestamp: Optional[int] = None) -> str:
         """
-        Processes an incoming message.
-        After parsing, if the sender is not recognized (no volunteer record) and the response is not the deletion confirmation,
-        a welcome message is prepended.
-
+        process_message - Processes an incoming message by dispatching it to the appropriate handler.
+        
         Parameters:
             parsed (ParsedMessage): The parsed message.
             sender (str): Sender's phone number.
             pending_actions (Any): Global pending actions object.
             volunteer_manager (Any): Volunteer manager instance.
             msg_timestamp (Optional[int]): Optional message timestamp.
-
+        
         Returns:
             str: The response message.
         """
-        from core.database import get_volunteer_record
-        from core.messages import GETTING_STARTED, VOLUNTEER_DELETED
         response = dispatch_message(parsed, sender, self.state_machine, pending_actions, volunteer_manager, msg_timestamp)
-        # Prepend welcome message only if no volunteer record exists and response is not the deletion confirmation.
-        if not get_volunteer_record(sender) and response and response != VOLUNTEER_DELETED:
-            response = GETTING_STARTED + "\n" + response
+        # Removed the old GETTING_STARTED appending logic.
         return response
 
 # End of managers/message_manager.py

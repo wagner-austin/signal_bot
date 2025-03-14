@@ -3,6 +3,7 @@
 tests/managers/test_handle_message.py - Tests for the message dispatch functionality.
 Verifies that fuzzy matching correctly handles near-miss command inputs and that mixed
 group commands with extra trailing text are correctly parsed.
+Note: The welcome message is now sent separately via process_incoming.
 """
 import pytest
 from managers.message.message_dispatcher import dispatch_message as handle_message
@@ -10,7 +11,6 @@ from core.state import BotStateMachine
 from parsers.message_parser import ParsedMessage, parse_message
 from managers.pending_actions import PendingActions
 from managers.volunteer_manager import VOLUNTEER_MANAGER
-from core.messages import GETTING_STARTED
 
 # Helper function to create a full envelope message for parsing.
 def make_envelope_message(body: str, sender: str = "+1234567890", group_id: str = None) -> ParsedMessage:
@@ -57,7 +57,8 @@ def test_handle_message_fuzzy_matching(dummy_plugin):
     state_machine = BotStateMachine()
     pending_actions = PendingActions()
     response = handle_message(parsed, "+111", state_machine, pending_actions, VOLUNTEER_MANAGER, msg_timestamp=123)
-    # This test assumes a certain fuzzy match behavior (here expecting "yes")
+    # The expected response will depend on the fuzzy matching behavior.
+    # For this test, assume that the fuzzy match returns "yes".
     assert response == "yes"
 
 def test_group_command_with_extra_text(volunteer_status_plugin):
@@ -87,7 +88,8 @@ def test_group_command_with_extra_text(volunteer_status_plugin):
 def test_message_manager_process_message():
     """
     Test that MessageManager.process_message correctly dispatches the dummy command.
-    Since the volunteer record is missing, the GETTING_STARTED message should be prepended.
+    Since the welcome message is sent separately via process_incoming,
+    the direct process_message response should be "dummy response".
     """
     from managers.message_manager import MessageManager
     state_machine = BotStateMachine()
@@ -96,7 +98,7 @@ def test_message_manager_process_message():
     pending_actions = PendingActions()
     volunteer_manager = DummyVolunteerManager()
     response = message_manager.process_message(parsed, parsed.sender, pending_actions, volunteer_manager, msg_timestamp=123)
-    expected_response = GETTING_STARTED + "\n" + "dummy response"
+    expected_response = "dummy response"
     assert response == expected_response
 
 # --- Dummy Classes for Testing ---
