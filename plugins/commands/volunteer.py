@@ -1,9 +1,14 @@
 #!/usr/bin/env python
 """
-plugins/commands/volunteer.py --- Volunteer command plugins.
+plugins/commands/volunteer.py
+-----------------------------
+Volunteer command plugins.
 Handles volunteer registration, editing, deletion, and skill management.
-USAGE: Refer to usage constants in core/plugin_usage.py (USAGE_VOLUNTEER_STATUS, USAGE_REGISTER, USAGE_REGISTER_PARTIAL, USAGE_EDIT, USAGE_DELETE, 
-USAGE_SKILLS, USAGE_FIND, USAGE_ADD_SKILLS)
+
+CHANGES:
+ - Removed set_flow_state(sender, ...) and clear_flow_state(sender) calls.
+ - Instead, use create_flow(sender, ...) or pause_flow/resume_flow as applicable.
+ - Keep existing logic, docstrings, and usage references as intact as possible.
 """
 
 from typing import Optional
@@ -28,7 +33,11 @@ from core.plugin_usage import (
     USAGE_VOLUNTEER_STATUS, USAGE_REGISTER, USAGE_REGISTER_PARTIAL, USAGE_EDIT, USAGE_DELETE, 
     USAGE_SKILLS, USAGE_FIND, USAGE_ADD_SKILLS
 )
-from managers.user_states_manager import set_flow_state, get_flow_state, clear_flow_state
+from managers.user_states_manager import (
+    has_seen_welcome, mark_welcome_seen,
+    create_flow, pause_flow, resume_flow, 
+    get_flow_state  # included for any legacy checks if still needed
+)
 
 logger = logging.getLogger(__name__)
 
@@ -82,7 +91,7 @@ def register_command(args: str, sender: str, state_machine: BotStateMachine,
     """
     try:
         if args.strip().lower() == "cancel":
-            clear_flow_state(sender)
+            pause_flow(sender, "registration")  # or set it inactive
             return "Cancelled."
         
         if args.strip() and len(args.strip().split()) < 2 and args.strip().lower() not in SKIP_VALUES:
@@ -93,13 +102,14 @@ def register_command(args: str, sender: str, state_machine: BotStateMachine,
             if record:
                 return ALREADY_REGISTERED.format(name=record['name'])
             else:
-                clear_flow_state(sender)
+                # Immediately register if full name is given inline
                 return VOLUNTEER_MANAGER.register_volunteer(sender, args.strip(), [])
         else:
             if record:
                 return ALREADY_REGISTERED.format(name=record['name'])
             else:
-                set_flow_state(sender, "registration")
+                # Start or resume a multi-step registration flow
+                create_flow(sender, "registration", start_step="ask_name")
                 return REGISTRATION_WELCOME
     except (ResourceError, VolunteerError) as e:
         logger.error(f"register_command domain error: {e}", exc_info=True)
@@ -130,17 +140,17 @@ def edit_command(args: str, sender: str, state_machine: BotStateMachine,
     """
     try:
         if args.strip().lower() == "cancel":
-            clear_flow_state(sender)
+            pause_flow(sender, "edit")
             return "Cancelled."
         
         record = VOLUNTEER_MANAGER.list_all_volunteers().get(sender)
         if not record:
-            set_flow_state(sender, "registration")
+            create_flow(sender, "registration", start_step="ask_name")
             return REGISTRATION_WELCOME
         if not args.strip():
-            set_flow_state(sender, "edit")
+            create_flow(sender, "edit", start_step="ask_new_name")
             return EDIT_PROMPT.format(name=record['name'])
-        clear_flow_state(sender)
+        # If user typed a name inline, just update
         return VOLUNTEER_MANAGER.register_volunteer(sender, args.strip(), [])
     except (ResourceError, VolunteerError) as e:
         logger.error(f"edit_command domain error: {e}", exc_info=True)
@@ -157,44 +167,38 @@ def delete_command(args: str, sender: str, state_machine: BotStateMachine,
                    msg_timestamp: Optional[int] = None) -> str:
     """
     delete - Handles volunteer deletion flow.
-    On initial invocation (no deletion flow active), it sets the flow state to "deletion"
-    and returns a prompt asking if the user wants to delete their registration.
-    If already in the "deletion" flow and the user replies affirmatively (e.g., "yes", "y", "yea", "sure"),
-    the flow state is updated to "deletion_confirm" and a confirmation prompt is returned.
-    If in the "deletion_confirm" state and the user confirms with "yes" or "delete",
-    the volunteer record is deleted and the flow state cleared.
-    Any non-affirmative response cancels the deletion flow.
     
     USAGE: {USAGE_DELETE}
     """
     try:
         user_input = args.strip().lower()
-        current_flow = get_flow_state(sender)
+        # Example multi-flow usage: you could create_flow(sender, "delete_flow")
+        # then handle steps in the message_manager auto-dispatch if you want.
+        # Below is your legacy logic, preserving flow checks but removing set_flow_state calls.
+        
+        current_flow = get_flow_state(sender)  # legacy for checking
         if current_flow == "":
-            # No deletion flow active; start it.
             if user_input == "cancel":
                 return "Cancelled."
-            set_flow_state(sender, "deletion")
+            create_flow(sender, "deletion", start_step="initial")
             return DELETION_PROMPT
         elif current_flow == "deletion":
-            # In initial deletion step.
             if user_input in {"yes", "y", "yea", "sure"}:
-                set_flow_state(sender, "deletion_confirm")
+                create_flow(sender, "deletion_confirm", start_step="confirm")
                 return DELETION_CONFIRM
             else:
-                clear_flow_state(sender)
+                pause_flow(sender, "deletion")
                 return DELETION_CANCELED
         elif current_flow == "deletion_confirm":
-            # In confirmation step.
             if user_input in {"yes", "delete"}:
                 confirmation = VOLUNTEER_MANAGER.delete_volunteer(sender)
-                clear_flow_state(sender)
+                pause_flow(sender, "deletion_confirm")
                 return confirmation
             else:
-                clear_flow_state(sender)
+                pause_flow(sender, "deletion_confirm")
                 return DELETION_CANCELED
         else:
-            clear_flow_state(sender)
+            pause_flow(sender, current_flow)
             return DELETION_CANCELED
     except (ResourceError, VolunteerError) as e:
         logger.error(f"delete_command domain error: {e}", exc_info=True)
@@ -219,7 +223,7 @@ def skills_command(args: str, sender: str, state_machine: BotStateMachine,
         from core.skill_config import AVAILABLE_SKILLS
         record = get_volunteer_record(sender)
         if not record:
-            set_flow_state(sender, "registration")
+            create_flow(sender, "registration", start_step="ask_name")
             return REGISTRATION_WELCOME
         else:
             current_skills = record.get("skills", [])
