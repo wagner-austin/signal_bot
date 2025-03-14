@@ -6,7 +6,7 @@ facilitating future updates and localization.
 """
 
 # Registration Messages
-REGISTRATION_WELCOME = "Welcome! To register, reply with your full name. Or type 'skip' to remain anonymous."
+REGISTRATION_WELCOME = "Starting registration flow. To register, please provide your full name or type 'skip' to remain anonymous."
 ALREADY_REGISTERED = "You are registered as \"{name}\". Use command \"@bot edit\" to edit your name."
 
 # Edit Messages

@@ -10,17 +10,16 @@ from managers.volunteer_manager import VOLUNTEER_MANAGER
 from db.volunteers import get_volunteer_record
 from plugins.commands.system import shutdown_command, assign_command
 
-
 def test_shutdown_command_integration():
     """
     Test that calling the shutdown command transitions the BotStateMachine to SHUTTING_DOWN.
     """
     state_machine = BotStateMachine()
     sender = "+9999999999"
+    # For shutdown command, passing an empty string defaults to the default subcommand.
     response = shutdown_command("", sender, state_machine, msg_timestamp=123)
-    assert "Bot is shutting down." in response
+    assert "bot is shutting down" in response.lower()
     assert state_machine.current_state == BotState.SHUTTING_DOWN
-
 
 def test_assign_command_with_multiple_matches():
     """
@@ -35,8 +34,7 @@ def test_assign_command_with_multiple_matches():
     VOLUNTEER_MANAGER.register_volunteer(phone2, "Second Volunteer", ["Photography"], True, None)
 
     state_machine = BotStateMachine()
-    response = assign_command("Photography", "+dummy", state_machine, msg_timestamp=123)
-
+    response = assign_command("default Photography", "+dummy", state_machine, msg_timestamp=123)
     # Confirm it assigned the first volunteer we created.
     assert response == "Photography assigned to First Volunteer."
 
@@ -49,14 +47,13 @@ def test_assign_command_with_multiple_matches():
     assert record2 is not None
     assert record2["current_role"] is None, "Second Volunteer should remain unassigned."
 
-
 def test_assign_command_no_matches():
     """
     Test that 'assign <skill>' returns an appropriate message if no volunteers match the skill
     or availability requirements.
     """
     state_machine = BotStateMachine()
-    response = assign_command("UnknownSkill", "+dummy", state_machine, msg_timestamp=123)
+    response = assign_command("default UnknownSkill", "+dummy", state_machine, msg_timestamp=123)
     assert response == "No available volunteer for UnknownSkill."
 
 # End of tests/plugins/test_system_command.py

@@ -1,8 +1,8 @@
-#!/usr/bin/env python
 """
 plugins/commands/help.py - Help command plugin.
-Provides a concise help listing for available commands.
-USAGE: {USAGE_HELP} (see core/plugin_usage.py)
+Subcommands:
+  default : List available commands.
+USAGE: {USAGE_HELP}
 """
 
 from typing import Optional
@@ -14,12 +14,16 @@ from core.plugin_usage import USAGE_HELP
 logger = logging.getLogger(__name__)
 
 @plugin('help', canonical='help')
-def help_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
+def help_command(args: str, sender: str, state_machine: BotStateMachine,
+                 msg_timestamp: Optional[int] = None) -> str:
     """
-    help - Provides a concise list of available commands.
-    
+    plugins/commands/help.py - Help command plugin.
+    Subcommands:
+      default : List available commands.
     USAGE: {USAGE_HELP}
     """
+    if args.strip() and args.strip().lower() != "default":
+        return f"Unknown subcommand. USAGE: {USAGE_HELP}"
     try:
         plugins_info = get_all_plugins()
         lines = []

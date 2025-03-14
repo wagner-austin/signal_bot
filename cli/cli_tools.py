@@ -1,11 +1,7 @@
 #!/usr/bin/env python
 """
 cli/cli_tools.py - Aggregated CLI Tools Facade, now unified with plugin commands.
-
-CHANGES:
- - Added a new "task" subparser with sub-subcommands (add, assign, close).
- - That aligns with the test calls: ["task", "add", "..."], ["task", "assign", "..."], etc.
- - No other changes beyond what's needed for the task tests.
+Provides subcommands like list-volunteers, add-volunteer, tasks, etc.
 """
 
 import argparse
@@ -25,7 +21,7 @@ def create_arg_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
     # Volunteers
-    sp_list_vols = subparsers.add_parser("list-volunteers", help="List all volunteers")
+    subparsers.add_parser("list-volunteers", help="List all volunteers")
     
     sp_add_vol = subparsers.add_parser("add-volunteer", help="Add/register a volunteer")
     sp_add_vol.add_argument("--phone", required=True, help="Volunteer phone number (E.164 format)")
@@ -76,14 +72,13 @@ def create_arg_parser() -> argparse.ArgumentParser:
     return parser
 
 def _dispatch_subcommand(args: argparse.Namespace, parser: argparse.ArgumentParser):
+    from managers.volunteer_manager import VOLUNTEER_MANAGER
     from plugins.commands.volunteer import (
         volunteer_status_command,
-        register_command,
         check_in_command,
-        add_skills_command,
+        deleted_volunteers_command,
     )
     from plugins.commands.role import role_command
-    from plugins.commands.volunteer import deleted_volunteers_command
     from plugins.commands.event import event_command, event_speakers_command
     from plugins.commands.logs import logs_command
     from plugins.commands.resource import resource_command
@@ -106,35 +101,25 @@ def _dispatch_subcommand(args: argparse.Namespace, parser: argparse.ArgumentPars
         available = args.available  # "0" or "1"
         role = args.role.strip()
 
-        # 1) Register volunteer
-        reg_result = register_command(name, phone, CLI_STATE_MACHINE)
-        print(reg_result)
-
-        # 2) If any skills were provided, add them
-        if skills:
-            skill_args = ",".join(skills)
-            skill_result = add_skills_command(skill_args, phone, CLI_STATE_MACHINE)
-            print(skill_result)
-
-        # 3) Validate availability
-        if available != "1" and available != "0":
+        # Validate availability
+        if available not in ("1", "0"):
             print("Error: available must be 0 or 1.")
             return
-        if available == "1":
-            ci_result = check_in_command("", phone, CLI_STATE_MACHINE)
-            print(ci_result)
 
-        # 4) If role is given, set it
-        if role:
-            role_args = f"set {role}"
-            role_result = role_command(role_args, phone, CLI_STATE_MACHINE)
-            print(role_result)
+        # Direct manager call (bypassing multi-step flow):
+        bool_available = (available == "1")
+        reg_msg = VOLUNTEER_MANAGER.register_volunteer(phone, name, [], bool_available, role)
+        print(reg_msg)
+
+        # Add skills if non-empty
+        if skills:
+            skill_msg = VOLUNTEER_MANAGER.add_skills(phone, skills)
+            print(skill_msg)
 
     elif command == "list-deleted-volunteers":
         result = deleted_volunteers_command("", "cli", CLI_STATE_MACHINE)
         print(result)
 
-    # Events
     elif command == "list-events":
         result = event_command("", "cli", CLI_STATE_MACHINE)
         print(result)
@@ -143,12 +128,10 @@ def _dispatch_subcommand(args: argparse.Namespace, parser: argparse.ArgumentPars
         result = event_speakers_command("", "cli", CLI_STATE_MACHINE)
         print(result)
 
-    # Logs
     elif command == "list-logs":
         result = logs_command("", "cli", CLI_STATE_MACHINE)
         print(result)
 
-    # Resources
     elif command == "list-resources":
         result = resource_command("list", "cli", CLI_STATE_MACHINE)
         print(result)
@@ -167,27 +150,22 @@ def _dispatch_subcommand(args: argparse.Namespace, parser: argparse.ArgumentPars
         result = resource_command(combined_args, "cli", CLI_STATE_MACHINE)
         print(result)
 
-    # Tasks
     elif command == "list-tasks":
         result = task_command("list", "cli", CLI_STATE_MACHINE)
         print(result)
 
     elif command == "task":
-        # sub-subcommand
         if not args.task_subcommand:
-            # no sub-subcommand => print usage
             parser.print_help()
             return
 
         if args.task_subcommand == "add":
             description_str = " ".join(args.description)
-            # e.g., "task add some desc" => pass "add some desc"
             cmd_args = f"add {description_str}"
             result = task_command(cmd_args, "cli", CLI_STATE_MACHINE)
             print(result)
 
         elif args.task_subcommand == "assign":
-            # e.g., task assign <task_id> <volunteer name...>
             volunteer_name_str = " ".join(args.volunteer_name)
             cmd_args = f"assign {args.task_id} {volunteer_name_str}"
             result = task_command(cmd_args, "cli", CLI_STATE_MACHINE)

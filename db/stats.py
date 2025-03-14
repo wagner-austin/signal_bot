@@ -1,47 +1,33 @@
 #!/usr/bin/env python
 """
-db/stats.py - Database statistics and tracking.
-Provides functions to retrieve current database statistics, including table row counts (excluding system and unwanted tables)
-and the current schema version. This centralizes the stats calculation for use in CLI commands.
+File: db/stats.py
+-----------------
+Database statistics and tracking.
+Provides functions to retrieve current database statistics via StatsRepository.
 """
 
-from db.connection import get_connection
+from db.repository import StatsRepository
 
 def get_database_stats():
     """
-    Get statistics of the current database.
+    Get statistics of the current database, now leveraging StatsRepository.
 
     Returns:
         dict: A dictionary with two keys:
-              'tables' - a mapping of table names to their row counts (excluding sqlite_sequence, SchemaVersion, and CommandLogs),
+              'tables' - a mapping of table names to their row counts,
               'schema_version' - the current migration version from the SchemaVersion table (if available).
     """
+    repo = StatsRepository()
     stats = {"tables": {}, "schema_version": None}
-    conn = get_connection()
-    cursor = conn.cursor()
-    
-    # Exclude system and unwanted tables from stats
-    excluded_tables = {"sqlite_sequence", "SchemaVersion", "CommandLogs"}
-    cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
-    tables = [row["name"] for row in cursor.fetchall() if row["name"] not in excluded_tables]
-    
-    # Count rows for each included table
-    for table in tables:
+
+    tables = repo.get_table_names()
+    for t in tables:
         try:
-            cursor.execute(f"SELECT COUNT(*) as count FROM {table}")
-            count_row = cursor.fetchone()
-            stats["tables"][table] = count_row["count"] if count_row else 0
+            stats["tables"][t] = repo.get_row_count(t)
         except Exception as e:
-            stats["tables"][table] = f"Error: {str(e)}"
-    
-    # Retrieve schema version from SchemaVersion if it exists
-    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='SchemaVersion'")
-    if cursor.fetchone():
-        cursor.execute("SELECT version FROM SchemaVersion")
-        row = cursor.fetchone()
-        stats["schema_version"] = row["version"] if row else None
-    
-    conn.close()
+            stats["tables"][t] = f"Error: {str(e)}"
+
+    stats["schema_version"] = repo.get_schema_version()
     return stats
 
-# End of core/database/stats.py
+# End of db/stats.py

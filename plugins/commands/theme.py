@@ -1,26 +1,31 @@
-#!/usr/bin/env python
 """
 plugins/commands/theme.py - Theme management command plugins.
-Provides commands to display and plan the weekly theme.
-USAGE: Refer to usage constants in core/plugin_usage.py (USAGE_THEME, USAGE_PLAN_THEME)
+Subcommands:
+  theme      : default - Display the current theme.
+  plan theme : default - Walk through adding the theme for this week.
+USAGE: See respective USAGE constants.
 """
 
+import logging
 from typing import Optional
 from plugins.manager import plugin
 from core.state import BotStateMachine
-import logging
 from parsers.plugin_arg_parser import PluginArgError
 from core.plugin_usage import USAGE_THEME, USAGE_PLAN_THEME
 
 logger = logging.getLogger(__name__)
 
 @plugin(commands=['theme'], canonical='theme')
-def theme_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
+def theme_command(args: str, sender: str, state_machine: BotStateMachine,
+                  msg_timestamp: Optional[int] = None) -> str:
     """
-    theme - Displays the important theme for this week.
-    
+    plugins/commands/theme.py - Theme display command.
+    Subcommands:
+      default : Display the current theme.
     USAGE: {USAGE_THEME}
     """
+    if args.strip() and args.strip().lower() != "default":
+        return f"Unknown subcommand. USAGE: {USAGE_THEME}"
     try:
         if args.strip():
             raise PluginArgError(USAGE_THEME)
@@ -33,12 +38,16 @@ def theme_command(args: str, sender: str, state_machine: BotStateMachine, msg_ti
         return "An internal error occurred in theme_command."
 
 @plugin(commands=['plan theme'], canonical='plan theme')
-def plan_theme_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
+def plan_theme_command(args: str, sender: str, state_machine: BotStateMachine,
+                       msg_timestamp: Optional[int] = None) -> str:
     """
-    plan theme - Walks you through adding the theme for this week.
-    
+    plugins/commands/theme.py - Theme planning command.
+    Subcommands:
+      default : Walk through adding the theme.
     USAGE: {USAGE_PLAN_THEME}
     """
+    if args.strip() and args.strip().lower() != "default":
+        return f"Unknown subcommand. USAGE: {USAGE_PLAN_THEME}"
     try:
         if args.strip():
             raise PluginArgError(USAGE_PLAN_THEME)

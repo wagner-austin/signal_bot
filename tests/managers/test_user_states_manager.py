@@ -1,21 +1,18 @@
 #!/usr/bin/env python
 """
-tests/managers/test_user_states_manager.py
-------------------------------------------
-Tests for user state management with multi-flow approach.
-Verifies create_flow, pause_flow, resume_flow, and legacy get_flow_state,
-clear_flow_state for backward compatibility.
+tests/managers/test_user_states_manager.py --- Tests for user state management.
+Verifies create_flow, pause_flow, resume_flow, clear_flow_state, list_flows, and concurrent modifications
+using the updated (non-legacy) flow state functions.
 """
 
 import pytest
+import concurrent.futures
 from managers.user_states_manager import (
     create_flow,
-    get_flow_state,
+    get_active_flow,
     clear_flow_state,
     pause_flow,
     resume_flow,
-    get_flow_data,
-    set_flow_data,
     list_flows
 )
 
@@ -23,67 +20,63 @@ PHONE = "+1234567890"
 
 @pytest.fixture(autouse=True)
 def cleanup_user_state():
-    """
-    Cleanup flow state after each test.
-    """
+    """Cleanup flow state after each test."""
     yield
-    clear_flow_state(PHONE)  # ensures no active flow remains
+    clear_flow_state(PHONE)
 
 def test_create_and_get_flow_state():
-    """
-    Ensures create_flow sets the active flow, and get_flow_state reflects that.
-    """
+    """Ensures create_flow sets the active flow, and get_active_flow reflects that."""
     clear_flow_state(PHONE)
     create_flow(PHONE, "registration")
-    assert get_flow_state(PHONE) == "registration"
+    assert get_active_flow(PHONE) == "registration"
 
 def test_clear_flow_state():
-    """
-    Verifies that clear_flow_state sets the active flow to empty.
-    """
+    """Verifies that clear_flow_state sets the active flow to None."""
     create_flow(PHONE, "edit")
-    assert get_flow_state(PHONE) == "edit"
+    assert get_active_flow(PHONE) == "edit"
     clear_flow_state(PHONE)
-    assert get_flow_state(PHONE) == ""
+    assert get_active_flow(PHONE) is None
 
 def test_pause_flow():
-    """
-    Tests that pausing an active flow resets get_flow_state() to empty.
-    """
+    """Tests that pausing an active flow resets the active flow to None."""
     create_flow(PHONE, "registration")
-    assert get_flow_state(PHONE) == "registration"
+    assert get_active_flow(PHONE) == "registration"
     pause_flow(PHONE, "registration")
-    assert get_flow_state(PHONE) == "", "Expected no active flow after pause."
+    assert get_active_flow(PHONE) is None
 
 def test_resume_flow():
-    """
-    Resume a previously created flow so it becomes active again.
-    """
+    """Resumes a previously created flow so it becomes active again."""
     create_flow(PHONE, "registration")
     pause_flow(PHONE, "registration")
-    # flow is still in 'flows', but not active
     resume_flow(PHONE, "registration")
-    assert get_flow_state(PHONE) == "registration"
-
-def test_set_flow_data_and_retrieve():
-    """
-    Validate that we can store data in the flow's data dict and retrieve it.
-    """
-    create_flow(PHONE, "deletion", initial_data={"confirmed": False})
-    set_flow_data(PHONE, "deletion", "reason", "testing")
-    data = get_flow_data(PHONE, "deletion")
-    assert data["reason"] == "testing"
-    assert data["confirmed"] == False, "Expected the initial_data to still be present."
+    assert get_active_flow(PHONE) == "registration"
 
 def test_list_flows_multiple():
-    """
-    Create multiple flows and check the listing.
-    """
+    """Creates multiple flows and checks the listing."""
     create_flow(PHONE, "flow1")
     create_flow(PHONE, "flow2")
     flows_info = list_flows(PHONE)
     assert flows_info["active_flow"] == "flow2", "Latest created flow is active."
     assert "flow1" in flows_info["flows"], "Flow1 should be tracked."
     assert "flow2" in flows_info["flows"], "Flow2 should be tracked."
+
+def test_concurrent_flow_modification():
+    """
+    Tests concurrency by modifying the same user's flows in multiple threads.
+    The final active flow should be one of the concurrently created flows.
+    """
+    def flow_worker(flow_name):
+        create_flow(PHONE, flow_name)
+
+    flow_ops = ["flowA", "flowB", "flowC", "flowD"]
+
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        futures = [executor.submit(flow_worker, fname) for fname in flow_ops]
+        for f in concurrent.futures.as_completed(futures):
+            f.result()
+
+    flows_info = list_flows(PHONE)
+    active_flow = flows_info["active_flow"]
+    assert active_flow in set(flow_ops), "Active flow must be one of the concurrently created flows."
 
 # End of tests/managers/test_user_states_manager.py

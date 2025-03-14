@@ -1,12 +1,17 @@
 #!/usr/bin/env python
 """
-managers/task_manager.py --- Task Manager for shared to-do items.
+File: managers/task_manager.py
+------------------------------
+Task Manager for shared to-do items.
 Provides functions for creating, listing, assigning, and closing tasks with proper logging.
 Exceptions from business logic propagate to the CLI/plugin layer.
+
+CHANGES:
+ - Replaced direct execute_sql in _fetch_tasks() with TaskRepository.list_tasks_detailed().
 """
 
 from typing import List, Dict
-from db.repository import execute_sql
+from db.repository import TaskRepository
 from core.transaction import atomic_transaction
 from managers.volunteer_manager import normalize_name
 from core.exceptions import VolunteerError
@@ -18,7 +23,6 @@ def create_task(created_by: str, description: str) -> int:
     """
     create_task - Create a new task in the database.
     """
-    from db.repository import TaskRepository  # Local import to avoid circular references
     repo = TaskRepository()
     data = {
         "description": description,
@@ -30,20 +34,11 @@ def create_task(created_by: str, description: str) -> int:
 
 def _fetch_tasks() -> List[Dict]:
     """
-    _fetch_tasks - Internal helper to query the Task table for all tasks.
+    _fetch_tasks - Internal helper to query the Task table, joined with Volunteers.
+    Now uses TaskRepository.list_tasks_detailed().
     """
-    query = """
-    SELECT t.task_id, t.description, t.status, t.created_at,
-           t.created_by,
-           v1.name as created_by_name,
-           t.assigned_to,
-           v2.name as assigned_to_name
-    FROM Tasks t
-    LEFT JOIN Volunteers v1 ON t.created_by = v1.phone
-    LEFT JOIN Volunteers v2 ON t.assigned_to = v2.phone
-    ORDER BY t.created_at DESC
-    """
-    rows = execute_sql(query, fetchall=True)
+    repo = TaskRepository()
+    rows = repo.list_tasks_detailed()
     tasks = []
     if rows:
         for row in rows:
@@ -70,6 +65,7 @@ def assign_task(task_id: int, volunteer_display_name: str) -> None:
     assign_task - Assigns a task to a volunteer based on the volunteer's display name.
     Raises VolunteerError if the volunteer is not found.
     """
+    from db.connection import get_connection
     with atomic_transaction() as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT phone FROM Volunteers WHERE lower(name)=? LIMIT 1", (volunteer_display_name.lower(),))
@@ -84,11 +80,9 @@ def close_task(task_id: int) -> bool:
     """
     close_task - Mark a task as closed in the database.
     """
-    update_query = "UPDATE Tasks SET status = 'closed' WHERE task_id = ?"
-    execute_sql(update_query, (task_id,), commit=True)
+    repo = TaskRepository()
+    repo.update(task_id, {"status": "closed"})
     logger.info(f"Task {task_id} marked as closed.")
     return True
-
-from db.repository import TaskRepository
 
 # End of managers/task_manager.py

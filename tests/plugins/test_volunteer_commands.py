@@ -25,7 +25,7 @@ def test_volunteer_register_new():
     """
     phone = "+80000000001"
     state_machine = BotStateMachine()
-    response = register_command("Test User", phone, state_machine, msg_timestamp=123)
+    response = register_command("default Test User", phone, state_machine, msg_timestamp=123)
     assert "registered" in response.lower()
     record = get_volunteer_record(phone)
     assert record is not None
@@ -37,8 +37,8 @@ def test_volunteer_register_existing():
     """
     phone = "+80000000002"
     state_machine = BotStateMachine()
-    register_command("Existing User", phone, state_machine, msg_timestamp=123)
-    response = register_command("Any Name", phone, state_machine, msg_timestamp=123)
+    register_command("default Existing User", phone, state_machine, msg_timestamp=123)
+    response = register_command("default Any Name", phone, state_machine, msg_timestamp=123)
     # This is a normal "already registered" path.
     assert "you are registered as" in response.lower()
 
@@ -49,8 +49,8 @@ def test_volunteer_register_no_args_shows_welcome():
     """
     phone = "+80000000009"
     state_machine = BotStateMachine()
-    # Ensure no volunteer record exists for this phone.
-    response = register_command("", phone, state_machine, msg_timestamp=123)
+    # Pass "default" to trigger the default subcommand.
+    response = register_command("default", phone, state_machine, msg_timestamp=123)
     assert REGISTRATION_WELCOME in response
 
 def test_volunteer_edit_command_interactive():
@@ -59,8 +59,8 @@ def test_volunteer_edit_command_interactive():
     """
     phone = "+80000000003"
     state_machine = BotStateMachine()
-    register_command("Initial Name", phone, state_machine, msg_timestamp=123)
-    response = edit_command("", phone, state_machine, msg_timestamp=123)
+    register_command("default Initial Name", phone, state_machine, msg_timestamp=123)
+    response = edit_command("default", phone, state_machine, msg_timestamp=123)
     assert "edit" in response.lower()
 
 def test_volunteer_delete_command():
@@ -69,8 +69,8 @@ def test_volunteer_delete_command():
     """
     phone = "+80000000004"
     state_machine = BotStateMachine()
-    register_command("Delete Me", phone, state_machine, msg_timestamp=123)
-    response = delete_command("", phone, state_machine, msg_timestamp=123)
+    register_command("default Delete Me", phone, state_machine, msg_timestamp=123)
+    response = delete_command("default", phone, state_machine, msg_timestamp=123)
     assert "delete your registration" in response.lower()
 
 def test_volunteer_skills_command():
@@ -79,8 +79,8 @@ def test_volunteer_skills_command():
     """
     phone = "+80000000005"
     state_machine = BotStateMachine()
-    register_command("Skill User", phone, state_machine, msg_timestamp=123)
-    response = skills_command("", phone, state_machine, msg_timestamp=123)
+    register_command("default Skill User", phone, state_machine, msg_timestamp=123)
+    response = skills_command("default", phone, state_machine, msg_timestamp=123)
     assert "currently has skills" in response.lower()
 
 def test_volunteer_find_command():
@@ -89,8 +89,8 @@ def test_volunteer_find_command():
     """
     phone = "+80000000006"
     state_machine = BotStateMachine()
-    register_command("Find Me", phone, state_machine, msg_timestamp=123)
-    response = find_command("find", "+dummy", state_machine, msg_timestamp=123)
+    register_command("default Find Me", phone, state_machine, msg_timestamp=123)
+    response = find_command("default find", "+dummy", state_machine, msg_timestamp=123)
     # Usually just returns no matches or a list. We check that it's a string.
     assert isinstance(response, str)
 
@@ -100,8 +100,8 @@ def test_volunteer_add_skills_command():
     """
     phone = "+80000000007"
     state_machine = BotStateMachine()
-    register_command("Skill Adder", phone, state_machine, msg_timestamp=123)
-    response = add_skills_command("Python, Testing", phone, state_machine, msg_timestamp=123)
+    register_command("default Skill Adder", phone, state_machine, msg_timestamp=123)
+    response = add_skills_command("default Python, Testing", phone, state_machine, msg_timestamp=123)
     assert "registered" in response.lower() or "updated" in response.lower()
 
 def test_volunteer_find_command_no_args_shows_usage():
@@ -128,7 +128,7 @@ def test_register_command_partial():
     """
     phone = "+80000000008"
     state_machine = BotStateMachine()
-    response = register_command("John", phone, state_machine, msg_timestamp=123)
+    response = register_command("default John", phone, state_machine, msg_timestamp=123)
     # Expect the response to equal the partial usage prompt for registration.
     assert USAGE_REGISTER_PARTIAL.lower() in response.lower()
 

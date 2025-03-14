@@ -1,9 +1,11 @@
 #!/usr/bin/env python
 """
-tests/core/test_repository.py - Tests for the Data Access Layer repository classes.
+File: tests/core/test_repository.py
+-----------------------------------
+Tests for the Data Access Layer repository classes.
 This module verifies that the common CRUD operations provided by the BaseRepository
 and its subclasses (ResourceRepository, DonationRepository, EventRepository, and EventSpeakerRepository)
-work as expected.
+work as expected. Also includes coverage for StatsRepository usage.
 """
 
 import os
@@ -13,7 +15,8 @@ from db.repository import (
     ResourceRepository,
     DonationRepository,
     EventRepository,
-    EventSpeakerRepository
+    EventSpeakerRepository,
+    StatsRepository
 )
 from db.resources import list_resources
 from db.donations import add_donation
@@ -25,7 +28,7 @@ def clear_tables():
     conn = get_connection()
     cursor = conn.cursor()
     # Clear tables used in our repository tests.
-    tables = ["Resources", "Donations", "Events", "EventSpeakers"]
+    tables = ["Resources", "Donations", "Events", "EventSpeakers", "Volunteers", "CommandLogs"]
     for table in tables:
         cursor.execute(f"DELETE FROM {table}")
     conn.commit()
@@ -142,5 +145,39 @@ def test_event_speaker_repository_delete_by_conditions():
     names = [s["speaker_name"] for s in speakers_after]
     assert "Speaker One" not in names
     assert "Speaker Two" in names
+
+def test_stats_repository_usage():
+    """
+    Tests the StatsRepository functionality by verifying table names, row counts, and schema version logic.
+    """
+    from db.repository import StatsRepository
+    from db.connection import get_connection
+
+    # Insert some records in Volunteers, CommandLogs
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("INSERT INTO Volunteers (phone, name, skills, available, current_role) VALUES (?, ?, ?, ?, ?)",
+                   ("+10000000001", "StatTest Volunteer", "SkillTest", 1, None))
+    cursor.execute("INSERT INTO CommandLogs (sender, command, args) VALUES (?, ?, ?)",
+                   ("+9999999999", "test_cmd", "arg1"))
+    conn.commit()
+    conn.close()
+
+    stats_repo = StatsRepository()
+    table_names = stats_repo.get_table_names()
+
+    # Confirm table_names is a list
+    assert isinstance(table_names, list), "Expected a list of table names."
+
+    # The row count for Volunteers should reflect 1 inserted row if it's not excluded
+    if "Volunteers" in table_names:
+        row_count = stats_repo.get_row_count("Volunteers")
+        assert row_count == 1, f"Expected 1 row in Volunteers, got {row_count}."
+
+    # Check schema version - it may be None if no table or any int >= 0 if we have versioning
+    schema_version = stats_repo.get_schema_version()
+    # We allow any nonnegative integer or None
+    allowed = (schema_version is None) or (schema_version >= 0)
+    assert allowed, f"Unexpected schema version: {schema_version}"
 
 # End of tests/core/test_repository.py

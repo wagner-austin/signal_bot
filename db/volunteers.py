@@ -1,27 +1,24 @@
 #!/usr/bin/env python
 """
 db/volunteers.py
--------------
+----------------
 Volunteer-related database operations using a repository pattern.
-(Moved from core/database/volunteers.py)
-
-Note: Some volunteer logic may now live in managers/volunteer_manager.py,
-      but these functions are retained if direct DB access is needed.
+Removes domain logic (unify_skills_preserving_earliest) to avoid circular imports.
 """
 
 from typing import Dict, Any, Optional, List
 from db.repository import VolunteerRepository, DeletedVolunteerRepository
+# Removed circular import to managers.volunteer_skills_manager
 from core.serialization_utils import (
     serialize_list,
-    deserialize_list,
-    unify_skills_preserving_earliest
+    deserialize_list
 )
-from db.connection import get_connection  # if needed for optional usage
+from db.connection import get_connection
+
 
 def get_all_volunteers(conn=None) -> Dict[str, Dict[str, Any]]:
     """
-    Retrieve all volunteers from the Volunteers table.
-    Returns a dict mapping phone -> volunteer record data.
+    Retrieve all volunteers from the Volunteers table, returning phone->record mapping.
     """
     repo = VolunteerRepository(
         connection_provider=lambda: conn or get_connection(),
@@ -39,6 +36,7 @@ def get_all_volunteers(conn=None) -> Dict[str, Dict[str, Any]]:
             "preferred_role": row["preferred_role"]
         }
     return output
+
 
 def get_volunteer_record(phone: str, conn=None) -> Optional[Dict[str, Any]]:
     """
@@ -59,45 +57,49 @@ def get_volunteer_record(phone: str, conn=None) -> Optional[Dict[str, Any]]:
         }
     return None
 
+
 def add_volunteer_record(phone: str, display_name: str, skills: list,
                          available: bool, current_role: Optional[str],
                          preferred_role: Optional[str] = None, conn=None) -> None:
     """
     Create/replace a volunteer record in the Volunteers table.
+    The manager layer is responsible for unifying skills before calling this function.
     """
     repo = VolunteerRepository(
         connection_provider=lambda: conn or get_connection(),
         external_connection=bool(conn)
     )
-    merged_skills = unify_skills_preserving_earliest(skills)
     data = {
         "phone": phone,
         "name": display_name,
-        "skills": serialize_list(merged_skills),
+        "skills": serialize_list(skills),
         "available": int(available),
         "current_role": current_role,
         "preferred_role": preferred_role
     }
     repo.create(data, replace=True)
 
+
 def update_volunteer_record(phone: str, display_name: str, skills: list,
-                            available: bool, current_role: Optional[str], conn=None) -> None:
+                            available: bool, current_role: Optional[str],
+                            preferred_role: Optional[str] = None, conn=None) -> None:
     """
-    Update an existing volunteer record.
+    update_volunteer_record - Update an existing volunteer record, including an optional preferred_role.
+    The manager layer is responsible for unifying skills before calling this function.
     """
     repo = VolunteerRepository(
         connection_provider=lambda: conn or get_connection(),
         external_connection=bool(conn)
     )
-    merged_skills = unify_skills_preserving_earliest(skills)
     data = {
         "name": display_name,
-        "skills": serialize_list(merged_skills),
+        "skills": serialize_list(skills),
         "available": int(available),
         "current_role": current_role,
-        "preferred_role": current_role
+        "preferred_role": preferred_role
     }
     repo.update(phone, data)
+
 
 def delete_volunteer_record(phone: str, conn=None) -> None:
     """
@@ -109,25 +111,27 @@ def delete_volunteer_record(phone: str, conn=None) -> None:
     )
     repo.delete(phone)
 
+
 def add_deleted_volunteer_record(phone: str, name: str, skills: list, available: bool,
                                  current_role: Optional[str], preferred_role: Optional[str] = None, conn=None) -> None:
     """
     Insert a record into DeletedVolunteers.
+    The manager layer is responsible for unifying skills before calling this function.
     """
     repo = DeletedVolunteerRepository(
         connection_provider=lambda: conn or get_connection(),
         external_connection=bool(conn)
     )
-    merged_skills = unify_skills_preserving_earliest(skills)
     data = {
         "phone": phone,
         "name": name,
-        "skills": serialize_list(merged_skills),
+        "skills": serialize_list(skills),
         "available": int(available),
         "current_role": current_role,
         "preferred_role": preferred_role
     }
     repo.create(data, replace=True)
+
 
 def remove_deleted_volunteer_record(phone: str, conn=None) -> None:
     """

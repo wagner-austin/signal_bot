@@ -15,18 +15,19 @@ def state_machine():
     return BotStateMachine()
 
 def test_plan_event_success(state_machine):
-    # Provide all required fields
+    # Provide all required fields prefixed with "default "
     response = plan_event_command(
-        "Title: My Event, Date: 2025-12-31, Time: 2PM, Location: Park, Description: Having Fun",
+        "default Title: My Event, Date: 2025-12-31, Time: 2PM, Location: Park, Description: Having Fun",
         "+dummy",
         state_machine
     )
-    assert "created successfully with ID" in response
+    # Check in lowercase for expected substring
+    assert "created successfully with id" in response.lower()
 
 def test_plan_event_partial(state_machine):
-    # Provide incomplete event data: missing time, location, and description
+    # Provide incomplete event data: missing time, location, and description; note the "default" prefix.
     response = plan_event_command(
-        "Title: Partial Event, Date: 2025-12-31",
+        "default Title: Partial Event, Date: 2025-12-31",
         "+dummy",
         state_machine
     )

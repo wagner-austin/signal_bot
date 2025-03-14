@@ -1,8 +1,13 @@
-#!/usr/bin/env python
 """
 plugins/commands/system.py - System command plugins.
-Provides system-level commands such as assign, test, shutdown, info, weekly update, and theme.
-USAGE: Refer to usage constants in core/plugin_usage.py (USAGE_ASSIGN, USAGE_TEST, USAGE_SHUTDOWN, USAGE_INFO, USAGE_WEEKLY_UPDATE_SYSTEM, USAGE_THEME_SYSTEM)
+Subcommands for each command:
+  assign         : default - Assign a volunteer.
+  test           : default - Test command.
+  shutdown       : default - Shut down the bot.
+  info           : default - Display bot information.
+  weekly update  : default - Display weekly update.
+  theme          : default - Display the current theme.
+USAGE: See respective USAGE constants in core/plugin_usage.
 """
 
 import logging
@@ -10,8 +15,6 @@ from typing import Optional
 from plugins.manager import plugin
 from core.state import BotStateMachine
 from managers.volunteer_manager import VOLUNTEER_MANAGER
-from core.metrics import get_uptime
-import core.metrics
 from parsers.argument_parser import parse_plugin_arguments
 from parsers.plugin_arg_parser import (
     PluginArgError,
@@ -25,16 +28,23 @@ logger = logging.getLogger(__name__)
 @plugin('assign', canonical='assign')
 def assign_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
     """
-    assign - Assign a volunteer based on a required skill.
-    
+    plugins/commands/system.py - Assign command.
+    Subcommands:
+      default : Assign a volunteer based on a required skill.
     USAGE: {USAGE_ASSIGN}
     """
+    tokens = args.strip().split(None, 1)
+    if not tokens:
+        tokens = ["default"]
+    if tokens[0].lower() != "default":
+        return f"Unknown subcommand. USAGE: {USAGE_ASSIGN}"
+    new_args = tokens[1] if len(tokens) > 1 else ""
     try:
-        parsed = parse_plugin_arguments(args, mode='positional')
-        tokens = parsed["tokens"]
-        if not tokens:
+        parsed = parse_plugin_arguments(new_args, mode='positional')
+        tokens_parsed = parsed["tokens"]
+        if not tokens_parsed:
             raise PluginArgError(USAGE_ASSIGN)
-        data = {"skill": " ".join(tokens)}
+        data = {"skill": " ".join(tokens_parsed)}
         validated = validate_model(data, SystemAssignModel, USAGE_ASSIGN)
         volunteer = VOLUNTEER_MANAGER.assign_volunteer(validated.skill, validated.skill)
         if volunteer:
@@ -48,16 +58,24 @@ def assign_command(args: str, sender: str, state_machine: BotStateMachine, msg_t
         return "An internal error occurred in assign_command."
 
 @plugin('test', canonical='test')
-def plugin_test_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
+def plugin_test_command(args: str, sender: str, state_machine: BotStateMachine,
+                        msg_timestamp: Optional[int] = None) -> str:
     """
-    test - Test command for verifying bot response.
-    
+    plugins/commands/system.py - Test command.
+    Subcommands:
+      default : Test bot response.
     USAGE: {USAGE_TEST}
     """
+    tokens = args.strip().split(None, 1)
+    if not tokens:
+        tokens = ["default"]
+    if tokens[0].lower() != "default":
+        return f"Unknown subcommand. USAGE: {USAGE_TEST}"
+    new_args = tokens[1] if len(tokens) > 1 else ""
     try:
-        parsed = parse_plugin_arguments(args, mode='positional')
-        tokens = parsed["tokens"]
-        if tokens:
+        parsed = parse_plugin_arguments(new_args, mode='positional')
+        tokens_parsed = parsed["tokens"]
+        if tokens_parsed:
             raise PluginArgError(USAGE_TEST)
         return "yes"
     except PluginArgError as e:
@@ -68,16 +86,24 @@ def plugin_test_command(args: str, sender: str, state_machine: BotStateMachine, 
         return "An internal error occurred in plugin_test_command."
 
 @plugin('shutdown', canonical='shutdown')
-def shutdown_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
+def shutdown_command(args: str, sender: str, state_machine: BotStateMachine,
+                     msg_timestamp: Optional[int] = None) -> str:
     """
-    shutdown - Shut down the bot gracefully.
-    
+    plugins/commands/system.py - Shutdown command.
+    Subcommands:
+      default : Shut down the bot gracefully.
     USAGE: {USAGE_SHUTDOWN}
     """
+    tokens = args.strip().split(None, 1)
+    if not tokens:
+        tokens = ["default"]
+    if tokens[0].lower() != "default":
+        return f"Unknown subcommand. USAGE: {USAGE_SHUTDOWN}"
+    new_args = tokens[1] if len(tokens) > 1 else ""
     try:
-        parsed = parse_plugin_arguments(args, mode='positional')
-        tokens = parsed["tokens"]
-        if tokens:
+        parsed = parse_plugin_arguments(new_args, mode='positional')
+        tokens_parsed = parsed["tokens"]
+        if tokens_parsed:
             raise PluginArgError(USAGE_SHUTDOWN)
         state_machine.shutdown()
         return "Bot is shutting down."
@@ -89,16 +115,24 @@ def shutdown_command(args: str, sender: str, state_machine: BotStateMachine, msg
         return "An internal error occurred in shutdown_command."
 
 @plugin('info', canonical='info')
-def info_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
+def info_command(args: str, sender: str, state_machine: BotStateMachine,
+                 msg_timestamp: Optional[int] = None) -> str:
     """
-    info - Provides a brief overview of the 50501 OC Grassroots Movement.
-    
+    plugins/commands/system.py - Info command.
+    Subcommands:
+      default : Display bot information.
     USAGE: {USAGE_INFO}
     """
+    tokens = args.strip().split(None, 1)
+    if not tokens:
+        tokens = ["default"]
+    if tokens[0].lower() != "default":
+        return f"Unknown subcommand. USAGE: {USAGE_INFO}"
+    new_args = tokens[1] if len(tokens) > 1 else ""
     try:
-        parsed = parse_plugin_arguments(args, mode='positional')
-        tokens = parsed["tokens"]
-        if tokens:
+        parsed = parse_plugin_arguments(new_args, mode='positional')
+        tokens_parsed = parsed["tokens"]
+        if tokens_parsed:
             raise PluginArgError(USAGE_INFO)
         return (
             "50501 OC Grassroots Movement is dedicated to upholding the Constitution "
@@ -114,16 +148,24 @@ def info_command(args: str, sender: str, state_machine: BotStateMachine, msg_tim
         return "An internal error occurred in info_command."
 
 @plugin('weekly update', canonical='weekly update')
-def weekly_update_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
+def weekly_update_command(args: str, sender: str, state_machine: BotStateMachine,
+                          msg_timestamp: Optional[int] = None) -> str:
     """
-    weekly update - Provides a summary of Trump's actions and Democrat advances.
-    
+    plugins/commands/system.py - Weekly update command.
+    Subcommands:
+      default : Display weekly update.
     USAGE: {USAGE_WEEKLY_UPDATE_SYSTEM}
     """
+    tokens = args.strip().split(None, 1)
+    if not tokens:
+        tokens = ["default"]
+    if tokens[0].lower() != "default":
+        return f"Unknown subcommand. USAGE: {USAGE_WEEKLY_UPDATE_SYSTEM}"
+    new_args = tokens[1] if len(tokens) > 1 else ""
     try:
-        parsed = parse_plugin_arguments(args, mode='positional')
-        tokens = parsed["tokens"]
-        if tokens:
+        parsed = parse_plugin_arguments(new_args, mode='positional')
+        tokens_parsed = parsed["tokens"]
+        if tokens_parsed:
             raise PluginArgError(USAGE_WEEKLY_UPDATE_SYSTEM)
         return (
             "Weekly Update:\n\n"
@@ -138,16 +180,24 @@ def weekly_update_command(args: str, sender: str, state_machine: BotStateMachine
         return "An internal error occurred in weekly_update_command."
 
 @plugin('theme', canonical='theme')
-def theme_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
+def theme_command(args: str, sender: str, state_machine: BotStateMachine,
+                  msg_timestamp: Optional[int] = None) -> str:
     """
-    theme - Displays the important theme for this week.
-    
+    plugins/commands/system.py - Theme command.
+    Subcommands:
+      default : Display the current theme.
     USAGE: {USAGE_THEME_SYSTEM}
     """
+    tokens = args.strip().split(None, 1)
+    if not tokens:
+        tokens = ["default"]
+    if tokens[0].lower() != "default":
+        return f"Unknown subcommand. USAGE: {USAGE_THEME_SYSTEM}"
+    new_args = tokens[1] if len(tokens) > 1 else ""
     try:
-        parsed = parse_plugin_arguments(args, mode='positional')
-        tokens = parsed["tokens"]
-        if tokens:
+        parsed = parse_plugin_arguments(new_args, mode='positional')
+        tokens_parsed = parsed["tokens"]
+        if tokens_parsed:
             raise PluginArgError(USAGE_THEME_SYSTEM)
         return "This week's theme is: [Insert theme here]."
     except PluginArgError as e:

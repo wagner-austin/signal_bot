@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 """
-db/repository.py
-----------------
+File: db/repository.py
+----------------------
 Unified repository code with helpers, plus specific repositories for domain tables.
-Now includes EventRepository, EventSpeakerRepository, and TaskRepository to resolve import errors.
+Now includes EventRepository, EventSpeakerRepository, TaskRepository, UserStatesRepository, and StatsRepository.
 """
 
 import sqlite3
@@ -179,9 +179,6 @@ class CommandLogRepository(BaseRepository):
                          connection_provider=connection_provider,
                          external_connection=external_connection)
 
-# ---------------------------------------------------------------------
-# NEW: Event & Speaker Repositories
-# ---------------------------------------------------------------------
 class EventRepository(BaseRepository):
     def __init__(self, connection_provider=get_connection, external_connection=False):
         super().__init__("Events", primary_key="event_id",
@@ -194,13 +191,95 @@ class EventSpeakerRepository(BaseRepository):
                          connection_provider=connection_provider,
                          external_connection=external_connection)
 
-# ---------------------------------------------------------------------
-# NEW: Task Repository
-# ---------------------------------------------------------------------
 class TaskRepository(BaseRepository):
     def __init__(self, connection_provider=get_connection, external_connection=False):
         super().__init__("Tasks", primary_key="task_id",
                          connection_provider=connection_provider,
                          external_connection=external_connection)
+
+    def list_tasks_detailed(self) -> list:
+        """
+        list_tasks_detailed - Returns tasks joined with Volunteers to get created_by_name
+        and assigned_to_name. Replaces the direct JOIN in managers/task_manager.
+        """
+        query = """
+        SELECT t.task_id, t.description, t.status, t.created_at,
+               t.created_by,
+               v1.name as created_by_name,
+               t.assigned_to,
+               v2.name as assigned_to_name
+        FROM Tasks t
+        LEFT JOIN Volunteers v1 ON t.created_by = v1.phone
+        LEFT JOIN Volunteers v2 ON t.assigned_to = v2.phone
+        ORDER BY t.created_at DESC
+        """
+        conn = self.connection_provider()
+        cursor = conn.cursor()
+        cursor.execute(query)
+        rows = cursor.fetchall()
+        self._maybe_close(conn)
+        return rows
+
+# ---------------------------------------------------------------------
+# NEW Repositories
+# ---------------------------------------------------------------------
+
+class UserStatesRepository(BaseRepository):
+    """
+    UserStatesRepository - Manages read/write of the UserStates table, keyed by phone.
+    The 'flow_state' column stores the JSON state.
+    """
+    def __init__(self, connection_provider=get_connection, external_connection=False):
+        super().__init__("UserStates", primary_key="phone",
+                         connection_provider=connection_provider,
+                         external_connection=external_connection)
+
+class StatsRepository:
+    """
+    StatsRepository - Provides methods for gathering table stats and schema version,
+    instead of direct execute_sql usage in db/stats.py.
+    """
+    def __init__(self, connection_provider=get_connection):
+        self.connection_provider = connection_provider
+
+    def get_table_names(self) -> List[str]:
+        """
+        Return a list of table names excluding system tables to match
+        the logic used in get_database_stats. 
+        """
+        exclude = {"sqlite_sequence", "SchemaVersion", "CommandLogs"}
+        conn = self.connection_provider()
+        cursor = conn.cursor()
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        all_tables = [row["name"] for row in cursor.fetchall()]
+        conn.close()
+        return [t for t in all_tables if t not in exclude]
+
+    def get_row_count(self, table_name: str) -> int:
+        """
+        Return row count for the given table or raise an exception on error.
+        """
+        conn = self.connection_provider()
+        cursor = conn.cursor()
+        cursor.execute(f"SELECT COUNT(*) as count FROM {table_name}")
+        row = cursor.fetchone()
+        conn.close()
+        return row["count"] if row else 0
+
+    def get_schema_version(self) -> Optional[int]:
+        """
+        Return the current schema version from SchemaVersion, or None if missing.
+        """
+        conn = self.connection_provider()
+        cursor = conn.cursor()
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='SchemaVersion'")
+        exists = cursor.fetchone()
+        if not exists:
+            conn.close()
+            return None
+        cursor.execute("SELECT version FROM SchemaVersion")
+        row = cursor.fetchone()
+        conn.close()
+        return row["version"] if row else None
 
 # End of db/repository.py
