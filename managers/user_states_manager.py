@@ -1,7 +1,15 @@
 #!/usr/bin/env python
 """
-managers/user_states_manager.py --- Manager for user state tracking.
-Provides functions for tracking multi-step flows and welcome state using a JSON-based flow_state column.
+managers/user_states_manager.py
+-------------------------------
+Manager for multi-flow user state tracking.
+Provides functions to manage multiple flows per user, storing partial data,
+and an 'active_flow' for each user.
+
+CHANGES:
+ - Replaced single 'flow_state' usage with a 'flows' JSON + 'active_flow'.
+ - Provide create_flow, set_flow_step, set_flow_data, pause_flow, resume_flow, etc.
+ - Retained legacy logic for backward compatibility, but removed direct references to single flow usage.
 """
 
 import logging
@@ -10,114 +18,196 @@ from core.database.connection import get_connection
 
 logger = logging.getLogger(__name__)
 
-def has_seen_welcome(phone: str) -> bool:
+def _get_user_state_row(phone: str):
     """
-    has_seen_welcome - Checks if the user has already seen the welcome message by inspecting the flow_state JSON.
-    
-    Args:
-        phone (str): The user's phone number.
-    
-    Returns:
-        bool: True if the user has seen the welcome message, else False.
+    Internal helper: Fetch the UserStates row for the given phone, or None if not found.
     """
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT flow_state FROM UserStates WHERE phone = ?", (phone,))
     row = cursor.fetchone()
     conn.close()
-    if row:
-        try:
-            state = json.loads(row["flow_state"])
-            return state.get("has_seen_start", False)
-        except Exception:
-            return False
-    return False
+    return row
+
+def _save_user_state(phone: str, state_data: dict):
+    """
+    Internal helper: Saves the entire JSON to flow_state for the user. Creates row if missing.
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+    encoded = json.dumps(state_data)
+    # Check if user row exists
+    cursor.execute("SELECT phone FROM UserStates WHERE phone = ?", (phone,))
+    existing = cursor.fetchone()
+    if existing:
+        cursor.execute("UPDATE UserStates SET flow_state = ? WHERE phone = ?", (encoded, phone))
+    else:
+        cursor.execute("INSERT INTO UserStates (phone, flow_state) VALUES (?, ?)", (phone, encoded))
+    conn.commit()
+    conn.close()
+
+def _load_flows_and_active(phone: str) -> dict:
+    """
+    Loads the JSON from flow_state, returning a dict with:
+      {
+        "flows": {
+          "<flow_name>": {"step": ..., "data": {...}},
+          ...
+        },
+        "active_flow": "<flow_name or None>"
+      }
+    If not found, returns an empty structure.
+    """
+    row = _get_user_state_row(phone)
+    if not row:
+        return {"flows": {}, "active_flow": None}
+    try:
+        parsed = json.loads(row["flow_state"])
+        if not isinstance(parsed, dict):
+            return {"flows": {}, "active_flow": None}
+        # Ensure keys exist
+        if "flows" not in parsed or not isinstance(parsed["flows"], dict):
+            parsed["flows"] = {}
+        if "active_flow" not in parsed:
+            parsed["active_flow"] = None
+        return parsed
+    except Exception:
+        # Fallback if JSON is corrupted
+        return {"flows": {}, "active_flow": None}
+
+def has_seen_welcome(phone: str) -> bool:
+    """
+    Retained for backward compatibility (legacy usage).
+    Checks if user has "has_seen_start" in any existing structure. 
+    """
+    user_state = _load_flows_and_active(phone)
+    # old usage might have stored `{"has_seen_start": true}`
+    # We'll check top-level key for legacy data
+    return user_state.get("has_seen_start", False)
 
 def mark_welcome_seen(phone: str) -> None:
     """
-    mark_welcome_seen - Marks the user as having seen the welcome message by updating the flow_state JSON.
-    
-    Args:
-        phone (str): The user's phone number.
+    Retained for backward compatibility (legacy usage).
     """
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT flow_state FROM UserStates WHERE phone = ?", (phone,))
-    row = cursor.fetchone()
-    if row:
-        try:
-            state = json.loads(row["flow_state"])
-        except Exception:
-            state = {}
-        state["has_seen_start"] = True
-        new_flow_state = json.dumps(state)
-        cursor.execute("UPDATE UserStates SET flow_state = ? WHERE phone = ?", (new_flow_state, phone))
-    else:
-        new_flow_state = json.dumps({"has_seen_start": True})
-        cursor.execute("INSERT INTO UserStates (phone, flow_state) VALUES (?, ?)", (phone, new_flow_state))
-    conn.commit()
-    conn.close()
+    user_state = _load_flows_and_active(phone)
+    user_state["has_seen_start"] = True
+    _save_user_state(phone, user_state)
 
-def set_flow_state(phone: str, flow_name: str) -> None:
+#
+# New Multi-Flow Functions
+#
+
+def create_flow(phone: str, flow_name: str, start_step: str = "start", initial_data: dict = None):
     """
-    set_flow_state - Sets the current multi-step flow for the user in the flow_state JSON.
-    
-    Args:
-        phone (str): The user's phone number.
-        flow_name (str): The name of the flow (e.g., 'registration', 'deletion').
+    Create or reset a flow for the user. Then sets it active.
     """
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT flow_state FROM UserStates WHERE phone = ?", (phone,))
-    row = cursor.fetchone()
-    if row:
-        try:
-            state = json.loads(row["flow_state"])
-        except Exception:
-            state = {}
-        state["current_flow"] = flow_name
-        new_flow_state = json.dumps(state)
-        cursor.execute("UPDATE UserStates SET flow_state = ? WHERE phone = ?", (new_flow_state, phone))
-    else:
-        new_flow_state = json.dumps({"current_flow": flow_name})
-        cursor.execute("INSERT INTO UserStates (phone, flow_state) VALUES (?, ?)", (phone, new_flow_state))
-    conn.commit()
-    conn.close()
+    user_state = _load_flows_and_active(phone)
+    user_state["flows"][flow_name] = {
+        "step": start_step,
+        "data": initial_data if initial_data else {}
+    }
+    user_state["active_flow"] = flow_name
+    _save_user_state(phone, user_state)
+
+def set_flow_step(phone: str, flow_name: str, step: str):
+    """
+    Update the user's current step in a named flow. 
+    Preserves the data. If flow doesn't exist, do nothing.
+    """
+    user_state = _load_flows_and_active(phone)
+    flow = user_state["flows"].get(flow_name)
+    if not flow:
+        return
+    flow["step"] = step
+    _save_user_state(phone, user_state)
+
+def set_flow_data(phone: str, flow_name: str, key: str, value):
+    """
+    Store partial data in the user's flow.
+    """
+    user_state = _load_flows_and_active(phone)
+    flow = user_state["flows"].get(flow_name)
+    if not flow:
+        return
+    flow["data"][key] = value
+    _save_user_state(phone, user_state)
+
+def get_flow_data(phone: str, flow_name: str) -> dict:
+    """
+    Retrieve the data dict for the user's flow. Returns empty if none.
+    """
+    user_state = _load_flows_and_active(phone)
+    return user_state["flows"].get(flow_name, {}).get("data", {})
+
+def get_flow_step(phone: str, flow_name: str) -> str:
+    """
+    Returns the current step for the user's flow, or empty string if not found.
+    """
+    user_state = _load_flows_and_active(phone)
+    flow = user_state["flows"].get(flow_name)
+    if not flow:
+        return ""
+    return flow.get("step", "")
+
+def pause_flow(phone: str, flow_name: str):
+    """
+    Pause a flow by removing it as the active_flow if it is currently active.
+    """
+    user_state = _load_flows_and_active(phone)
+    if user_state["active_flow"] == flow_name:
+        user_state["active_flow"] = None
+        _save_user_state(phone, user_state)
+
+def resume_flow(phone: str, flow_name: str):
+    """
+    Set the given flow as active_flow if it exists.
+    """
+    user_state = _load_flows_and_active(phone)
+    if flow_name in user_state["flows"]:
+        user_state["active_flow"] = flow_name
+        _save_user_state(phone, user_state)
+
+def list_flows(phone: str) -> dict:
+    """
+    Returns a dict of all flows and the user's current step for each.
+    Also includes 'active_flow' for convenience.
+    """
+    user_state = _load_flows_and_active(phone)
+    results = {}
+    for flow_name, flow_info in user_state["flows"].items():
+        results[flow_name] = {
+            "step": flow_info.get("step"),
+            "data_count": len(flow_info.get("data", {}))
+        }
+    return {
+        "active_flow": user_state["active_flow"],
+        "flows": results
+    }
+
+def get_active_flow(phone: str) -> str:
+    """
+    Returns the user's currently active flow name, or None if none set.
+    """
+    user_state = _load_flows_and_active(phone)
+    return user_state["active_flow"]
+
+#
+# Legacy Single-Flow Compatibility
+#
 
 def get_flow_state(phone: str) -> str:
     """
-    get_flow_state - Retrieves the current multi-step flow for the user from the flow_state JSON.
-    
-    Args:
-        phone (str): The user's phone number.
-    
-    Returns:
-        str: The current flow name (e.g., 'registration') or an empty string if none is set.
+    Legacy: returns an equivalent of a single flow_name. If active_flow is set, return that.
+    Otherwise returns "".
     """
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT flow_state FROM UserStates WHERE phone = ?", (phone,))
-    row = cursor.fetchone()
-    conn.close()
-    if row:
-        try:
-            state = json.loads(row["flow_state"])
-            return state.get("current_flow", "")
-        except Exception:
-            return ""
-    return ""
+    return get_active_flow(phone) or ""
 
 def clear_flow_state(phone: str) -> None:
     """
-    clear_flow_state - Clears the current multi-step flow for the user by resetting the flow_state JSON.
-    
-    Args:
-        phone (str): The user's phone number.
+    Legacy: clear any single flow. We'll just set active_flow=None. 
     """
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("UPDATE UserStates SET flow_state = '{}' WHERE phone = ?", (phone,))
-    conn.commit()
-    conn.close()
+    user_state = _load_flows_and_active(phone)
+    user_state["active_flow"] = None
+    _save_user_state(phone, user_state)
 
 # End of managers/user_states_manager.py
