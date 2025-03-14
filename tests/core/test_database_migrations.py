@@ -11,13 +11,13 @@ import os
 import sqlite3
 import pytest
 import logging
-from core.database.migrations import (
+from db.migrations import (
     get_current_version,
     run_migrations,
     MIGRATIONS,
     update_version
 )
-from core.database.connection import get_connection
+from db.connection import get_connection
 
 @pytest.fixture(autouse=True)
 def reset_schema(monkeypatch):

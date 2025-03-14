@@ -7,7 +7,7 @@ Verifies 'shutdown' transitions the BotStateMachine and 'assign <skill>' picks t
 import pytest
 from core.state import BotStateMachine, BotState
 from managers.volunteer_manager import VOLUNTEER_MANAGER
-from core.database.volunteers import get_volunteer_record
+from db.volunteers import get_volunteer_record
 from plugins.commands.system import shutdown_command, assign_command
 
 

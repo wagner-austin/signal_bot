@@ -7,7 +7,7 @@ import sqlite3
 import pytest
 from unittest.mock import patch
 import logging
-from core.database.connection import get_connection
+from db.connection import get_connection
 
 def test_get_connection():
     conn = get_connection()

@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 """
-core/database/logs.py - Command logs database operations using repository pattern.
+db/logs.py - Command logs database operations using repository pattern.
 Provides functions to log command executions.
 """
 
-from core.database.repository import CommandLogRepository
+from db.repository import CommandLogRepository
 
 def log_command(sender: str, command: str, args: str) -> None:
     repo = CommandLogRepository()
@@ -15,4 +15,4 @@ def log_command(sender: str, command: str, args: str) -> None:
     }
     repo.create(data)
 
-# End of core/database/logs.py
+# End of db/logs.py

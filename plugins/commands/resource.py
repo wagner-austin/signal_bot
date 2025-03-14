@@ -1,21 +1,17 @@
 #!/usr/bin/env python
 """
-plugins/commands/resource.py
-Manages shared resource links.
-USAGE: Refer to USAGE_RESOURCE in core/plugin_usage.py
+plugins/commands/resource.py - Manages shared resource links using the universal format_resource function.
 """
 
 import logging
 from typing import Optional
-
 from plugins.manager import plugin
 from core.state import BotStateMachine
 from managers.resources_manager import create_resource, list_all_resources, delete_resource
 from parsers.argument_parser import parse_plugin_arguments
 from parsers.plugin_arg_parser import PluginArgError
 from pydantic import ValidationError
-
-from cli.formatters import format_resource
+from plugins.commands.formatters import format_resource
 from core.plugin_usage import USAGE_RESOURCE
 
 logger = logging.getLogger(__name__)
@@ -40,7 +36,6 @@ def resource_command(args: str, sender: str, state_machine: BotStateMachine,
         if subcommand == "add":
             positional = parse_plugin_arguments(rest, mode='positional')
             add_tokens = positional["tokens"]
-
             if len(add_tokens) == 0:
                 return "Error: Category is required"
             elif len(add_tokens) == 1:
@@ -58,7 +53,6 @@ def resource_command(args: str, sender: str, state_machine: BotStateMachine,
                 return "Error: URL is required"
 
             title = " ".join(add_tokens[2:]) if len(add_tokens) > 2 else ""
-
             resource_id = create_resource(category, url_str, title)
             return f"Resource added with ID {resource_id}."
 
@@ -70,20 +64,16 @@ def resource_command(args: str, sender: str, state_machine: BotStateMachine,
                     return f"No resources found in category '{data['category']}'."
                 else:
                     return "No resources found."
-
-            output_lines = [format_resource(r) for r in resources]
-            return "\n".join(output_lines)
+            return "\n".join(format_resource(r) for r in resources)
 
         elif subcommand == "remove":
             if not rest.strip():
                 raise PluginArgError(USAGE_RESOURCE)
-
             resource_id_str = rest.strip()
             try:
                 resource_id = int(resource_id_str)
             except ValueError:
                 return "Error: Resource ID must be a positive integer."
-
             delete_resource(resource_id)
             return f"Resource with ID {resource_id} removed."
 

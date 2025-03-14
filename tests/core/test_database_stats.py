@@ -4,8 +4,8 @@ tests/core/test_database_stats.py - Tests for the database statistics module.
 Verifies that get_database_stats returns row counts excluding unwanted tables and correctly reports the schema version.
 """
 
-from core.database.stats import get_database_stats
-from core.database.connection import get_connection
+from db.stats import get_database_stats
+from db.connection import get_connection
 
 def test_get_database_stats_excludes_unwanted():
     stats = get_database_stats()

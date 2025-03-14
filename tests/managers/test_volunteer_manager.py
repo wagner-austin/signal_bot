@@ -9,8 +9,8 @@ and a new test for list_all_volunteers() to ensure unified volunteer data retrie
 import pytest
 import concurrent.futures
 from managers.volunteer_manager import VOLUNTEER_MANAGER
-from core.database.volunteers import get_volunteer_record
-from managers.volunteer.volunteer_operations import register_volunteer
+from db.volunteers import get_volunteer_record
+from managers.volunteer_manager import register_volunteer
 
 @pytest.mark.parametrize(
     "phone, name, skills, expected_substring",

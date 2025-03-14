@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 """
-plugins/commands/speaker.py - Speaker command plugins.
-Provides commands to add or remove a speaker from an event.
-USAGE: Refer to usage constants in core/plugin_usage.py (USAGE_ADD_SPEAKER, USAGE_REMOVE_SPEAKER)
+speaker.py
+----------
+Speaker command plugins for adding/removing event speakers.
+Uses dictionary-based event lookups (avoids .get on sqlite3.Row).
 """
 
 from typing import Optional
@@ -17,11 +18,12 @@ from core.plugin_usage import USAGE_ADD_SPEAKER, USAGE_REMOVE_SPEAKER
 logger = logging.getLogger(__name__)
 
 @plugin('add speaker', canonical='add speaker')
-def add_speaker_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
+def add_speaker_command(args: str, sender: str, state_machine: BotStateMachine,
+                       msg_timestamp: Optional[int] = None) -> str:
     """
     add speaker - Adds a speaker to an event.
     If "Event:" is omitted, the latest event is used.
-    
+
     USAGE: {USAGE_ADD_SPEAKER}
     """
     try:
@@ -31,8 +33,8 @@ def add_speaker_command(args: str, sender: str, state_machine: BotStateMachine, 
             events = list_all_events()
             event_id = None
             for event in events:
-                if event.get("title", "").lower() == event_title.lower():
-                    event_id = event.get("event_id")
+                if event["title"].lower() == event_title.lower():
+                    event_id = event["event_id"]
                     break
             if event_id is None:
                 return f"No event found with title '{event_title}'."
@@ -40,7 +42,7 @@ def add_speaker_command(args: str, sender: str, state_machine: BotStateMachine, 
             events = list_all_events()
             if not events:
                 return "No upcoming events found to assign a speaker."
-            event_id = events[0].get("event_id")
+            event_id = events[0]["event_id"]
 
         if "name" not in parts or "topic" not in parts:
             return USAGE_ADD_SPEAKER
@@ -57,11 +59,12 @@ def add_speaker_command(args: str, sender: str, state_machine: BotStateMachine, 
         return "An internal error occurred in add_speaker_command."
 
 @plugin('remove speaker', canonical='remove speaker')
-def remove_speaker_command(args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
+def remove_speaker_command(args: str, sender: str, state_machine: BotStateMachine,
+                          msg_timestamp: Optional[int] = None) -> str:
     """
     remove speaker - Removes a speaker from an event.
     If "Event:" is omitted, the latest event is used.
-    
+
     USAGE: {USAGE_REMOVE_SPEAKER}
     """
     try:
@@ -71,8 +74,8 @@ def remove_speaker_command(args: str, sender: str, state_machine: BotStateMachin
             events = list_all_events()
             event_id = None
             for event in events:
-                if event.get("title", "").lower() == event_title.lower():
-                    event_id = event.get("event_id")
+                if event["title"].lower() == event_title.lower():
+                    event_id = event["event_id"]
                     break
             if event_id is None:
                 return f"No event found with title '{event_title}'."
@@ -80,7 +83,7 @@ def remove_speaker_command(args: str, sender: str, state_machine: BotStateMachin
             events = list_all_events()
             if not events:
                 return "No upcoming events found."
-            event_id = events[0].get("event_id")
+            event_id = events[0]["event_id"]
 
         if "name" not in parts:
             return USAGE_REMOVE_SPEAKER
@@ -95,4 +98,4 @@ def remove_speaker_command(args: str, sender: str, state_machine: BotStateMachin
         logger.error(f"remove_speaker_command unexpected error: {e}", exc_info=True)
         return "An internal error occurred in remove_speaker_command."
 
-# End of plugins/commands/speaker.py
+# End of speaker.py

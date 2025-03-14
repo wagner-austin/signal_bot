@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 """
-core/database/stats.py - Database statistics and tracking.
+db/stats.py - Database statistics and tracking.
 Provides functions to retrieve current database statistics, including table row counts (excluding system and unwanted tables)
 and the current schema version. This centralizes the stats calculation for use in CLI commands.
 """
 
-from core.database.connection import get_connection
+from db.connection import get_connection
 
 def get_database_stats():
     """

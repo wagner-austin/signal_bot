@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 """
 plugins/commands/task.py - Task command plugins.
-Manages shared to-do items.
-USAGE: Refer to usage constants in core/plugin_usage.py (USAGE_TASK_ADD, USAGE_TASK_LIST, USAGE_TASK_ASSIGN, USAGE_TASK_CLOSE)
+Manages shared to-do items with the universal format_task function.
 """
 
 from typing import Optional
@@ -20,6 +19,7 @@ import logging
 from core.exceptions import ResourceError, VolunteerError
 from managers.task_manager import create_task, list_all_tasks, assign_task, close_task
 from core.plugin_usage import USAGE_TASK_ADD, USAGE_TASK_LIST, USAGE_TASK_ASSIGN, USAGE_TASK_CLOSE
+from plugins.commands.formatters import format_task
 
 logger = logging.getLogger(__name__)
 
@@ -55,17 +55,13 @@ def task_command(args: str, sender: str, state_machine: BotStateMachine, msg_tim
             validated = validate_model({"description": " ".join(rest)}, TaskAddModel, USAGE_TASK_ADD)
             task_id = create_task(sender, validated.description)
             return f"Task added with ID {task_id}."
+
         elif subcommand == "list":
             tasks = list_all_tasks()
             if not tasks:
                 return "No tasks found."
-            response_lines = ["Tasks:"]
-            for task in tasks:
-                response_lines.append(
-                    f"ID {task['task_id']}: {task['description']} | Status: {task['status']} | "
-                    f"Created by: {task['created_by_name']} | Assigned to: {task['assigned_to_name']}"
-                )
-            return "\n".join(response_lines)
+            return "\n".join(format_task(t) for t in tasks)
+
         elif subcommand == "assign":
             if len(rest) < 2:
                 raise PluginArgError(USAGE_TASK_ASSIGN)
@@ -73,6 +69,7 @@ def task_command(args: str, sender: str, state_machine: BotStateMachine, msg_tim
             validated = validate_model(data, TaskAssignModel, USAGE_TASK_ASSIGN)
             assign_task(validated.task_id, validated.volunteer_display_name)
             return f"Task {validated.task_id} assigned to {validated.volunteer_display_name}."
+
         elif subcommand == "close":
             if not rest:
                 raise PluginArgError(USAGE_TASK_CLOSE)
@@ -80,8 +77,10 @@ def task_command(args: str, sender: str, state_machine: BotStateMachine, msg_tim
             validated = validate_model(data, TaskCloseModel, USAGE_TASK_CLOSE)
             close_task(validated.task_id)
             return f"Task {validated.task_id} has been closed."
+
         else:
             raise PluginArgError(f"{USAGE_TASK_ADD}\n{USAGE_TASK_LIST}\n{USAGE_TASK_ASSIGN}\n{USAGE_TASK_CLOSE}")
+
     except PluginArgError as e:
         logger.warning(f"task_command PluginArgError: {e}")
         return str(e)

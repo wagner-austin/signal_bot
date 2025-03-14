@@ -9,7 +9,7 @@ import re
 import pytest
 from plugins.commands.resource import resource_command
 from core.state import BotStateMachine
-from core.database.resources import list_resources
+from db.resources import list_resources
 from core.plugin_usage import USAGE_RESOURCE
 
 def test_resource_no_args_shows_usage():

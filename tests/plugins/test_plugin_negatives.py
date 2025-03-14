@@ -123,12 +123,12 @@ def test_donate_command_invalid_amount():
 def test_role_command_set_failure():
     sender = "+70000000012"
     # Register volunteer without required skills for "emcee"
-    from managers.volunteer.volunteer_operations import register_volunteer
+    from managers.volunteer_manager import register_volunteer
     register_volunteer(sender, "Role Tester 2", ["interpersonal"], True, None)
     state_machine = BotStateMachine()
     response = role_command("set emcee", sender, state_machine, msg_timestamp=123)
     assert "do not have the necessary skills" in response.lower()
-    from managers.volunteer.volunteer_roles import get_volunteer_record
+    from managers.volunteer_manager import get_volunteer_record
     record = get_volunteer_record(sender)
     assert record.get("preferred_role") is None
 

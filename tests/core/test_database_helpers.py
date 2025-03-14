@@ -5,8 +5,8 @@ Ensures that execute_sql correctly returns fetchone and fetchall results.
 
 import sqlite3
 import pytest
-from core.database.connection import db_connection
-from core.database.helpers import execute_sql
+from db.connection import db_connection
+from db.repository import execute_sql
 
 def test_execute_sql_fetchone():
     # Create a temporary table and insert a record.

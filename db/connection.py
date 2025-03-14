@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-core/database/connection.py - Provides database connection functions.
+db/connection.py - Provides database connection functions.
 Establishes and returns a connection to the SQLite database and includes a context manager for automatic handling.
 """
 
@@ -51,4 +51,4 @@ def db_connection():
         if conn:
             conn.close()
 
-# End of core/database/connection.py
+# End of db/connection.py

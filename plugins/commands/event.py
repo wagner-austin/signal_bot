@@ -1,28 +1,28 @@
 #!/usr/bin/env python
 """
 plugins/commands/event.py - Event command plugins.
-Provides commands for listing, planning, editing, and removing events.
-USAGE: Refer to usage constants in core/plugin_usage.py (USAGE_PLAN_EVENT, USAGE_PLAN_EVENT_PARTIAL, etc.)
+Lists events, plans events, edits events, removes events.
+Now uses universal format_event and format_event_speaker to unify output.
 """
 
 import logging
 from typing import Optional
 from plugins.manager import plugin
 from core.state import BotStateMachine
-from parsers.plugin_arg_parser import (
-    PluginArgError,
-    PlanEventModel,
-    EditEventModel,
-    RemoveEventByIdModel,
-    RemoveEventByTitleModel,
-    validate_model
-)
+from parsers.plugin_arg_parser import PluginArgError, validate_model
 from managers.event_manager import (
-    list_all_events, create_event, update_event, delete_event, get_event
+    list_all_events,
+    create_event,
+    update_event,
+    delete_event,
+    get_event,
+    list_all_event_speakers
 )
-from pydantic import ValidationError
-from parsers.argument_parser import parse_plugin_arguments
-from core.plugin_usage import USAGE_PLAN_EVENT, USAGE_PLAN_EVENT_PARTIAL, USAGE_EDIT_EVENT, USAGE_REMOVE_EVENT
+from core.plugin_usage import (
+    USAGE_PLAN_EVENT, USAGE_PLAN_EVENT_PARTIAL,
+    USAGE_EDIT_EVENT, USAGE_REMOVE_EVENT
+)
+from plugins.commands.formatters import format_event, format_event_speaker
 
 logger = logging.getLogger(__name__)
 
@@ -30,22 +30,13 @@ logger = logging.getLogger(__name__)
 def event_command(args: str, sender: str, state_machine: BotStateMachine,
                   msg_timestamp: Optional[int] = None) -> str:
     """
-    event - Lists upcoming events.
+    event - Lists upcoming events (using format_event).
     """
     try:
         events = list_all_events()
         if not events:
             return "No upcoming events found."
-        response = "Upcoming Events:\n"
-        for event in events:
-            response += (
-                f"ID {event.get('event_id')}: {event.get('title')} on {event.get('date')} "
-                f"at {event.get('time')} - {event.get('location')}\n"
-            )
-        return response.strip()
-    except PluginArgError as e:
-        logger.warning(f"event_command PluginArgError: {e}")
-        return str(e)
+        return "\n".join(format_event(e) for e in events)
     except Exception as e:
         logger.error(f"event_command unexpected error: {e}", exc_info=True)
         return "An internal error occurred in event_command."
@@ -55,14 +46,12 @@ def plan_event_command(args: str, sender: str, state_machine: BotStateMachine,
                        msg_timestamp: Optional[int] = None) -> str:
     """
     plan event - Create a new event.
-    
     USAGE: {USAGE_PLAN_EVENT}
     """
     try:
         lowered = args.strip().lower()
         if not lowered:
             raise PluginArgError(USAGE_PLAN_EVENT)
-
         if lowered in {"skip", "cancel"}:
             return "Event creation cancelled."
 
@@ -75,10 +64,11 @@ def plan_event_command(args: str, sender: str, state_machine: BotStateMachine,
             parts[k.strip().lower()] = v.strip()
 
         required_fields = ["title", "date", "time", "location", "description"]
-        missing_fields = [field for field in required_fields if field not in parts]
-        if missing_fields:
-            return f"Missing required fields: {', '.join(missing_fields)}. {USAGE_PLAN_EVENT_PARTIAL}"
+        missing = [f for f in required_fields if f not in parts]
+        if missing:
+            return f"Missing required fields: {', '.join(missing)}. {USAGE_PLAN_EVENT_PARTIAL}"
 
+        from parsers.plugin_arg_parser import PlanEventModel
         data = {
             "title": parts["title"],
             "date": parts["date"],
@@ -87,14 +77,14 @@ def plan_event_command(args: str, sender: str, state_machine: BotStateMachine,
             "description": parts["description"],
         }
         validated = validate_model(data, PlanEventModel, USAGE_PLAN_EVENT)
-        event_id = create_event(
+        ev_id = create_event(
             validated.title,
             validated.date,
             validated.time,
             validated.location,
             validated.description
         )
-        return f"Event '{validated.title}' created successfully with ID {event_id}."
+        return f"Event '{validated.title}' created successfully with ID {ev_id}."
     except PluginArgError as e:
         logger.warning(f"plan_event_command PluginArgError: {e}")
         return str(e)
@@ -107,13 +97,11 @@ def edit_event_command(args: str, sender: str, state_machine: BotStateMachine,
                        msg_timestamp: Optional[int] = None) -> str:
     """
     edit event - Update an existing event.
-    
     USAGE: {USAGE_EDIT_EVENT}
     """
     try:
         if not args.strip():
             raise PluginArgError(USAGE_EDIT_EVENT)
-
         parts = {}
         for chunk in args.split(","):
             chunk = chunk.strip()
@@ -125,6 +113,7 @@ def edit_event_command(args: str, sender: str, state_machine: BotStateMachine,
         if "eventid" not in parts:
             raise PluginArgError("EventID is required for updating an event.")
 
+        from parsers.plugin_arg_parser import EditEventModel
         data = {
             "event_id": parts["eventid"],
             "title": parts.get("title"),
@@ -133,10 +122,9 @@ def edit_event_command(args: str, sender: str, state_machine: BotStateMachine,
             "location": parts.get("location"),
             "description": parts.get("description"),
         }
-
         validated = validate_model(data, EditEventModel, USAGE_EDIT_EVENT)
-        existing_event = get_event(validated.event_id)
-        if not existing_event:
+        existing = get_event(validated.event_id)
+        if not existing:
             return f"No event found with ID {validated.event_id} to edit."
 
         update_fields = {}
@@ -168,7 +156,6 @@ def remove_event_command(args: str, sender: str, state_machine: BotStateMachine,
                          msg_timestamp: Optional[int] = None) -> str:
     """
     remove event - Delete an existing event.
-    
     USAGE: {USAGE_REMOVE_EVENT}
     """
     try:
@@ -183,6 +170,8 @@ def remove_event_command(args: str, sender: str, state_machine: BotStateMachine,
             k, v = chunk.split(":", 1)
             parts[k.strip().lower()] = v.strip()
 
+        from parsers.plugin_arg_parser import RemoveEventByIdModel, RemoveEventByTitleModel
+
         if "eventid" in parts:
             data = {"event_id": parts["eventid"]}
             validated = validate_model(data, RemoveEventByIdModel, USAGE_REMOVE_EVENT)
@@ -194,9 +183,9 @@ def remove_event_command(args: str, sender: str, state_machine: BotStateMachine,
         elif "title" in parts:
             data = {"title": parts["title"]}
             validated = validate_model(data, RemoveEventByTitleModel, USAGE_REMOVE_EVENT)
-            events = list_all_events()
+            evs = list_all_events()
             found_id = None
-            for ev in events:
+            for ev in evs:
                 if ev.get("title", "").lower() == validated.title.lower():
                     found_id = ev.get("event_id")
                     break
@@ -206,11 +195,27 @@ def remove_event_command(args: str, sender: str, state_machine: BotStateMachine,
             return f"Event with ID {found_id} removed successfully."
         else:
             raise PluginArgError(USAGE_REMOVE_EVENT)
+
     except PluginArgError as e:
         logger.warning(f"remove_event_command PluginArgError: {e}")
         return str(e)
     except Exception as e:
         logger.error(f"remove_event_command unexpected error: {e}", exc_info=True)
         return "An internal error occurred in remove_event_command."
+
+@plugin('event speakers', canonical='event speakers')
+def event_speakers_command(args: str, sender: str, state_machine: BotStateMachine,
+                           msg_timestamp: Optional[int] = None) -> str:
+    """
+    event speakers - List all event speakers, using format_event_speaker.
+    """
+    try:
+        speakers = list_all_event_speakers()
+        if not speakers:
+            return "No event speakers found."
+        return "\n".join(format_event_speaker(sp) for sp in speakers)
+    except Exception as e:
+        logger.error(f"event_speakers_command error: {e}", exc_info=True)
+        return "An internal error occurred in event_speakers_command."
 
 # End of plugins/commands/event.py

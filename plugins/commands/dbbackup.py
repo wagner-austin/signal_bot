@@ -11,7 +11,7 @@ Usage:
 from typing import Optional
 from plugins.manager import plugin
 from core.state import BotStateMachine
-from core.database.backup import create_backup, list_backups, restore_backup
+from db.backup import create_backup, list_backups, restore_backup
 from parsers.argument_parser import parse_plugin_arguments
 from parsers.plugin_arg_parser import PluginArgError
 import logging

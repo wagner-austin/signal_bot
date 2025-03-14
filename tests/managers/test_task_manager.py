@@ -9,8 +9,8 @@ and checks that volunteer name matching is case-insensitive.
 import concurrent.futures
 import pytest
 from managers.task_manager import create_task, list_all_tasks, assign_task, close_task
-from core.database.connection import get_connection
-from core.database.volunteers import add_volunteer_record, get_volunteer_record
+from db.connection import get_connection
+from db.volunteers import add_volunteer_record, get_volunteer_record
 
 def test_add_and_list_task():
     # Create a new task

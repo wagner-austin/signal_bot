@@ -15,11 +15,11 @@ import sqlite3
 import pytest
 import logging
 from unittest.mock import patch
-from core.database.backup import (
+from db.backup import (
     create_backup, list_backups, cleanup_backups,
     restore_backup, BACKUP_DIR
 )
-from core.database.connection import get_connection
+from db.connection import get_connection
 from core.config import DB_NAME
 
 def test_create_backup(caplog):
@@ -130,7 +130,7 @@ def test_cleanup_backups_zero_or_negative_retention(retention_value):
         initial_backups = list_backups()
         assert len(initial_backups) == 5
 
-        with patch("core.database.backup.logger.warning") as mock_logger:
+        with patch("db.backup.logger.warning") as mock_logger:
             cleanup_backups(max_backups=retention_value)
 
         # After cleanup, should have zero backups left
@@ -177,7 +177,7 @@ def test_restore_corrupted_backup():
         with open(corrupted_path, "wb") as f:
             pass  # zero bytes
 
-        with patch("core.database.backup.logger.warning") as mock_warning:
+        with patch("db.backup.logger.warning") as mock_warning:
             result = restore_backup(corrupted_filename)
 
         assert result is False, "Expected restore_backup to return False for corrupted DB file."
@@ -197,7 +197,7 @@ def test_create_backup_copyfile_failure():
             shutil.rmtree(BACKUP_DIR)
         os.makedirs(BACKUP_DIR)
         with patch("shutil.copyfile", side_effect=IOError("Simulated IOError")):
-            with patch("core.database.backup.logger.warning") as mock_logger:
+            with patch("db.backup.logger.warning") as mock_logger:
                 backup_path = create_backup()
                 assert backup_path == "", "Expected create_backup to return an empty string on IOError during copyfile."
                 mock_logger.assert_called()
@@ -219,7 +219,7 @@ def test_restore_truncated_backup():
         # Write exactly 16 bytes matching the SQLite header.
         with open(truncated_path, "wb") as f:
             f.write(b"SQLite format 3\000")
-        with patch("core.database.backup.logger.warning") as mock_logger:
+        with patch("db.backup.logger.warning") as mock_logger:
             result = restore_backup(truncated_filename)
             assert result is False, "Expected restore_backup to return False for a truncated backup file."
             mock_logger.assert_called_once()

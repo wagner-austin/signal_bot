@@ -6,9 +6,9 @@ Exceptions from business logic propagate to the CLI/plugin layer.
 """
 
 from typing import List, Dict
-from core.database.helpers import execute_sql
+from db.repository import execute_sql
 from core.transaction import atomic_transaction
-from managers.volunteer.volunteer_common import normalize_name
+from managers.volunteer_manager import normalize_name
 from core.exceptions import VolunteerError
 import logging
 
@@ -18,7 +18,7 @@ def create_task(created_by: str, description: str) -> int:
     """
     create_task - Create a new task in the database.
     """
-    from core.database.repository import TaskRepository  # Local import to avoid circular references
+    from db.repository import TaskRepository  # Local import to avoid circular references
     repo = TaskRepository()
     data = {
         "description": description,
@@ -89,6 +89,6 @@ def close_task(task_id: int) -> bool:
     logger.info(f"Task {task_id} marked as closed.")
     return True
 
-from core.database.repository import TaskRepository
+from db.repository import TaskRepository
 
 # End of managers/task_manager.py

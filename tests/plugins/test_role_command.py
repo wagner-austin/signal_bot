@@ -6,8 +6,8 @@ Verifies listing roles, setting, switching, unassigning, and exception handling.
 
 import pytest
 from core.state import BotStateMachine
-from managers.volunteer.volunteer_operations import register_volunteer
-from managers.volunteer.volunteer_roles import get_volunteer_record
+from managers.volunteer_manager import register_volunteer
+from db.volunteers import get_volunteer_record
 from plugins.commands.role import role_command
 from core.plugin_usage import USAGE_ROLE
 

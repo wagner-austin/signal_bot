@@ -6,7 +6,7 @@ Changes:
  - Added an 'exclusive' parameter. If True, uses BEGIN EXCLUSIVE to force serialization.
 """
 from contextlib import contextmanager
-from core.database.connection import get_connection
+from db.connection import get_connection
 
 @contextmanager
 def atomic_transaction(exclusive: bool = False):

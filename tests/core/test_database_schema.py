@@ -3,8 +3,8 @@ tests/core/test_database_schema.py - Tests for the database schema module.
 Verifies that init_db creates the necessary tables.
 """
 
-from core.database.schema import init_db
-from core.database.connection import get_connection
+from db.schema import init_db
+from db.connection import get_connection
 
 def test_init_db_creates_tables():
     init_db()

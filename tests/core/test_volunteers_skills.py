@@ -8,38 +8,37 @@ Changes:
 """
 
 import pytest
-from core.database.volunteers import (
-    serialize_skills,
-    deserialize_skills,
+from core.serialization_utils import serialize_list, deserialize_list
+from db.volunteers import (
     add_volunteer_record,
     get_volunteer_record,
     delete_volunteer_record
 )
-from managers.volunteer.volunteer_operations import register_volunteer
+from managers.volunteer_manager import register_volunteer
 
 
-def test_serialize_skills_empty():
-    assert serialize_skills([]) == ""
+def test_serialize_list_empty():
+    assert serialize_list([]) == ""
 
-def test_serialize_skills_multiple():
+def test_serialize_list_multiple():
     items = ["a", "b", "c"]
-    result = serialize_skills(items)
+    result = serialize_list(items)
     # Expect a comma-separated string without extra spaces.
     assert result == "a,b,c"
 
-def test_deserialize_skills_empty():
-    assert deserialize_skills("") == []
-    assert deserialize_skills(None) == []
+def test_deserialize_list_empty():
+    assert deserialize_list("") == []
+    assert deserialize_list(None) == []
 
-def test_deserialize_skills_multiple():
+def test_deserialize_list_multiple():
     serialized = "a,b,c"
-    result = deserialize_skills(serialized)
+    result = deserialize_list(serialized)
     assert result == ["a", "b", "c"]
 
 def test_serialize_then_deserialize():
     items = ["item1", "item2", "item3"]
-    serialized = serialize_skills(items)
-    deserialized = deserialize_skills(serialized)
+    serialized = serialize_list(items)
+    deserialized = deserialize_list(serialized)
     assert deserialized == items
 
 # ---------------------------------------------------------------------

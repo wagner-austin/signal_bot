@@ -11,7 +11,7 @@ import shutil
 import time
 import pytest
 from tests.async_helpers import override_async_sleep
-from core.database.backup import start_periodic_backups, list_backups, cleanup_backups, BACKUP_DIR, create_backup
+from db.backup import start_periodic_backups, list_backups, cleanup_backups, BACKUP_DIR, create_backup
 import logging
 
 @pytest.mark.asyncio
@@ -48,7 +48,7 @@ async def test_periodic_backup_error_handling(monkeypatch, caplog):
     Test that a failure in create_backup during periodic backups is handled gracefully,
     logs a warning, and does not kill the backup task.
     """
-    from core.database.backup import create_backup as original_create_backup
+    from db.backup import create_backup as original_create_backup
     call_count = 0
 
     def failing_create_backup():
@@ -58,7 +58,7 @@ async def test_periodic_backup_error_handling(monkeypatch, caplog):
             raise OSError("Simulated failure during backup creation")
         return original_create_backup()
 
-    monkeypatch.setattr("core.database.backup.create_backup", failing_create_backup)
+    monkeypatch.setattr("db.backup.create_backup", failing_create_backup)
 
     try:
         async with override_async_sleep(monkeypatch, scale=0.01):

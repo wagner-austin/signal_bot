@@ -9,7 +9,7 @@ def test_message_parsing():
     sample_message = (
         "Envelope\n"
         "from: +1234567890\n"
-        "Body: @bot test_all\n"
+        "Body: @bot test\n"
         "Timestamp: 123456789\n"
         "Group info: Id: SomeGroup\n"
         "Message timestamp: 123456789\n"

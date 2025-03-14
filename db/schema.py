@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-core/database/schema.py --- Database schema initialization.
+db/schema.py --- Database schema initialization.
 Creates base tables for volunteers, command logs, deleted volunteers, and user states.
 Automatically runs migrations to update the schema with new changes.
 """
@@ -56,4 +56,4 @@ def init_db() -> None:
     # Run migrations to update or add new tables/columns as needed.
     run_migrations()
 
-# End of core/database/schema.py
+# End of db/schema.py

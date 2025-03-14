@@ -8,7 +8,7 @@ import os
 import shutil
 import pytest
 from plugins.commands.dbbackup import dbbackup_command
-from core.database.backup import BACKUP_DIR, list_backups, create_backup
+from db.backup import BACKUP_DIR, list_backups, create_backup
 from core.plugin_usage import USAGE_DBBACKUP
 
 @pytest.fixture(autouse=True)

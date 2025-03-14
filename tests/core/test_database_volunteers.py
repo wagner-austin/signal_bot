@@ -5,7 +5,7 @@ Verifies functions to manage volunteer records including creation, update, and d
 """
 
 import pytest
-from core.database.volunteers import (
+from db.volunteers import (
     add_volunteer_record,
     get_volunteer_record,
     update_volunteer_record,
@@ -13,7 +13,7 @@ from core.database.volunteers import (
     add_deleted_volunteer_record,
     remove_deleted_volunteer_record,
 )
-from managers.volunteer.volunteer_operations import register_volunteer
+from managers.volunteer_manager import register_volunteer
 
 def test_volunteer_operations_add_and_update():
     """

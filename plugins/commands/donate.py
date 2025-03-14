@@ -1,14 +1,15 @@
 #!/usr/bin/env python
 """
-plugins/commands/donate.py - Donation command plugin.
-Provides donation logging for cash, in-kind, or donation interest.
-Usage: See USAGE_DONATE in core/plugin_usage.py
+donate.py
+---------
+Donation command plugin, referencing db/donations now instead of db.donations.
 """
 
+import logging
 from typing import Optional
 from plugins.manager import plugin
 from core.state import BotStateMachine
-from core.database.donations import add_donation
+from db.donations import add_donation
 from parsers.argument_parser import parse_plugin_arguments
 from parsers.plugin_arg_parser import (
     PluginArgError,
@@ -17,7 +18,6 @@ from parsers.plugin_arg_parser import (
     RegisterDonationArgs,
     validate_model
 )
-import logging
 from core.plugin_usage import USAGE_DONATE
 
 logger = logging.getLogger(__name__)
@@ -27,7 +27,7 @@ def donate_command(args: str, sender: str, state_machine: BotStateMachine,
                    msg_timestamp: Optional[int] = None) -> str:
     """
     donate - Log donation interest or record a donation.
-    
+
     USAGE: {USAGE_DONATE}
     """
     try:
@@ -48,6 +48,7 @@ def donate_command(args: str, sender: str, state_machine: BotStateMachine,
             combined_description = f"{validated.method} {validated.description}".strip()
             donation_id = add_donation(sender, 0.0, "register", combined_description)
             return f"Donation logged with ID {donation_id}."
+
         elif first == "in-kind":
             data = {
                 "description": " ".join(tokens[1:]) if len(tokens) > 1 else ""
@@ -55,6 +56,7 @@ def donate_command(args: str, sender: str, state_machine: BotStateMachine,
             validated = validate_model(data, InKindDonationArgs, USAGE_DONATE)
             donation_id = add_donation(sender, 0.0, "in-kind", validated.description)
             return f"Donation logged with ID {donation_id}."
+
         else:
             try:
                 amount = float(tokens[0])
@@ -67,6 +69,7 @@ def donate_command(args: str, sender: str, state_machine: BotStateMachine,
             validated = validate_model(data, CashDonationArgs, USAGE_DONATE)
             donation_id = add_donation(sender, validated.amount, "cash", validated.description)
             return f"Donation logged with ID {donation_id}."
+
     except PluginArgError as e:
         logger.warning(f"donate_command PluginArgError: {e}")
         return str(e)

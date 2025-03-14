@@ -9,7 +9,7 @@ import sqlite3
 import asyncio
 import logging
 import pytest
-from core.database.repository import BaseRepository
+from db.repository import BaseRepository
 from core.signal_client import send_message, process_incoming
 from managers.message.message_dispatcher import dispatch_message
 from parsers.message_parser import ParsedMessage

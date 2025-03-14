@@ -14,7 +14,7 @@ CHANGES:
 
 import logging
 import json
-from core.database.connection import get_connection
+from db.connection import get_connection
 
 logger = logging.getLogger(__name__)
 

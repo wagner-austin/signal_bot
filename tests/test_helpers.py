@@ -5,7 +5,7 @@ This module provides common functions for inserting test records, fetching resul
 All tests requiring database operations should import these functions to avoid code duplication and ensure consistency.
 """
 
-from core.database.connection import get_connection
+from db.connection import get_connection
 
 def insert_record(query, params):
     """

@@ -7,8 +7,8 @@ Now updated to assert raised VolunteerError for invalid operations.
 
 import pytest
 import logging
-from managers.volunteer.volunteer_operations import register_volunteer, delete_volunteer, check_in
-from core.database.volunteers import get_volunteer_record
+from managers.volunteer_manager import register_volunteer, delete_volunteer, check_in
+from db.volunteers import get_volunteer_record
 from core.exceptions import VolunteerError  # New import for error handling
 
 @pytest.mark.parametrize(

@@ -23,8 +23,8 @@ def test_database():
     The DB_NAME environment variable is set to a temporary file for isolation.
     After tests, the temporary database file is removed and DB_NAME is unset.
     """
-    import core.database as db
-    db.init_db()
+    import db.schema
+    db.schema.init_db()
     yield
     try:
         os.remove(temp_db_path)
@@ -39,7 +39,7 @@ def clear_database_tables():
     Events, EventSpeakers, Tasks, and Donations) before and after tests.
     Ensures a clean database state to prevent data leakage between tests.
     """
-    from core.database.connection import get_connection
+    from db.connection import get_connection
     def clear_tables():
         conn = get_connection()
         cursor = conn.cursor()

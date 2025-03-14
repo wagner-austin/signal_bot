@@ -6,8 +6,6 @@ This module imports and re-exports commands from submodules in alphabetical orde
 
 from .event import *
 from .help import *
-from .help_all import *
-from .political import *
 from .resource import *
 from .role import *
 from .speaker import *

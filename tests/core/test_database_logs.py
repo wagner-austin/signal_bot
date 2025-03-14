@@ -3,8 +3,8 @@ tests/core/test_database_logs.py - Tests for command logs database operations.
 Verifies that log_command writes a log entry to the CommandLogs table.
 """
 
-from core.database.logs import log_command
-from core.database.connection import get_connection
+from db.logs import log_command
+from db.connection import get_connection
 
 def test_log_command():
     sender = "+1111111111"

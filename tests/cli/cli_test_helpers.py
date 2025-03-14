@@ -1,8 +1,10 @@
 #!/usr/bin/env python
 """
 tests/cli/cli_test_helpers.py - Helper functions for CLI tests.
+----------------------------------------------------------------
 Provides a unified helper to simulate command-line invocations of cli_tools.py,
-capturing both stdout and stderr for robust output verification.
+capturing both stdout and stderr. We still rely on this to test the end-to-end
+CLI behavior including argparse and plugin dispatch.
 """
 
 import sys
@@ -14,7 +16,7 @@ def run_cli_command(command_args):
     Captures both stdout and stderr.
     
     Args:
-        command_args (list): List of command arguments.
+        command_args (list): List of command arguments (e.g. ["list-volunteers"]).
     
     Returns:
         dict: A dictionary with keys 'stdout' and 'stderr' containing the captured outputs.
@@ -32,6 +34,7 @@ def run_cli_command(command_args):
         try:
             cli_main()
         except SystemExit:
+            # Argparse or the code may call sys.exit; we catch it
             pass
         return {"stdout": captured_stdout.getvalue(), "stderr": captured_stderr.getvalue()}
     finally:

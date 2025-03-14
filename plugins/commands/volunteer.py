@@ -3,12 +3,8 @@
 plugins/commands/volunteer.py
 -----------------------------
 Volunteer command plugins.
-Handles volunteer registration, editing, deletion, and skill management.
-
-CHANGES:
- - Removed set_flow_state(sender, ...) and clear_flow_state(sender) calls.
- - Instead, use create_flow(sender, ...) or pause_flow/resume_flow as applicable.
- - Keep existing logic, docstrings, and usage references as intact as possible.
+Handles volunteer registration, editing, deletion, skill management.
+Now uses format_deleted_volunteer for listing deleted volunteers.
 """
 
 from typing import Optional
@@ -34,10 +30,9 @@ from core.plugin_usage import (
     USAGE_SKILLS, USAGE_FIND, USAGE_ADD_SKILLS
 )
 from managers.user_states_manager import (
-    has_seen_welcome, mark_welcome_seen,
-    create_flow, pause_flow, resume_flow, 
-    get_flow_state  # included for any legacy checks if still needed
+    create_flow, pause_flow, resume_flow, get_flow_state
 )
+from plugins.commands.formatters import format_deleted_volunteer, format_volunteer
 
 logger = logging.getLogger(__name__)
 
@@ -46,17 +41,16 @@ def volunteer_status_command(args: str, sender: str, state_machine: BotStateMach
                              msg_timestamp: Optional[int] = None) -> str:
     """
     volunteer status - Display the current volunteer status.
-    
-    USAGE: {USAGE_VOLUNTEER_STATUS}
+    Uses format_volunteer to unify output if desired.
     """
     try:
-        return VOLUNTEER_MANAGER.volunteer_status()
+        all_vols = VOLUNTEER_MANAGER.list_all_volunteers_list()  # returns list of volunteer dicts
+        if not all_vols:
+            return "No volunteers found."
+        return "\n".join(format_volunteer(v) for v in all_vols)
     except (ResourceError, VolunteerError) as e:
         logger.error(f"volunteer_status_command domain error: {e}", exc_info=True)
-        error_msg = str(e)
-        if ":" in error_msg:
-            error_msg = error_msg.split(":", 1)[1].strip()
-        return f"An error occurred: {error_msg}"
+        return f"An error occurred: {str(e).split(':',1)[-1].strip()}"
     except Exception as e:
         logger.error(f"volunteer_status_command unexpected error: {e}", exc_info=True)
         return "An internal error occurred in volunteer_status_command."
@@ -66,17 +60,12 @@ def check_in_command(args: str, sender: str, state_machine: BotStateMachine,
                      msg_timestamp: Optional[int] = None) -> str:
     """
     check in - Marks a volunteer as available.
-    
-    USAGE: {USAGE_VOLUNTEER_STATUS}
     """
     try:
         return VOLUNTEER_MANAGER.check_in(sender)
     except (ResourceError, VolunteerError) as e:
         logger.error(f"check_in_command domain error: {e}", exc_info=True)
-        error_msg = str(e)
-        if ":" in error_msg:
-            error_msg = error_msg.split(":", 1)[1].strip()
-        return f"An error occurred: {error_msg}"
+        return f"An error occurred: {str(e).split(':',1)[-1].strip()}"
     except Exception as e:
         logger.error(f"check_in_command unexpected error: {e}", exc_info=True)
         return "An internal error occurred in check_in_command."
@@ -86,14 +75,13 @@ def register_command(args: str, sender: str, state_machine: BotStateMachine,
                      msg_timestamp: Optional[int] = None) -> str:
     """
     register - Interactive volunteer registration.
-    
-    USAGE: {USAGE_REGISTER}
     """
     try:
-        if args.strip().lower() == "cancel":
-            pause_flow(sender, "registration")  # or set it inactive
+        text = args.strip().lower()
+        if text == "cancel":
+            pause_flow(sender, "registration")
             return "Cancelled."
-        
+
         if args.strip() and len(args.strip().split()) < 2 and args.strip().lower() not in SKIP_VALUES:
             return USAGE_REGISTER_PARTIAL
 
@@ -102,21 +90,17 @@ def register_command(args: str, sender: str, state_machine: BotStateMachine,
             if record:
                 return ALREADY_REGISTERED.format(name=record['name'])
             else:
-                # Immediately register if full name is given inline
                 return VOLUNTEER_MANAGER.register_volunteer(sender, args.strip(), [])
         else:
             if record:
                 return ALREADY_REGISTERED.format(name=record['name'])
             else:
-                # Start or resume a multi-step registration flow
                 create_flow(sender, "registration", start_step="ask_name")
                 return REGISTRATION_WELCOME
+
     except (ResourceError, VolunteerError) as e:
         logger.error(f"register_command domain error: {e}", exc_info=True)
-        error_msg = str(e)
-        if ":" in error_msg:
-            error_msg = error_msg.split(":", 1)[1].strip()
-        return f"An error occurred: {error_msg}"
+        return f"An error occurred: {str(e).split(':',1)[-1].strip()}"
     except Exception as e:
         logger.error(f"register_command unexpected error: {e}", exc_info=True)
         return "An internal error occurred in register_command."
@@ -135,14 +119,12 @@ def edit_command(args: str, sender: str, state_machine: BotStateMachine,
                  msg_timestamp: Optional[int] = None) -> str:
     """
     edit - Edit your registered name.
-    
-    USAGE: {USAGE_EDIT}
     """
     try:
         if args.strip().lower() == "cancel":
             pause_flow(sender, "edit")
             return "Cancelled."
-        
+
         record = VOLUNTEER_MANAGER.list_all_volunteers().get(sender)
         if not record:
             create_flow(sender, "registration", start_step="ask_name")
@@ -154,10 +136,7 @@ def edit_command(args: str, sender: str, state_machine: BotStateMachine,
         return VOLUNTEER_MANAGER.register_volunteer(sender, args.strip(), [])
     except (ResourceError, VolunteerError) as e:
         logger.error(f"edit_command domain error: {e}", exc_info=True)
-        error_msg = str(e)
-        if ":" in error_msg:
-            error_msg = error_msg.split(":", 1)[1].strip()
-        return f"An error occurred: {error_msg}"
+        return f"An error occurred: {str(e).split(':',1)[-1].strip()}"
     except Exception as e:
         logger.error(f"edit_command unexpected error: {e}", exc_info=True)
         return "An internal error occurred in edit_command."
@@ -167,16 +146,10 @@ def delete_command(args: str, sender: str, state_machine: BotStateMachine,
                    msg_timestamp: Optional[int] = None) -> str:
     """
     delete - Handles volunteer deletion flow.
-    
-    USAGE: {USAGE_DELETE}
     """
     try:
         user_input = args.strip().lower()
-        # Example multi-flow usage: you could create_flow(sender, "delete_flow")
-        # then handle steps in the message_manager auto-dispatch if you want.
-        # Below is your legacy logic, preserving flow checks but removing set_flow_state calls.
-        
-        current_flow = get_flow_state(sender)  # legacy for checking
+        current_flow = get_flow_state(sender)
         if current_flow == "":
             if user_input == "cancel":
                 return "Cancelled."
@@ -202,10 +175,7 @@ def delete_command(args: str, sender: str, state_machine: BotStateMachine,
             return DELETION_CANCELED
     except (ResourceError, VolunteerError) as e:
         logger.error(f"delete_command domain error: {e}", exc_info=True)
-        error_msg = str(e)
-        if ":" in error_msg:
-            error_msg = error_msg.split(":", 1)[1].strip()
-        return f"An error occurred: {error_msg}"
+        return f"An error occurred: {str(e).split(':',1)[-1].strip()}"
     except Exception as e:
         logger.error(f"delete_command unexpected error: {e}", exc_info=True)
         return "An internal error occurred in delete_command."
@@ -215,30 +185,24 @@ def skills_command(args: str, sender: str, state_machine: BotStateMachine,
                    msg_timestamp: Optional[int] = None) -> str:
     """
     skills - Display your current skills.
-    
-    USAGE: {USAGE_SKILLS}
     """
     try:
-        from core.database import get_volunteer_record
+        from db.volunteers import get_volunteer_record
         from core.skill_config import AVAILABLE_SKILLS
         record = get_volunteer_record(sender)
         if not record:
             create_flow(sender, "registration", start_step="ask_name")
             return REGISTRATION_WELCOME
-        else:
-            current_skills = record.get("skills", [])
-            current_skills_formatted = "\n".join([f" - {skill}" for skill in current_skills]) if current_skills else " - None"
-            available_skills_formatted = "\n".join([f" - {skill}" for skill in AVAILABLE_SKILLS])
-            name = record.get("name", "Anonymous")
-            message = f"{name} currently has skills:\n{current_skills_formatted}\n\n"
-            message += "Here is a list of relevant skills you can add:\n" + available_skills_formatted
-            return message
+        current_skills = record.get("skills", [])
+        current_list = "\n".join(f" - {sk}" for sk in current_skills) if current_skills else " - None"
+        all_skills = "\n".join(f" - {s}" for s in AVAILABLE_SKILLS)
+        name = record.get("name", "Anonymous")
+        msg = f"{name} currently has skills:\n{current_list}\n\n"
+        msg += "Here is a list of relevant skills you can add:\n" + all_skills
+        return msg
     except (ResourceError, VolunteerError) as e:
         logger.error(f"skills_command domain error: {e}", exc_info=True)
-        error_msg = str(e)
-        if ":" in error_msg:
-            error_msg = error_msg.split(":", 1)[1].strip()
-        return f"An error occurred: {error_msg}"
+        return f"An error occurred: {str(e).split(':',1)[-1].strip()}"
     except Exception as e:
         logger.error(f"skills_command unexpected error: {e}", exc_info=True)
         return "An internal error occurred in skills_command."
@@ -248,35 +212,29 @@ def find_command(args: str, sender: str, state_machine: BotStateMachine,
                  msg_timestamp: Optional[int] = None) -> str:
     """
     find - Finds volunteers with specified skills.
-    
-    USAGE: {USAGE_FIND}
     """
+    from db.volunteers import get_all_volunteers
     try:
-        from core.database import get_all_volunteers
-        raw_tokens = args.split()
-        if not raw_tokens:
+        tokens = args.split()
+        if not tokens:
             raise PluginArgError(USAGE_FIND)
-        data = {"skills": [s.lower() for s in raw_tokens]}
+        data = {"skills": [s.lower() for s in tokens]}
         validated = validate_model(data, VolunteerFindModel, USAGE_FIND)
         volunteers = get_all_volunteers()
-        matching_volunteers = []
-        for phone, data_v in volunteers.items():
-            volunteer_skills = [s.lower() for s in data_v.get("skills", [])]
-            if all(req in volunteer_skills for req in validated.skills):
-                matching_volunteers.append(data_v.get("name", phone))
-        if matching_volunteers:
-            return "Volunteers with specified skills: " + ", ".join(matching_volunteers)
-        else:
-            return "No volunteers found with the specified skills."
+        matching = []
+        for phone, vol_data in volunteers.items():
+            vskills = [s.lower() for s in vol_data.get("skills", [])]
+            if all(req in vskills for req in validated.skills):
+                matching.append(vol_data.get("name", phone))
+        if matching:
+            return "Volunteers with specified skills: " + ", ".join(matching)
+        return "No volunteers found with the specified skills."
     except PluginArgError as e:
         logger.warning(f"find_command PluginArgError: {e}")
         return str(e)
     except (ResourceError, VolunteerError) as e:
         logger.error(f"find_command domain error: {e}", exc_info=True)
-        error_msg = str(e)
-        if ":" in error_msg:
-            error_msg = error_msg.split(":", 1)[1].strip()
-        return f"An error occurred: {error_msg}"
+        return f"An error occurred: {str(e).split(':',1)[-1].strip()}"
     except Exception as e:
         logger.error(f"find_command unexpected error: {e}", exc_info=True)
         return "An internal error occurred in find_command."
@@ -286,13 +244,11 @@ def add_skills_command(args: str, sender: str, state_machine: BotStateMachine,
                        msg_timestamp: Optional[int] = None) -> str:
     """
     add skills - Adds skills to your profile.
-    
-    USAGE: {USAGE_ADD_SKILLS}
     """
+    from db.volunteers import get_volunteer_record
     try:
         if not args.strip():
             raise PluginArgError(USAGE_ADD_SKILLS)
-        from core.database import get_volunteer_record
         record = get_volunteer_record(sender)
         if not record:
             return "You are not registered. Please register first."
@@ -307,12 +263,27 @@ def add_skills_command(args: str, sender: str, state_machine: BotStateMachine,
         return str(e)
     except (ResourceError, VolunteerError) as e:
         logger.error(f"add_skills_command domain error: {e}", exc_info=True)
-        error_msg = str(e)
-        if ":" in error_msg:
-            error_msg = error_msg.split(":", 1)[1].strip()
-        return f"An error occurred: {error_msg}"
+        return f"An error occurred: {str(e).split(':',1)[-1].strip()}"
     except Exception as e:
         logger.error(f"add_skills_command unexpected error: {e}", exc_info=True)
         return "An internal error occurred in add_skills_command."
+
+#
+# Updated to use format_deleted_volunteer
+#
+@plugin('deleted volunteers', canonical='deleted volunteers')
+def deleted_volunteers_command(args: str, sender: str, state_machine: BotStateMachine,
+                               msg_timestamp: Optional[int] = None) -> str:
+    """
+    deleted volunteers - Lists all deleted volunteer records, using format_deleted_volunteer.
+    """
+    try:
+        recs = VOLUNTEER_MANAGER.list_deleted_volunteers()
+        if not recs:
+            return "No deleted volunteers found."
+        return "\n".join(format_deleted_volunteer(r) for r in recs)
+    except Exception as e:
+        logger.error(f"deleted_volunteers_command error: {e}", exc_info=True)
+        return "An internal error occurred in deleted_volunteers_command."
 
 # End of plugins/commands/volunteer.py

@@ -13,18 +13,18 @@ from core.logger_setup import setup_logging
 
 setup_logging()
 
-import core.database
+import db.schema
 import core.metrics
 import logging
 from core.signal_bot_service import SignalBotService
-from core.database.backup import create_backup, start_periodic_backups
+from db.backup import create_backup, start_periodic_backups
 from core.config import BACKUP_INTERVAL, BACKUP_RETENTION_COUNT
 
 logger = logging.getLogger(__name__)
 
 async def main() -> None:
     # Initialize the SQLite database (creates tables if they do not exist)
-    core.database.init_db()
+    db.schema.init_db()
     
     # Create an automatic backup at startup
     backup_path = create_backup()
@@ -42,10 +42,6 @@ async def main() -> None:
     await service.run()
 
 if __name__ == "__main__":
-    if '--test' in sys.argv:
-        from tests.test_all import run_all_tests
-        run_all_tests()
-    else:
-        asyncio.run(main())
+    asyncio.run(main())
 
 # End of main.py

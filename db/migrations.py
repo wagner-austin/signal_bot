@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-core/database/migrations.py --- Database migrations management.
+db/migrations.py --- Database migrations management.
 Provides a simple migration framework to automatically update the database schema.
 Tracks the current schema version in a dedicated SchemaVersion table and applies new migrations as needed.
 Now includes logic to skip migrations if the existing DB version is newer than our known migrations,
@@ -8,7 +8,7 @@ to avoid unintended downgrades.
 """
 
 import logging
-from .helpers import execute_sql
+from .repository import execute_sql
 from .connection import db_connection
 
 logger = logging.getLogger(__name__)
@@ -189,4 +189,4 @@ def run_migrations() -> None:
             migration()
             update_version(version)
 
-# End of core/database/migrations.py
+# End of db/migrations.py

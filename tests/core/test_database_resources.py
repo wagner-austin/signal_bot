@@ -4,7 +4,7 @@ tests/core/test_database_resources.py – Tests for the resource database operat
 Verifies that add_resource, list_resources, and remove_resource function as expected.
 """
 
-from core.database.resources import add_resource, list_resources, remove_resource
+from db.resources import add_resource, list_resources, remove_resource
 
 def test_add_and_list_resource():
     # Add a resource and verify that it appears in the list for the given category.

@@ -3,8 +3,8 @@
 tests/managers/test_volunteer_queries.py - Tests for volunteer queries.
 Verifies volunteer_status, find_available_volunteer, and get_all_skills functionalities.
 """
-from managers.volunteer.volunteer_queries import volunteer_status, find_available_volunteer, get_all_skills
-from core.database.volunteers import add_volunteer_record
+from managers.volunteer_manager import volunteer_status, find_available_volunteer, get_all_skills
+from db.volunteers import add_volunteer_record
 
 def test_volunteer_status():
     # Add a volunteer record for testing status.

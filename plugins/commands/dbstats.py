@@ -8,8 +8,8 @@ Usage: "@bot dbstats" (See USAGE_DBSTATS in core/plugin_usage.py)
 from typing import Optional
 from plugins.manager import plugin
 from core.state import BotStateMachine
-from core.database.stats import get_database_stats
-from core.database.backup import list_backups
+from db.stats import get_database_stats
+from db.backup import list_backups
 from datetime import datetime
 from core.plugin_usage import USAGE_DBSTATS
 

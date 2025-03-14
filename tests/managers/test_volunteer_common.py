@@ -5,7 +5,7 @@ Verifies that the normalize_name function hides phone numbers from user-facing o
 """
 
 import pytest
-from managers.volunteer.volunteer_common import normalize_name
+from managers.volunteer_manager import normalize_name
 
 def test_normalize_name_same_as_fallback():
     # If the name is exactly the same as the fallback phone, return "Anonymous".

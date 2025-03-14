@@ -1,12 +1,14 @@
 #!/usr/bin/env python
 """
-managers/event_manager.py --- Event Manager for handling event CRUD operations and speaker assignments.
-Renamed list_events to list_all_events for consistency.
+event_manager.py
+----------------
+Event Manager for handling event CRUD operations and speaker assignments.
+Ensures Row objects are converted to dictionaries so tests can do .get().
 """
 
 from typing import List, Dict, Any, Optional
 import logging
-from core.database.repository import EventRepository, EventSpeakerRepository
+from db.repository import EventRepository, EventSpeakerRepository
 
 logger = logging.getLogger(__name__)
 
@@ -29,15 +31,41 @@ def update_event(event_id: int, **kwargs) -> None:
 
 def list_all_events() -> List[Dict[str, Any]]:
     """
-    list_all_events - Return all events in descending order by created_at.
+    list_all_events - Return all events in descending order by created_at
+                      as a list of dictionaries.
     """
     repo = EventRepository()
-    return repo.list_all(order_by="created_at DESC")
+    rows = repo.list_all(order_by="created_at DESC")
+    events = []
+    for row in rows:
+        events.append({
+            "event_id": row["event_id"],
+            "title": row["title"],
+            "date": row["date"],
+            "time": row["time"],
+            "location": row["location"],
+            "description": row["description"],
+            "created_at": row["created_at"]
+        })
+    return events
 
 def get_event(event_id: int) -> Optional[Dict[str, Any]]:
+    """
+    get_event - Retrieve a single event as a dictionary, or None if not found.
+    """
     repo = EventRepository()
     row = repo.get_by_id(event_id)
-    return row if row else None
+    if row:
+        return {
+            "event_id": row["event_id"],
+            "title": row["title"],
+            "date": row["date"],
+            "time": row["time"],
+            "location": row["location"],
+            "description": row["description"],
+            "created_at": row["created_at"]
+        }
+    return None
 
 def delete_event(event_id: int) -> None:
     repo = EventRepository()
@@ -53,14 +81,41 @@ def assign_speaker(event_id: int, speaker_name: str, speaker_topic: str) -> None
     repo.create(data)
 
 def list_speakers(event_id: int) -> List[Dict[str, Any]]:
+    """
+    list_speakers - Return all speakers for a given event as a list of dictionaries.
+    """
     repo = EventSpeakerRepository()
-    return repo.list_all(filters={"event_id": event_id}, order_by="created_at ASC")
+    rows = repo.list_all(filters={"event_id": event_id}, order_by="created_at ASC")
+    speakers = []
+    for row in rows:
+        speakers.append({
+            "id": row["id"],
+            "event_id": row["event_id"],
+            "speaker_name": row["speaker_name"],
+            "speaker_topic": row["speaker_topic"],
+            "created_at": row["created_at"]
+        })
+    return speakers
 
 def remove_speaker(event_id: int, speaker_name: str) -> None:
     repo = EventSpeakerRepository()
     repo.delete_by_conditions({"event_id": event_id, "speaker_name": speaker_name})
 
 def list_all_event_speakers() -> List[Dict[str, Any]]:
-    return EventSpeakerRepository().list_all(order_by="created_at DESC")
+    """
+    list_all_event_speakers - Return all event speakers as a list of dictionaries.
+    """
+    repo = EventSpeakerRepository()
+    rows = repo.list_all(order_by="created_at DESC")
+    speakers = []
+    for row in rows:
+        speakers.append({
+            "id": row["id"],
+            "event_id": row["event_id"],
+            "speaker_name": row["speaker_name"],
+            "speaker_topic": row["speaker_topic"],
+            "created_at": row["created_at"]
+        })
+    return speakers
 
-# End of managers/event_manager.py
+# End of event_manager.py

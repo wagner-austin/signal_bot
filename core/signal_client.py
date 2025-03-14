@@ -107,7 +107,7 @@ async def process_incoming(state_machine, logger: Optional[logging.Logger] = Non
     if logger is None:
         logger = logging.getLogger(__name__)
     from managers.volunteer_manager import VOLUNTEER_MANAGER
-    from core.database import get_volunteer_record
+    from db.volunteers import get_volunteer_record
     from managers.user_states_manager import has_seen_welcome, mark_welcome_seen
     from core.messages import GETTING_STARTED
 

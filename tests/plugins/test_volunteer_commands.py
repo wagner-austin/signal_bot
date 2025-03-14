@@ -15,7 +15,7 @@ from plugins.commands.volunteer import (
     add_skills_command
 )
 from core.state import BotStateMachine
-from core.database.volunteers import get_volunteer_record
+from db.volunteers import get_volunteer_record
 from core.plugin_usage import USAGE_REGISTER_PARTIAL
 from core.messages import REGISTRATION_WELCOME, GETTING_STARTED, ALREADY_REGISTERED
 

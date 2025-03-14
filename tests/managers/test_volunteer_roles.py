@@ -6,8 +6,8 @@ Also includes tests for case-insensitive matching, dynamic role assignment, and 
 """
 
 import pytest
-from managers.volunteer.volunteer_roles import list_roles, assign_role, switch_role, unassign_role, ROLE_SKILL_REQUIREMENTS
-from core.database.volunteers import add_volunteer_record, get_volunteer_record
+from managers.volunteer_manager import list_roles, assign_role, switch_role, unassign_role, ROLE_SKILL_REQUIREMENTS
+from db.volunteers import add_volunteer_record, get_volunteer_record
 from core.exceptions import VolunteerError
 
 def test_list_roles():

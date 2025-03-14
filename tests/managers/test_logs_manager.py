@@ -5,7 +5,7 @@ Verifies that logs_manager.list_all_logs() returns a list of command log records
 """
 
 from managers.logs_manager import list_all_logs
-from core.database.connection import get_connection
+from db.connection import get_connection
 
 def test_logs_manager_list_logs():
     # Clear the CommandLogs table.

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-core/database/backup.py - Database backup and restore utilities.
+db/backup.py - Database backup and restore utilities.
 Provides functions to create a backup snapshot of the current database, automatically clean up old backups
 using a configurable retention count, and schedule periodic backups using a configurable interval.
 Changes:
@@ -157,4 +157,4 @@ async def start_periodic_backups(interval_seconds: int = BACKUP_INTERVAL, max_ba
             logger.warning(f"Periodic backup failed: {e}")
         await asyncio.sleep(interval_seconds)
 
-# End of core/database/backup.py
+# End of db/backup.py

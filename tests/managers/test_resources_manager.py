@@ -5,7 +5,7 @@ Verifies that the unified function list_all_resources returns all resource recor
 """
 
 from managers.resources_manager import list_all_resources
-from core.database.resources import add_resource, remove_resource
+from db.resources import add_resource, remove_resource
 import pytest
 
 def test_list_all_resources_empty():

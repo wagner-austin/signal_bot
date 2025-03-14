@@ -1,18 +1,19 @@
 #!/usr/bin/env python
 """
-managers/resources_manager.py - Resources Manager.
-Provides a unified interface for listing, creating, and deleting resources with proper logging.
+resources_manager.py
+--------------------
+Manages resource logic. Now references db/resources instead of db.resources.
 """
 
-from core.database.resources import add_resource, list_resources, remove_resource
-from core.exceptions import ResourceError
 import logging
+from core.exceptions import ResourceError
+from db.resources import add_resource, list_resources, remove_resource
 
 logger = logging.getLogger(__name__)
 
 def list_all_resources(category: str = None):
     """
-    list_all_resources - Return resource records from the database (optionally filtered by category).
+    Return resource records (optionally filtered by category).
     """
     return list_resources(category)
 

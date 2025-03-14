@@ -4,8 +4,8 @@ tests/core/test_database_donations.py - Tests for donation database operations.
 Verifies that add_donation correctly inserts a donation record into the Donations table.
 """
 
-from core.database.donations import add_donation
-from core.database.connection import get_connection
+from db.donations import add_donation
+from db.connection import get_connection
 
 def test_add_donation():
     phone = "+9999999999"

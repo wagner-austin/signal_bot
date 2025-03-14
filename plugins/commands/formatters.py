@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 """
-cli/formatters.py - CLI formatters for presenting data.
-Provides helper functions to convert raw data dictionaries from business logic into formatted strings.
-Now updated to unify volunteer formatting with a single dictionary param.
+plugins/commands/formatters.py - Universal plugin formatters.
+Provides functions for converting raw dictionaries into user-friendly strings.
+Originally migrated from cli/formatters.py.
 """
 
 def _ensure_dict(item) -> dict:
@@ -122,4 +122,4 @@ def format_deleted_volunteer(data: dict) -> str:
         + "-" * 40
     )
 
-# End of cli/formatters.py
+# End of plugins/commands/formatters.py

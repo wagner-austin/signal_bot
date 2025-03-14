@@ -1,16 +1,27 @@
 #!/usr/bin/env python
 """
-managers/logs_manager.py --- Logs Manager for retrieving command logs.
-Renamed list_logs -> list_all_logs for naming consistency.
+logs_manager.py
+---------------
+Command logs manager for retrieving logs from the DB as dictionaries.
 """
 
-from core.database.repository import CommandLogRepository
+from db.repository import CommandLogRepository
 
 def list_all_logs() -> list:
     """
-    list_all_logs - Retrieve all command log records.
+    list_all_logs - Retrieve all command log records as a list of dicts.
     """
     repo = CommandLogRepository()
-    return repo.list_all(order_by="timestamp DESC")
+    rows = repo.list_all(order_by="timestamp DESC")
+    logs = []
+    for row in rows:
+        logs.append({
+            "id": row["id"],
+            "sender": row["sender"],
+            "command": row["command"],
+            "args": row["args"],
+            "timestamp": row["timestamp"]
+        })
+    return logs
 
 # End of managers/logs_manager.py

@@ -9,20 +9,19 @@ work as expected.
 import os
 import shutil
 import pytest
-from core.database.repository import (
+from db.repository import (
     ResourceRepository,
     DonationRepository,
     EventRepository,
     EventSpeakerRepository
 )
-from core.database.resources import list_resources
-from core.database.donations import add_donation
-from core.database.connection import get_connection
+from db.resources import list_resources
+from db.donations import add_donation
+from db.connection import get_connection
 
 # Ensure a clean backup of the database state for repository tests
 @pytest.fixture(autouse=True)
 def clear_tables():
-    from core.database.connection import get_connection
     conn = get_connection()
     cursor = conn.cursor()
     # Clear tables used in our repository tests.
