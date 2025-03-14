@@ -1,15 +1,16 @@
 #!/usr/bin/env python
 """
-tests/managers/test_handle_message.py - Tests for the message dispatch functionality.
-Verifies that fuzzy matching correctly handles near-miss command inputs and that mixed
+tests/managers/test_handle_message.py --- Tests for message dispatch functionality.
+Verifies that fuzzy matching correctly handles near-miss command inputs and that
 group commands with extra trailing text are correctly parsed.
 Note: The welcome message is now sent separately via process_incoming.
 """
+
 import pytest
 from managers.message.message_dispatcher import dispatch_message as handle_message
 from core.state import BotStateMachine
 from parsers.message_parser import ParsedMessage, parse_message
-from managers.pending_actions import PendingActions
+# Removed import of PendingActions (old mechanism)
 from managers.volunteer_manager import VOLUNTEER_MANAGER
 
 # Helper function to create a full envelope message for parsing.
@@ -55,21 +56,18 @@ def test_handle_message_fuzzy_matching(dummy_plugin):
     """
     parsed = make_envelope_message("@bot tset", sender="+111")
     state_machine = BotStateMachine()
-    pending_actions = PendingActions()
-    response = handle_message(parsed, "+111", state_machine, pending_actions, VOLUNTEER_MANAGER, msg_timestamp=123)
-    # The expected response will depend on the fuzzy matching behavior.
-    # For this test, assume that the fuzzy match returns "yes".
+    # Call without pending_actions parameter.
+    response = handle_message(parsed, "+111", state_machine, VOLUNTEER_MANAGER, msg_timestamp=123)
+    # For this test, assume fuzzy matching returns "yes".
     assert response == "yes"
 
 def test_group_command_with_extra_text(volunteer_status_plugin):
     """
-    Test that a group message with extra trailing text after the recognized plugin command
+    Test that a group message with extra trailing text after the recognized command
     correctly extracts the command "volunteer status" and arguments "extra nonsense".
     """
     parsed = make_envelope_message("@bot volunteer status extra nonsense", sender="+1111111111", group_id="group123")
     state_machine = BotStateMachine()
-    pending_actions = PendingActions()
-    # Dummy volunteer manager for dependency injection.
     class DummyVolunteerManager:
          def delete_volunteer(self, sender):
              return "deleted"
@@ -77,49 +75,27 @@ def test_group_command_with_extra_text(volunteer_status_plugin):
              return f"registered {name}"
     dummy_vol_manager = DummyVolunteerManager()
     
-    response = handle_message(parsed, parsed.sender, state_machine, pending_actions, dummy_vol_manager, msg_timestamp=123)
+    response = handle_message(parsed, parsed.sender, state_machine, dummy_vol_manager, msg_timestamp=123)
     
-    # Verify that the command and args were extracted correctly.
     assert parsed.command == "volunteer status"
     assert parsed.args == "extra nonsense"
-    # Verify that the dummy plugin processed the extra text as arguments.
     assert response == "status: extra nonsense"
 
 def test_message_manager_process_message():
     """
     Test that MessageManager.process_message correctly dispatches the dummy command.
-    Since the welcome message is sent separately via process_incoming,
-    the direct process_message response should be "dummy response".
+    Since the welcome message is now sent separately, the response should be "dummy response".
     """
     from managers.message_manager import MessageManager
     state_machine = BotStateMachine()
     message_manager = MessageManager(state_machine)
     parsed = make_envelope_message("@bot dummy", sender="+1111111111")
-    pending_actions = PendingActions()
     volunteer_manager = DummyVolunteerManager()
-    response = message_manager.process_message(parsed, parsed.sender, pending_actions, volunteer_manager, msg_timestamp=123)
+    response = message_manager.process_message(parsed, parsed.sender, volunteer_manager, msg_timestamp=123)
     expected_response = "dummy response"
     assert response == expected_response
 
 # --- Dummy Classes for Testing ---
-class DummyPendingActions:
-    def has_event_creation(self, sender: str) -> bool:
-        return False
-    def clear_event_creation(self, sender: str) -> None:
-        pass
-    def has_deletion(self, sender: str) -> bool:
-        return False
-    def get_deletion(self, sender: str):
-        return None
-    def clear_deletion(self, sender: str) -> None:
-        pass
-    def has_registration(self, sender: str) -> bool:
-        return False
-    def get_registration(self, sender: str):
-        return None
-    def clear_registration(self, sender: str) -> None:
-        pass
-
 class DummyVolunteerManager:
     def delete_volunteer(self, sender: str) -> str:
         return "deleted"

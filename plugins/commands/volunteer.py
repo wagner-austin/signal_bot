@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 """
-plugins/commands/volunteer.py - Volunteer command plugins.
+plugins/commands/volunteer.py --- Volunteer command plugins.
 Handles volunteer registration, editing, deletion, and skill management.
-USAGE: Refer to usage constants in core/plugin_usage.py (USAGE_VOLUNTEER_STATUS, USAGE_REGISTER, USAGE_REGISTER_PARTIAL, USAGE_EDIT, USAGE_DELETE, USAGE_SKILLS, USAGE_FIND, USAGE_ADD_SKILLS)
+USAGE: Refer to usage constants in core/plugin_usage.py (USAGE_VOLUNTEER_STATUS, USAGE_REGISTER, USAGE_REGISTER_PARTIAL, USAGE_EDIT, USAGE_DELETE, 
+USAGE_SKILLS, USAGE_FIND, USAGE_ADD_SKILLS)
 """
 
 from typing import Optional
@@ -10,10 +11,9 @@ from plugins.manager import plugin
 from core.state import BotStateMachine
 from core.messages import (
     REGISTRATION_WELCOME, ALREADY_REGISTERED, EDIT_PROMPT,
-    DELETION_PROMPT
+    DELETION_PROMPT, DELETION_CONFIRM, DELETION_CANCELED
 )
 from managers.volunteer_manager import VOLUNTEER_MANAGER
-from managers.pending_actions import PENDING_ACTIONS
 from core.constants import SKIP_VALUES
 from parsers.argument_parser import parse_plugin_arguments
 from parsers.plugin_arg_parser import (
@@ -28,6 +28,7 @@ from core.plugin_usage import (
     USAGE_VOLUNTEER_STATUS, USAGE_REGISTER, USAGE_REGISTER_PARTIAL, USAGE_EDIT, USAGE_DELETE, 
     USAGE_SKILLS, USAGE_FIND, USAGE_ADD_SKILLS
 )
+from managers.user_states_manager import set_flow_state, get_flow_state, clear_flow_state
 
 logger = logging.getLogger(__name__)
 
@@ -80,7 +81,10 @@ def register_command(args: str, sender: str, state_machine: BotStateMachine,
     USAGE: {USAGE_REGISTER}
     """
     try:
-        # If user provided input but it appears incomplete (e.g. only one word) and not "skip"
+        if args.strip().lower() == "cancel":
+            clear_flow_state(sender)
+            return "Cancelled."
+        
         if args.strip() and len(args.strip().split()) < 2 and args.strip().lower() not in SKIP_VALUES:
             return USAGE_REGISTER_PARTIAL
 
@@ -89,12 +93,13 @@ def register_command(args: str, sender: str, state_machine: BotStateMachine,
             if record:
                 return ALREADY_REGISTERED.format(name=record['name'])
             else:
+                clear_flow_state(sender)
                 return VOLUNTEER_MANAGER.register_volunteer(sender, args.strip(), [])
         else:
             if record:
                 return ALREADY_REGISTERED.format(name=record['name'])
             else:
-                PENDING_ACTIONS.set_registration(sender, "register")
+                set_flow_state(sender, "registration")
                 return REGISTRATION_WELCOME
     except (ResourceError, VolunteerError) as e:
         logger.error(f"register_command domain error: {e}", exc_info=True)
@@ -124,13 +129,18 @@ def edit_command(args: str, sender: str, state_machine: BotStateMachine,
     USAGE: {USAGE_EDIT}
     """
     try:
+        if args.strip().lower() == "cancel":
+            clear_flow_state(sender)
+            return "Cancelled."
+        
         record = VOLUNTEER_MANAGER.list_all_volunteers().get(sender)
         if not record:
-            PENDING_ACTIONS.set_registration(sender, "register")
+            set_flow_state(sender, "registration")
             return REGISTRATION_WELCOME
         if not args.strip():
-            PENDING_ACTIONS.set_registration(sender, "edit")
+            set_flow_state(sender, "edit")
             return EDIT_PROMPT.format(name=record['name'])
+        clear_flow_state(sender)
         return VOLUNTEER_MANAGER.register_volunteer(sender, args.strip(), [])
     except (ResourceError, VolunteerError) as e:
         logger.error(f"edit_command domain error: {e}", exc_info=True)
@@ -146,16 +156,46 @@ def edit_command(args: str, sender: str, state_machine: BotStateMachine,
 def delete_command(args: str, sender: str, state_machine: BotStateMachine,
                    msg_timestamp: Optional[int] = None) -> str:
     """
-    delete - Initiates volunteer deletion flow.
+    delete - Handles volunteer deletion flow.
+    On initial invocation (no deletion flow active), it sets the flow state to "deletion"
+    and returns a prompt asking if the user wants to delete their registration.
+    If already in the "deletion" flow and the user replies affirmatively (e.g., "yes", "y", "yea", "sure"),
+    the flow state is updated to "deletion_confirm" and a confirmation prompt is returned.
+    If in the "deletion_confirm" state and the user confirms with "yes" or "delete",
+    the volunteer record is deleted and the flow state cleared.
+    Any non-affirmative response cancels the deletion flow.
     
     USAGE: {USAGE_DELETE}
     """
     try:
-        if not args.strip():
-            PENDING_ACTIONS.set_deletion(sender, "initial")
+        user_input = args.strip().lower()
+        current_flow = get_flow_state(sender)
+        if current_flow == "":
+            # No deletion flow active; start it.
+            if user_input == "cancel":
+                return "Cancelled."
+            set_flow_state(sender, "deletion")
             return DELETION_PROMPT
-        PENDING_ACTIONS.set_deletion(sender, "initial")
-        return DELETION_PROMPT
+        elif current_flow == "deletion":
+            # In initial deletion step.
+            if user_input in {"yes", "y", "yea", "sure"}:
+                set_flow_state(sender, "deletion_confirm")
+                return DELETION_CONFIRM
+            else:
+                clear_flow_state(sender)
+                return DELETION_CANCELED
+        elif current_flow == "deletion_confirm":
+            # In confirmation step.
+            if user_input in {"yes", "delete"}:
+                confirmation = VOLUNTEER_MANAGER.delete_volunteer(sender)
+                clear_flow_state(sender)
+                return confirmation
+            else:
+                clear_flow_state(sender)
+                return DELETION_CANCELED
+        else:
+            clear_flow_state(sender)
+            return DELETION_CANCELED
     except (ResourceError, VolunteerError) as e:
         logger.error(f"delete_command domain error: {e}", exc_info=True)
         error_msg = str(e)
@@ -179,7 +219,7 @@ def skills_command(args: str, sender: str, state_machine: BotStateMachine,
         from core.skill_config import AVAILABLE_SKILLS
         record = get_volunteer_record(sender)
         if not record:
-            PENDING_ACTIONS.set_registration(sender, "register")
+            set_flow_state(sender, "registration")
             return REGISTRATION_WELCOME
         else:
             current_skills = record.get("skills", [])

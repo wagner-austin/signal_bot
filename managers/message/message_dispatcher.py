@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-managers/message/message_dispatcher.py - Dispatches incoming messages to appropriate handlers or plugins.
+managers/message/message_dispatcher.py --- Dispatches incoming messages to appropriate plugins.
 Handles PluginArgError uniformly by returning the associated usage message.
 """
 
@@ -18,26 +18,15 @@ from parsers.plugin_arg_parser import PluginArgError
 logger = logging.getLogger(__name__)
 
 def dispatch_message(parsed: "ParsedMessage", sender: str, state_machine: BotStateMachine,
-                     pending_actions: any, volunteer_manager: any,
+                     volunteer_manager: any,
                      msg_timestamp: Optional[int] = None, logger: Optional[logging.Logger] = None) -> str:
     """
-    dispatch_message - Processes an incoming message by handling pending actions and dispatching commands.
-    Uniformly handles PluginArgError responses.
+    dispatch_message - Processes an incoming message by dispatching commands to plugins.
+    
+    Pending action (multi-step) handling has been removed in favor of a unified plugin approach.
     """
     if logger is None:
         logger = logging.getLogger(__name__)
-
-    if parsed.group_id is None:
-        from managers.message.pending_handlers import EventCreationPendingHandler, DeletionPendingHandler, RegistrationPendingHandler
-        event_response = EventCreationPendingHandler(pending_actions).process_event_creation_response(parsed, sender)
-        if event_response is not None:
-            return event_response
-        deletion_response = DeletionPendingHandler(pending_actions, volunteer_manager).process_deletion_response(parsed, sender)
-        if deletion_response is not None:
-            return deletion_response
-        registration_response = RegistrationPendingHandler(pending_actions, volunteer_manager).process_registration_response(parsed, sender)
-        if registration_response is not None:
-            return registration_response
 
     command: Optional[str] = parsed.command
     args: Optional[str] = parsed.args

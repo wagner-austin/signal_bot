@@ -11,9 +11,7 @@ from managers.message.message_dispatcher import dispatch_message
 from parsers.message_parser import ParsedMessage
 from plugins.manager import plugin_registry, alias_mapping
 from core.state import BotStateMachine
-from managers.pending_actions import PENDING_ACTIONS
 from managers.volunteer_manager import VOLUNTEER_MANAGER
-
 
 @pytest.fixture
 def dummy_logger(caplog):
@@ -53,15 +51,15 @@ def test_plugin_returning_non_string(dummy_logger, dummy_state_machine):
         args=""
     )
     try:
-        response = dispatch_message(parsed, parsed.sender, dummy_state_machine, PENDING_ACTIONS, VOLUNTEER_MANAGER)
+        response = dispatch_message(parsed, parsed.sender, dummy_state_machine,
+                                    volunteer_manager=VOLUNTEER_MANAGER, msg_timestamp=123, logger=logging.getLogger())
         # We expect an empty string
         assert response == ""
-        logs = [r.message for r in dummy_logger.records]
-        assert any("returned a non-string result" in msg for msg in logs)
+        logs = dummy_logger.text
+        assert "returned a non-string result" in logs.lower()
     finally:
         alias_mapping.pop("nonstring", None)
         plugin_registry.pop("nonstring", None)
-
 
 def test_plugin_raising_exception(dummy_logger, dummy_state_machine):
     """
@@ -89,15 +87,14 @@ def test_plugin_raising_exception(dummy_logger, dummy_state_machine):
         args=""
     )
     try:
-        response = dispatch_message(parsed, parsed.sender, dummy_state_machine, PENDING_ACTIONS, VOLUNTEER_MANAGER)
+        response = dispatch_message(parsed, parsed.sender, dummy_state_machine,
+                                    volunteer_manager=VOLUNTEER_MANAGER, msg_timestamp=123, logger=logging.getLogger())
         assert "An internal error occurred" in response
-        # Confirm we logged an exception
-        logs = [r.message for r in dummy_logger.records]
-        assert any("Error executing plugin for command 'explode'" in msg for msg in logs)
+        logs = dummy_logger.text
+        assert "Error executing plugin for command 'explode'" in logs
     finally:
         alias_mapping.pop("explode", None)
         plugin_registry.pop("explode", None)
-
 
 def test_plugin_returning_int(dummy_logger, dummy_state_machine):
     """
@@ -125,11 +122,11 @@ def test_plugin_returning_int(dummy_logger, dummy_state_machine):
         args=""
     )
     try:
-        response = dispatch_message(parsed, parsed.sender, dummy_state_machine, PENDING_ACTIONS, VOLUNTEER_MANAGER)
-        # We expect an empty string
+        response = dispatch_message(parsed, parsed.sender, dummy_state_machine,
+                                    volunteer_manager=VOLUNTEER_MANAGER, msg_timestamp=123, logger=logging.getLogger())
         assert response == ""
-        logs = [r.message for r in dummy_logger.records]
-        assert any("returned a non-string result" in msg for msg in logs)
+        logs = dummy_logger.text
+        assert "returned a non-string result" in logs.lower()
     finally:
         alias_mapping.pop("returnint", None)
         plugin_registry.pop("returnint", None)

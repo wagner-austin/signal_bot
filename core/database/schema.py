@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-core/database/schema.py - Database schema initialization.
+core/database/schema.py --- Database schema initialization.
 Creates base tables for volunteers, command logs, deleted volunteers, and user states.
 Automatically runs migrations to update the schema with new changes.
 """
@@ -45,11 +45,11 @@ def init_db() -> None:
             deleted_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
         """)
-        # New UserStates table for tracking if a user has seen the welcome message.
+        # Updated UserStates table: use a JSON/text-based column 'flow_state' to store all user states.
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS UserStates (
             phone TEXT PRIMARY KEY,
-            has_seen_start INTEGER DEFAULT 0
+            flow_state TEXT DEFAULT '{}'
         )
         """)
         conn.commit()

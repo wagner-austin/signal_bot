@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 """
-core/signal_client.py - Encapsulates functions to interact with signal-cli.
+core/signal_client.py --- Encapsulates functions to interact with signal-cli.
 Uses MessageManager for processing incoming messages and sending responses.
 Supports dependency injection for the logger.
 """
+
 import asyncio
 import re
 import logging
@@ -105,7 +106,6 @@ async def process_incoming(state_machine, logger: Optional[logging.Logger] = Non
     """
     if logger is None:
         logger = logging.getLogger(__name__)
-    from managers.pending_actions import PENDING_ACTIONS
     from managers.volunteer_manager import VOLUNTEER_MANAGER
     from core.database import get_volunteer_record
     from managers.user_states_manager import has_seen_welcome, mark_welcome_seen
@@ -126,7 +126,7 @@ async def process_incoming(state_machine, logger: Optional[logging.Logger] = Non
             await send_message(parsed.sender, GETTING_STARTED)
             mark_welcome_seen(parsed.sender)
         quote_details = _get_quote_details(parsed)
-        response = message_manager.process_message(parsed, parsed.sender, PENDING_ACTIONS, VOLUNTEER_MANAGER, msg_timestamp=parsed.timestamp)
+        response = message_manager.process_message(parsed, parsed.sender, VOLUNTEER_MANAGER, msg_timestamp=parsed.timestamp)
         if asyncio.iscoroutine(response):
             response = await response
         if response:

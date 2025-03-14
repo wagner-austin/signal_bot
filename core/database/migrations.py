@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-core/database/migrations.py - Database migrations management.
+core/database/migrations.py --- Database migrations management.
 Provides a simple migration framework to automatically update the database schema.
 Tracks the current schema version in a dedicated SchemaVersion table and applies new migrations as needed.
 Now includes logic to skip migrations if the existing DB version is newer than our known migrations,
@@ -41,7 +41,6 @@ def update_version(new_version: int) -> None:
         new_version (int): The new schema version to set.
     """
     # Ensure the SchemaVersion table is present (and possibly initialized).
-    # This avoids OperationalError if the table doesn't exist yet.
     _ = get_current_version()
     query = "UPDATE SchemaVersion SET version = ?"
     execute_sql(query, (new_version,), commit=True)
@@ -140,6 +139,23 @@ def migration_6() -> None:
             cursor.execute("ALTER TABLE DeletedVolunteers ADD COLUMN preferred_role TEXT")
             conn.commit()
 
+def migration_7() -> None:
+    """
+    migration_7 - Extend UserStates table to support multi-step flows.
+    Adds a new 'flow_state' column if not already present, and migrates existing 'has_seen_start' data.
+    """
+    with db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("PRAGMA table_info(UserStates)")
+        columns = [row["name"] for row in cursor.fetchall()]
+        if "flow_state" not in columns:
+            cursor.execute("ALTER TABLE UserStates ADD COLUMN flow_state TEXT DEFAULT '{}'")
+            # Migrate existing has_seen_start values if present.
+            if "has_seen_start" in columns:
+                cursor.execute("UPDATE UserStates SET flow_state = '{\"has_seen_start\": true}' WHERE has_seen_start = 1")
+                cursor.execute("UPDATE UserStates SET flow_state = '{\"has_seen_start\": false}' WHERE has_seen_start = 0")
+        conn.commit()
+
 # List of migrations: each tuple is (migration_version, migration_function)
 MIGRATIONS = [
     (1, migration_1),
@@ -148,6 +164,7 @@ MIGRATIONS = [
     (4, migration_4),
     (5, migration_5),
     (6, migration_6),
+    (7, migration_7),
 ]
 
 def run_migrations() -> None:

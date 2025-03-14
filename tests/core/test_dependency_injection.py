@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-tests/core/test_dependency_injection.py - Tests for dependency injection.
+tests/core/test_dependency_injection.py --- Tests for dependency injection.
 This module verifies that critical modules accept dependencies (such as connection providers and loggers)
 and use them instead of global instances.
 """
@@ -10,7 +10,7 @@ import asyncio
 import logging
 import pytest
 from core.database.repository import BaseRepository
-from core.signal_client import send_message
+from core.signal_client import send_message, process_incoming
 from managers.message.message_dispatcher import dispatch_message
 from parsers.message_parser import ParsedMessage
 from core.state import BotStateMachine
@@ -27,7 +27,7 @@ _persistent_conn.commit()
 
 class DummyConnectionWrapper:
     """
-    DummyConnectionWrapper - Wraps a sqlite3.Connection to override the close() method.
+    DummyConnectionWrapper --- Wraps a sqlite3.Connection to override the close() method.
     """
     def __init__(self, conn):
         self._conn = conn
@@ -85,29 +85,14 @@ def dummy_logger():
     logger.removeHandler(handler)
 
 # -------------------
-# Dummy PendingActions and Volunteer Manager for Testing dispatch_message
+# Dummy Volunteer Manager for Testing dispatch_message
 # -------------------
 
-class DummyPendingActions:
-    def has_event_creation(self, sender: str) -> bool:
-        return False
-    def clear_event_creation(self, sender: str) -> None:
-        pass
-    def has_deletion(self, sender: str) -> bool:
-        return False
-    def get_deletion(self, sender: str):
-        return None
-    def clear_deletion(self, sender: str) -> None:
-        pass
-    def has_registration(self, sender: str) -> bool:
-        return False
-    def get_registration(self, sender: str):
-        return None
-    def clear_registration(self, sender: str) -> None:
-        pass
-
 class DummyVolunteerManager:
-    pass  # Not used in this test
+    def delete_volunteer(self, sender: str) -> str:
+        return "deleted"
+    def sign_up(self, sender: str, name: str, skills: list) -> str:
+        return "dummy response"
 
 # -------------------
 # Test Logger Injection in send_message
@@ -147,12 +132,9 @@ def test_dispatch_message_with_dummy_logger(monkeypatch, dummy_logger):
         args=""
     )
     state_machine = BotStateMachine()
-    # Provide dummy pending actions and volunteer manager.
-    dummy_pending = DummyPendingActions()
     dummy_volunteer_manager = DummyVolunteerManager()
     monkeypatch.setattr("plugins.manager.get_all_plugins", lambda: {})
     response = dispatch_message(parsed, "+1234567890", state_machine,
-                                pending_actions=dummy_pending,
                                 volunteer_manager=dummy_volunteer_manager,
                                 msg_timestamp=123, logger=logger)
     # Since no plugin is found, response should be empty.
@@ -165,14 +147,51 @@ def test_dispatch_message_with_dummy_logger(monkeypatch, dummy_logger):
     plugin_registry["faulty"] = {"function": faulty_plugin, "aliases": ["faulty"], "help_visible": True}
     parsed.command = "faulty"
     response_error = dispatch_message(parsed, "+1234567890", state_machine,
-                                      pending_actions=dummy_pending,
                                       volunteer_manager=dummy_volunteer_manager,
                                       msg_timestamp=123, logger=logger)
     assert "internal error" in response_error.lower()
     # Check that the logger recorded an exception message.
     assert any("Error executing plugin for command" in msg for msg in handler.records)
-    # Cleanup faulty plugin registration to avoid affecting other tests.
+    # Cleanup faulty plugin registration.
     alias_mapping.pop("faulty", None)
     plugin_registry.pop("faulty", None)
+
+# -------------------
+# Test Logger Injection in MessageManager.process_message
+# -------------------
+
+def test_message_manager_process_message(monkeypatch):
+    """
+    Test that MessageManager.process_message correctly dispatches the dummy command.
+    Since the welcome message is sent separately, the direct process_message response should be "dummy response".
+    """
+    from managers.message_manager import MessageManager
+    from plugins.manager import alias_mapping, plugin_registry
+    # Register a dummy plugin for the "dummy" command.
+    alias_mapping["dummy"] = "dummy"
+    plugin_registry["dummy"] = {
+         "function": lambda args, sender, state_machine, msg_timestamp=None: "dummy response",
+         "aliases": ["dummy"],
+         "help_visible": True
+    }
+    state_machine = BotStateMachine()
+    message_manager = MessageManager(state_machine)
+    parsed = ParsedMessage(
+        sender="+1111111111",
+        body="@bot dummy",
+        timestamp=123,
+        group_id=None,
+        reply_to=None,
+        message_timestamp=None,
+        command="dummy",
+        args=""
+    )
+    dummy_volunteer_manager = DummyVolunteerManager()
+    response = message_manager.process_message(parsed, parsed.sender, dummy_volunteer_manager, msg_timestamp=123)
+    expected_response = "dummy response"
+    # Cleanup dummy plugin registration.
+    alias_mapping.pop("dummy", None)
+    plugin_registry.pop("dummy", None)
+    assert response == expected_response
 
 # End of tests/core/test_dependency_injection.py

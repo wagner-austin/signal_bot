@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-tests/plugins/test_volunteer_commands.py - Tests volunteer command plugins.
+tests/plugins/test_volunteer_commands.py --- Tests volunteer command plugins.
 Ensures normal usage for register, edit, delete, etc., and verifies that when a volunteer record is missing,
 the response directs the user with the proper welcome prompt.
 """
@@ -16,7 +16,6 @@ from plugins.commands.volunteer import (
 )
 from core.state import BotStateMachine
 from core.database.volunteers import get_volunteer_record
-from managers.pending_actions import PENDING_ACTIONS
 from core.plugin_usage import USAGE_REGISTER_PARTIAL
 from core.messages import REGISTRATION_WELCOME, GETTING_STARTED, ALREADY_REGISTERED
 
@@ -66,7 +65,7 @@ def test_volunteer_edit_command_interactive():
 
 def test_volunteer_delete_command():
     """
-    Tests volunteer deletion with no arguments -> should set a pending deletion state.
+    Tests volunteer deletion with no arguments -> should set a deletion flow state.
     """
     phone = "+80000000004"
     state_machine = BotStateMachine()
