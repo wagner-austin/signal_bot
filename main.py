@@ -1,9 +1,7 @@
 #!/usr/bin/env python
 """
 main.py - Main entry point for the Signal bot.
-Initializes logging, metrics, and the database, creates an automatic backup on startup,
-schedules periodic backups using configurable intervals and retention counts, and then starts the SignalBotService.
-Optionally runs the test suite if the --test flag is provided.
+Initializes logging, backups, plugin loading, and starts the SignalBotService.
 """
 
 import sys
@@ -19,6 +17,7 @@ import logging
 from core.signal_bot_service import SignalBotService
 from db.backup import create_backup, start_periodic_backups
 from core.config import BACKUP_INTERVAL, BACKUP_RETENTION_COUNT
+from plugins.manager import load_plugins, get_all_plugins  # Import plugin loader and getter for logging
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +32,12 @@ async def main() -> None:
     # Schedule periodic backups in the background using configurable interval and retention count.
     asyncio.create_task(start_periodic_backups(interval_seconds=BACKUP_INTERVAL, max_backups=BACKUP_RETENTION_COUNT))
     
+    # Load all plugin modules so that they register their commands.
+    load_plugins()
+    # (Optional) Log the available plugin commands for verification.
+    available_plugins = list(get_all_plugins().keys())
+    logger.info(f"Loaded plugins: {available_plugins}")
+
     # Fast exit if environment variable is set (used by tests to avoid infinite loop).
     if os.environ.get("FAST_EXIT_FOR_TESTS") == "1":
         logger.info("FAST_EXIT_FOR_TESTS is set, stopping early for test.")

@@ -1,6 +1,5 @@
-#!/usr/bin/env python
 """
-test_commands.py - Integration-level plugin test.
+File: tests/plugins/test_commands.py - Integration-level plugin test.
 Ensures that the overall plugin registry is loading commands as expected
 and that each registered plugin function returns a valid response.
 

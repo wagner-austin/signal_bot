@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """
-core/exceptions.py - Central module for custom exception classes with unified error message formatting.
-Provides a base exception class to enforce consistent error messaging across domain errors.
+core/exceptions.py - Central module for custom exception classes.
+Removed ResourceError; only VolunteerError remains for volunteer-related operations.
 """
 
 class DomainError(Exception):
@@ -15,12 +15,6 @@ class DomainError(Exception):
 class VolunteerError(DomainError):
     """
     Raised when volunteer-related operations encounter invalid or inconsistent data.
-    """
-    pass
-
-class ResourceError(DomainError):
-    """
-    Raised when resource-related operations fail due to invalid input or database constraints.
     """
     pass
 

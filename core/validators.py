@@ -10,7 +10,7 @@ CHANGES:
 """
 
 import re
-from core.constants import ALLOWED_CLI_FLAGS, DANGEROUS_PATTERN
+from plugins.constants import ALLOWED_CLI_FLAGS, DANGEROUS_PATTERN
 from core.exceptions import VolunteerError
 
 # Precompile the dangerous pattern regex

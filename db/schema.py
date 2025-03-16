@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 """
-db/schema.py --- Database schema initialization.
-Creates base tables for volunteers, command logs, deleted volunteers, and user states.
-Automatically runs migrations to update the schema with new changes.
+db/schema.py --- Database schema initialization for volunteer tables only.
+Creates Volunteers, DeletedVolunteers, UserStates, then runs migrations.
 """
 
 from .connection import db_connection
@@ -15,6 +14,8 @@ def init_db() -> None:
     """
     with db_connection() as conn:
         cursor = conn.cursor()
+
+        # Volunteers table
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS Volunteers (
             phone TEXT PRIMARY KEY,
@@ -25,15 +26,8 @@ def init_db() -> None:
             preferred_role TEXT
         )
         """)
-        cursor.execute("""
-        CREATE TABLE IF NOT EXISTS CommandLogs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            sender TEXT,
-            command TEXT,
-            args TEXT,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-        """)
+
+        # DeletedVolunteers table
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS DeletedVolunteers (
             phone TEXT PRIMARY KEY,
@@ -45,15 +39,18 @@ def init_db() -> None:
             deleted_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
         """)
-        # Updated UserStates table: use a JSON/text-based column 'flow_state' to store all user states.
+
+        # UserStates table
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS UserStates (
             phone TEXT PRIMARY KEY,
             flow_state TEXT DEFAULT '{}'
         )
         """)
+
         conn.commit()
-    # Run migrations to update or add new tables/columns as needed.
+
+    # Run migrations to keep volunteer schema up to date
     run_migrations()
 
 # End of db/schema.py

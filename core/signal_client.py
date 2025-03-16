@@ -109,7 +109,7 @@ async def process_incoming(state_machine, logger: Optional[logging.Logger] = Non
     from managers.volunteer_manager import VOLUNTEER_MANAGER
     from db.volunteers import get_volunteer_record
     from managers.user_states_manager import has_seen_welcome, mark_welcome_seen
-    from core.messages import GETTING_STARTED
+    from plugins.messages import GETTING_STARTED
 
     messages = await receive_messages(logger=logger)
     processed_count = 0

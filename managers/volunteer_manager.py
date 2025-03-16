@@ -1,205 +1,241 @@
 #!/usr/bin/env python
 """
-managers/volunteer_manager.py
------------------------------
-Core volunteer management for volunteers (registration, deletion, check_in).
-All multi-step flow logic is removed; name 'skip' or 'anonymous' checks happen only in FlowManager.
+managers/volunteer_manager.py - Core volunteer management for registration, deletion, check_in, status, etc.
+All skill and role code has been removed, preserving only name, phone, and availability.
 """
 
 import logging
 from typing import Optional, List, Dict, Any
 
 from core.exceptions import VolunteerError
-from db.volunteers import (
-    get_all_volunteers,
-    get_volunteer_record,
-    add_volunteer_record,
-    update_volunteer_record,
-    delete_volunteer_record,
-    add_deleted_volunteer_record,
-    remove_deleted_volunteer_record
-)
-from core.transaction import atomic_transaction
-from core.concurrency import per_phone_lock
 from core.validators import validate_phone_number
 from managers.utils import normalize_name
-from managers.volunteer_role_manager import ROLE_MANAGER, ROLE_SKILL_REQUIREMENTS
-from managers.volunteer_skills_manager import (
-    unify_skills_preserving_earliest,
-    SKILLS_MANAGER
-)
-from core.messages import (
+from plugins.messages import (
     NEW_VOLUNTEER_REGISTERED,
     VOLUNTEER_UPDATED,
     VOLUNTEER_DELETED,
-    VOLUNTEER_CHECKED_IN
+    VOLUNTEER_CHECKED_IN,
+    VOLUNTEER_NOT_FOUND,
+    VOLUNTEER_NOT_REGISTERED,
+    INVALID_AVAILABILITY_FORMAT
 )
+from core.api.concurrency_api import per_phone_lock_api, atomic_transaction_api
+from core.api import db_api
 
 logger = logging.getLogger(__name__)
 
 class VolunteerManager:
     """
-    VolunteerManager - Orchestrates volunteer operations (register, delete, check_in).
-    Multi-step flow logic (skip, anonymous, partial) is handled in FlowManager.
+    VolunteerManager - Handles volunteer registration, deletion, check_in, and status.
+    Skill and role references have been removed.
     """
 
-    def register_volunteer(self, phone: str, name: str, skills: List[str],
-                           available: bool = True, current_role: Optional[str] = None) -> str:
+    def register_volunteer(self,
+                           phone: str,
+                           name: str,
+                           available: bool = True) -> str:
+        """
+        Register or update a volunteer record, storing just phone, name, and availability.
+        """
         validate_phone_number(phone)
-
         if not isinstance(available, bool):
             try:
                 available = bool(int(available))
             except (ValueError, TypeError):
-                raise VolunteerError("Available must be 0 or 1.")
+                raise VolunteerError(INVALID_AVAILABILITY_FORMAT)
 
-        from db.volunteers import get_volunteer_record as gv_record
-        with per_phone_lock(phone):
-            with atomic_transaction(exclusive=True) as conn:
-                # If previously deleted, remove from DeletedVolunteers
-                remove_deleted_volunteer_record(phone, conn=conn)
+        with per_phone_lock_api(phone):
+            with atomic_transaction_api(exclusive=True) as conn:
+                # Remove from DeletedVolunteers if present
+                self._remove_deleted_volunteer_record(conn, phone)
 
-                record = gv_record(phone, conn=conn)
-                if record:
+                existing = self._get_volunteer_record(conn, phone)
+                if existing:
                     # Update existing
-                    existing_skills = record["skills"]
-                    merged_skills = set(existing_skills).union(s.strip() for s in skills)
-                    new_role = current_role if current_role else record["current_role"]
-                    merged_skills_list = unify_skills_preserving_earliest(list(merged_skills))
-                    update_volunteer_record(
-                        phone,
-                        name,
-                        merged_skills_list,
-                        available,
-                        new_role,
-                        record.get("preferred_role"),
-                        conn=conn
-                    )
+                    self._update_volunteer_record(conn, phone, name, available)
                     logger.info(
-                        f"Volunteer {phone} updated: name='{name}', skills={merged_skills_list}, "
-                        f"available={available}, role='{new_role}'"
+                        f"Volunteer {phone} updated: name='{name}', available={available}"
                     )
                     return VOLUNTEER_UPDATED.format(name=normalize_name(name, phone))
                 else:
-                    # New volunteer
-                    merged_skills_list = unify_skills_preserving_earliest(skills)
-                    role_to_set = current_role if current_role else None
-
-                    add_volunteer_record(
-                        phone, name, merged_skills_list, available, role_to_set, role_to_set, conn=conn
-                    )
+                    # Create new
+                    self._add_volunteer_record(conn, phone, name, available)
                     logger.info(
-                        f"New volunteer {phone} registered: name='{name}', skills={merged_skills_list}, "
-                        f"available={available}, role='{role_to_set}'"
+                        f"New volunteer {phone} registered: name='{name}', available={available}"
                     )
                     return NEW_VOLUNTEER_REGISTERED.format(name=normalize_name(name, phone))
 
     def delete_volunteer(self, phone: str) -> str:
-        record = get_volunteer_record(phone)
-        if not record:
-            raise VolunteerError("You are not registered.")
-        skills = unify_skills_preserving_earliest(record["skills"])
-        add_deleted_volunteer_record(
-            phone,
-            record["name"],
-            skills,
-            record["available"],
-            record["current_role"],
-            record.get("preferred_role")
-        )
-        delete_volunteer_record(phone)
-        logger.info(f"Volunteer {phone} record deleted from the system.")
-        return VOLUNTEER_DELETED
+        """
+        Delete a volunteer by phone, archiving them in DeletedVolunteers.
+        """
+        with per_phone_lock_api(phone):
+            existing = self.get_volunteer_record(phone)
+            if not existing:
+                raise VolunteerError(VOLUNTEER_NOT_REGISTERED)
+            with atomic_transaction_api() as conn:
+                self._add_deleted_volunteer_record(
+                    conn,
+                    phone,
+                    existing["name"],
+                    existing["available"]
+                )
+                self._delete_volunteer_record(conn, phone)
+
+            logger.info(f"Volunteer {phone} record deleted from the system.")
+            return VOLUNTEER_DELETED
 
     def check_in(self, phone: str) -> str:
-        record = get_volunteer_record(phone)
-        if record:
-            merged = unify_skills_preserving_earliest(record["skills"])
-            update_volunteer_record(
-                phone,
-                record["name"],
-                merged,
-                True,
-                record["current_role"],
-                record.get("preferred_role")
-            )
-            logger.info(f"Volunteer {phone} checked in.")
-            return VOLUNTEER_CHECKED_IN.format(name=normalize_name(record['name'], phone))
-        raise VolunteerError("Volunteer not found.")
+        """
+        Mark an existing volunteer as available (true).
+        """
+        with per_phone_lock_api(phone):
+            existing = self.get_volunteer_record(phone)
+            if existing:
+                with atomic_transaction_api() as conn:
+                    self._update_volunteer_record(conn, phone, existing["name"], True)
+                logger.info(f"Volunteer {phone} checked in (now available).")
+                return VOLUNTEER_CHECKED_IN.format(name=normalize_name(existing['name'], phone))
+            raise VolunteerError(VOLUNTEER_NOT_FOUND)
 
     def volunteer_status(self) -> str:
-        all_vols = get_all_volunteers()
+        """
+        Return a string summarizing all volunteers' availability (excluding skills/roles).
+        """
+        all_vols = self._get_all_volunteers()
         lines = []
         for phone, data in all_vols.items():
             name = normalize_name(data.get("name", phone), phone)
             availability = "Available" if data.get("available") else "Not Available"
-            current_role = data.get("current_role") or "None"
-            preferred_role = data.get("preferred_role") or "None"
-            lines.append(f"{name}: {availability}, Assigned Role: {current_role}, Preferred Role: {preferred_role}")
+            lines.append(f"{name}: {availability}")
         return "\n".join(lines)
 
     def list_all_volunteers(self) -> Dict[str, Dict[str, Any]]:
-        return get_all_volunteers()
+        """
+        Return a dictionary phone -> volunteer data (no skill/role).
+        """
+        return self._get_all_volunteers()
 
     def list_all_volunteers_list(self) -> List[Dict[str, Any]]:
-        volunteers_dict = self.list_all_volunteers()
+        """
+        Return a list of volunteer dictionaries.
+        """
+        volunteers_dict = self._get_all_volunteers()
         result = []
         for phone, data in volunteers_dict.items():
             row = {
                 "phone": phone,
                 "name": data.get("name"),
-                "skills": data.get("skills", []),
-                "available": data.get("available"),
-                "current_role": data.get("current_role"),
-                "preferred_role": data.get("preferred_role")
+                "available": data.get("available")
             }
             result.append(row)
         return result
 
     def list_deleted_volunteers(self) -> List[Dict[str, Any]]:
-        from db.repository import execute_sql
+        """
+        Return all records from DeletedVolunteers in descending order by deleted_at.
+        """
         query = "SELECT * FROM DeletedVolunteers ORDER BY deleted_at DESC"
-        return execute_sql(query, fetchall=True)
+        rows = db_api.fetch_all(query)
+        return rows
 
-    # Bridge to role manager
-    def list_roles(self) -> List[str]:
-        return ROLE_MANAGER.list_roles()
+    def get_volunteer_record(self, phone: str) -> Optional[Dict[str, Any]]:
+        """
+        Return a single volunteer record or None if not found.
+        """
+        return self._get_volunteer_record(None, phone)
 
-    def assign_role(self, phone: str, role: str) -> str:
-        return ROLE_MANAGER.assign_role(phone, role)
+    # -----------------------------
+    # Internal Helper Methods
+    # -----------------------------
+    def _get_volunteer_record(self, conn, phone: str) -> Optional[Dict[str, Any]]:
+        query = """
+            SELECT phone, name, available
+            FROM Volunteers
+            WHERE phone = ?
+        """
+        if conn:
+            row = conn.execute(query, (phone,)).fetchone()
+            if row:
+                return {
+                    "name": row["name"],
+                    "available": bool(row["available"])
+                }
+            return None
+        else:
+            row = db_api.fetch_one(query, (phone,))
+            if not row:
+                return None
+            return {
+                "name": row["name"],
+                "available": bool(row["available"])
+            }
 
-    def switch_role(self, phone: str, role: str) -> str:
-        return ROLE_MANAGER.switch_role(phone, role)
+    def _delete_volunteer_record(self, conn, phone: str) -> None:
+        query = "DELETE FROM Volunteers WHERE phone = ?"
+        conn.execute(query, (phone,))
 
-    def unassign_role(self, phone: str) -> str:
-        return ROLE_MANAGER.unassign_role(phone)
+    def _add_volunteer_record(self,
+                              conn,
+                              phone: str,
+                              display_name: str,
+                              available: bool):
+        query = """
+            INSERT OR REPLACE INTO Volunteers
+            (phone, name, available)
+            VALUES (?, ?, ?)
+        """
+        conn.execute(query, (phone, display_name, int(available)))
 
-    # Bridge to skill manager
-    def assign_volunteer(self, skill: str, role: str) -> Optional[str]:
-        return SKILLS_MANAGER.assign_volunteer(skill, role)
+    def _update_volunteer_record(self,
+                                 conn,
+                                 phone: str,
+                                 display_name: str,
+                                 available: bool):
+        query = """
+            UPDATE Volunteers
+            SET name = ?,
+                available = ?
+            WHERE phone = ?
+        """
+        conn.execute(query, (display_name, int(available), phone))
 
-    def add_skills(self, phone: str, new_skills: List[str]) -> str:
-        validate_phone_number(phone)
-        with per_phone_lock(phone):
-            with atomic_transaction(exclusive=True) as conn:
-                record = get_volunteer_record(phone, conn=conn)
-                if not record:
-                    raise VolunteerError("Volunteer not found.")
-                merged = unify_skills_preserving_earliest(record["skills"] + new_skills)
-                update_volunteer_record(
-                    phone,
-                    record["name"],
-                    merged,
-                    record["available"],
-                    record["current_role"],
-                    record.get("preferred_role"),
-                    conn=conn
-                )
-        return f"Skills updated for {record['name']}"
+    def _add_deleted_volunteer_record(self,
+                                      conn,
+                                      phone: str,
+                                      name: str,
+                                      available: bool):
+        query = """
+            INSERT OR REPLACE INTO DeletedVolunteers
+            (phone, name, available)
+            VALUES (?, ?, ?)
+        """
+        conn.execute(query, (phone, name, int(available)))
+
+    def _remove_deleted_volunteer_record(self, conn, phone: str):
+        query = "DELETE FROM DeletedVolunteers WHERE phone = ?"
+        conn.execute(query, (phone,))
+
+    def _get_all_volunteers(self) -> Dict[str, Dict[str, Any]]:
+        """
+        Return phone -> {record_data} for all volunteers (only name, available).
+        """
+        query = "SELECT phone, name, available FROM Volunteers"
+        rows = db_api.fetch_all(query)
+        output = {}
+        for r in rows:
+            phone = r["phone"]
+            output[phone] = {
+                "name": r["name"],
+                "available": bool(r["available"])
+            }
+        return output
+
 
 VOLUNTEER_MANAGER = VolunteerManager()
-def register_volunteer(phone, name, skills, available=True, current_role=None):
-    return VOLUNTEER_MANAGER.register_volunteer(phone, name, skills, available, current_role)
+
+def register_volunteer(phone, name, available=True):
+    return VOLUNTEER_MANAGER.register_volunteer(phone, name, available)
 
 def delete_volunteer(phone):
     return VOLUNTEER_MANAGER.delete_volunteer(phone)
@@ -209,26 +245,5 @@ def check_in(phone):
 
 def volunteer_status():
     return VOLUNTEER_MANAGER.volunteer_status()
-
-def find_available_volunteer(skill: str):
-    return SKILLS_MANAGER.find_available_volunteer(skill)
-
-def get_all_skills():
-    return SKILLS_MANAGER.get_all_skills()
-
-def list_roles():
-    return VOLUNTEER_MANAGER.list_roles()
-
-def assign_role(phone: str, role: str):
-    return VOLUNTEER_MANAGER.assign_role(phone, role)
-
-def switch_role(phone: str, role: str):
-    return VOLUNTEER_MANAGER.switch_role(phone, role)
-
-def unassign_role(phone: str):
-    return VOLUNTEER_MANAGER.unassign_role(phone)
-
-from .volunteer_role_manager import ROLE_SKILL_REQUIREMENTS
-ROLE_SKILL_REQUIREMENTS = ROLE_SKILL_REQUIREMENTS
 
 # End of managers/volunteer_manager.py

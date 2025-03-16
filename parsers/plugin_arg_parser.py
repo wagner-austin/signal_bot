@@ -6,7 +6,7 @@ Raises PluginArgError on invalid arguments.
 """
 
 from typing import Optional, List, Type, TypeVar
-from pydantic import BaseModel, ValidationError, PositiveInt, HttpUrl
+from pydantic import BaseModel, ValidationError
 
 # -----------------------------
 # Exception for usage errors
@@ -16,97 +16,14 @@ class PluginArgError(Exception):
     pass
 
 # -----------------------------
-# Resource Command Models
-# -----------------------------
-class ResourceAddModel(BaseModel):
-    category: str
-    url: HttpUrl
-    title: Optional[str] = ""
-
-class ResourceListModel(BaseModel):
-    category: Optional[str] = None
-
-class ResourceRemoveModel(BaseModel):
-    id: PositiveInt
-
-# -----------------------------
-# Event Command Models
-# -----------------------------
-class PlanEventModel(BaseModel):
-    """Used by 'plan event' subcommand."""
-    title: str
-    date: str
-    time: str
-    location: str
-    description: str
-
-class EditEventModel(BaseModel):
-    """Used by 'edit event' subcommand."""
-    event_id: PositiveInt
-    title: Optional[str] = None
-    date: Optional[str] = None
-    time: Optional[str] = None
-    location: Optional[str] = None
-    description: Optional[str] = None
-
-class RemoveEventByIdModel(BaseModel):
-    """Used by 'remove event' with an EventID."""
-    event_id: PositiveInt
-
-class RemoveEventByTitleModel(BaseModel):
-    """Used by 'remove event' with a Title."""
-    title: str
-
-# -----------------------------
-# Task Command Models
-# -----------------------------
-class TaskAddModel(BaseModel):
-    description: str
-
-class TaskAssignModel(BaseModel):
-    task_id: PositiveInt
-    volunteer_display_name: str
-
-class TaskCloseModel(BaseModel):
-    task_id: PositiveInt
-
-# -----------------------------
-# Role Command Models
-# -----------------------------
-class RoleSetModel(BaseModel):
-    role: str
-
-class RoleSwitchModel(BaseModel):
-    role: str
-
-# -----------------------------
-# System Command Models
-# (for '@bot assign <skill>')
-# -----------------------------
-class SystemAssignModel(BaseModel):
-    skill: str
-
-# -----------------------------
-# Donate Command Models
-# -----------------------------
-class CashDonationArgs(BaseModel):
-    amount: float
-    description: str
-
-class InKindDonationArgs(BaseModel):
-    description: str
-
-class RegisterDonationArgs(BaseModel):
-    method: str
-    description: Optional[str] = ""
-
-# -----------------------------
 # Volunteer Command Models
 # -----------------------------
 class VolunteerFindModel(BaseModel):
+    """Used by 'find' command for searching volunteers by skills."""
     skills: List[str]
 
 class VolunteerAddSkillsModel(BaseModel):
+    """Used by 'add skills' command to add multiple skills to a volunteer."""
     skills: List[str]
 
 # -----------------------------

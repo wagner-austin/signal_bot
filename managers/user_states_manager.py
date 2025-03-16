@@ -1,31 +1,42 @@
-#!/usr/bin/env python
 """
 managers/user_states_manager.py
-----------------------
+-------------------------------
 Manager for multi-flow user state tracking and persistence.
+Now uses core.api.db_api for DB access, but keeps advanced domain logic in place.
 """
 
 import logging
 import json
-from db.connection import get_connection
-from db.repository import UserStatesRepository
+from typing import Dict, Any
+from core.api import db_api
 
 logger = logging.getLogger(__name__)
 
 def _get_user_state_row(phone: str):
-    repo = UserStatesRepository()
-    return repo.get_by_id(phone)
+    """
+    Internal helper to retrieve the user's state row from the DB.
+    Returns a dict or None.
+    """
+    query = "SELECT phone, flow_state FROM UserStates WHERE phone = ?"
+    return db_api.fetch_one(query, (phone,))
 
 def _save_user_state(phone: str, state_data: dict):
-    repo = UserStatesRepository()
-    existing = repo.get_by_id(phone)
+    """
+    Internal helper to insert or update the user's state row in the DB.
+    """
     encoded = json.dumps(state_data)
+    existing = _get_user_state_row(phone)
     if existing:
-        repo.update(phone, {"flow_state": encoded})
+        query = "UPDATE UserStates SET flow_state = ? WHERE phone = ?"
+        db_api.execute_query(query, (encoded, phone), commit=True)
     else:
-        repo.create({"phone": phone, "flow_state": encoded})
+        data = {"phone": phone, "flow_state": encoded}
+        db_api.insert_record("UserStates", data)
 
 def _load_flows_and_active(phone: str) -> dict:
+    """
+    Internal utility to parse the user's flow_state JSON into a dict.
+    """
     row = _get_user_state_row(phone)
     if not row:
         return {"flows": {}, "active_flow": None}
@@ -51,10 +62,6 @@ def mark_welcome_seen(phone: str) -> None:
     _save_user_state(phone, user_state)
 
 def create_flow(phone: str, flow_name: str, start_step: str = "start", initial_data: dict = None):
-    """
-    create_flow - Create/replace a flow for this user, and set it active by default.
-    Defaults the starting step to 'start' so that newly created flows match the test expectations.
-    """
     user_state = _load_flows_and_active(phone)
     user_state["flows"][flow_name] = {
         "step": start_step,

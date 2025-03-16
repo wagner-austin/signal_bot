@@ -1,5 +1,7 @@
 """
-tests/plugins/test_plugin_discovery.py - Tests for plugin discovery using pkgutil in plugins/manager.py.
+File: tests/plugins/test_plugin_discovery.py
+--------------------------------------------
+Tests for plugin discovery using pkgutil in plugins/manager.py.
 Verifies that plugins are correctly discovered, loaded, and reloaded.
 Also includes a test simulating newly added or removed plugin modules at runtime (reload behavior with modified files).
 """
@@ -53,39 +55,26 @@ def test_reload_plugins_with_dynamic_changes():
         pkgutil.ModuleInfo(None, "plugins.commands.new_plugin", False),
     ]
 
-    # We'll track calls to distinguish first load from second load
     call_count = {"count": 0}
 
     def fake_walk_packages(path, prefix):
-        """
-        Returns either initial_module_list or updated_module_list
-        depending on how many times this function has been called.
-        """
         call_count["count"] += 1
         if call_count["count"] == 1:
             return initial_module_list
         else:
             return updated_module_list
 
-    # We'll store a reference to the real import_module for fallback
     real_import_module = importlib.import_module
 
     with patch.object(pkgutil, "walk_packages", side_effect=fake_walk_packages):
-        # Patch importlib.import_module to avoid ModuleNotFoundError on fake modules
         with patch("importlib.import_module") as mock_import:
             def import_side_effect(name, *args, **kwargs):
-                # We will define a dummy plugin in each mock module so that
-                # the plugin manager actually sees it in the registry.
-                # We'll name the canonical plugin after the last segment: e.g. "existing_a".
-                # That way we can confirm it's loaded or removed.
                 if name in {
                     "plugins.commands.existing_a",
                     "plugins.commands.existing_b",
                     "plugins.commands.new_plugin",
                 }:
                     dummy_module = types.ModuleType(name)
-                    # Build a small snippet that registers a plugin named after
-                    # whatever is after the final dot (e.g. "existing_a").
                     final_part = name.split(".")[-1]
                     code = f'''
 from plugins.manager import plugin
@@ -97,7 +86,6 @@ def dummy_plugin_command(args, sender, state_machine, msg_timestamp=None):
                     exec(code, dummy_module.__dict__)
                     return dummy_module
                 else:
-                    # Otherwise, call the real importer
                     return real_import_module(name, *args, **kwargs)
 
             mock_import.side_effect = import_side_effect
@@ -115,11 +103,9 @@ def dummy_plugin_command(args, sender, state_machine, msg_timestamp=None):
             # Second load (reload): should remove 'existing_b' and add 'new_plugin'
             manager.reload_plugins()
             updated_plugins = manager.get_all_plugins()
-            # 'existing_b' should no longer be present
             assert not any("existing_b" in k for k in updated_plugins.keys()), (
                 "Expected 'existing_b' plugin to be removed on reload."
             )
-            # 'new_plugin' should be present now
             assert any("new_plugin" in k for k in updated_plugins.keys()), (
                 "Expected 'new_plugin' to be loaded on reload."
             )

@@ -1,77 +1,132 @@
+#!/usr/bin/env python
 """
-plugins/commands/flow.py - Flow management plugin commands.
-Allows listing, switching, pausing, and creating flows using a unified subcommand dispatcher.
+plugins/commands/flow.py - Flow management plugin. Provides subcommands for listing, switching, pausing, and creating flows.
+Usage:
+  @bot flow list
+  @bot flow switch <flow_name>
+  @bot flow pause [<flow_name>]
+  @bot flow create <flow_name>
 """
 
+import logging
 from typing import Optional, List
 from plugins.manager import plugin
 from core.state import BotStateMachine
-from managers.user_states_manager import list_flows, resume_flow, pause_flow, create_flow
 from plugins.commands.subcommand_dispatcher import handle_subcommands, PluginArgError
+from plugins.abstract import BasePlugin
+from core.api import flow_state_api
+from plugins.messages import (
+    FLOW_SWITCH_USAGE,
+    FLOW_SWITCH_SUCCESS,
+    FLOW_PAUSE_NO_ACTIVE,
+    FLOW_PAUSE_SUCCESS,
+    FLOW_CREATE_USAGE,
+    FLOW_CREATE_SUCCESS,
+    INTERNAL_ERROR
+)
+
+logger = logging.getLogger(__name__)
 
 @plugin(commands=["flow"], canonical="flow")
-def flow_command(args: str, sender: str, state_machine: BotStateMachine,
-                 msg_timestamp: Optional[int] = None) -> str:
+class FlowPlugin(BasePlugin):
     """
-    plugins/commands/flow.py - Flow management plugin.
-    Subcommands:
-      list                   : Show all flows and current active flow.
-      switch <flow_name>     : Resume an existing flow.
-      pause [<flow_name>]    : Pause a flow (defaults to active flow).
-      create <flow_name>     : Create or reset a flow.
-    USAGE: @bot flow <list|switch|pause|create> ...
+    Flow management plugin.
+    Provides subcommands to list, switch, pause, and create flows.
+    Usage:
+      @bot flow list
+      @bot flow switch <flow_name>
+      @bot flow pause [<flow_name>]
+      @bot flow create <flow_name>
     """
-    usage = "Usage: @bot flow <list|switch|pause|create> ..."
+    def __init__(self):
+        super().__init__(
+            "flow",
+            help_text=(
+                "Flow management plugin.\n\n"
+                "Usage:\n"
+                "  @bot flow list\n"
+                "  @bot flow switch <flow_name>\n"
+                "  @bot flow pause\n"
+                "  @bot flow create <flow_name>"
+            )
+        )
+        self.logger = logging.getLogger(__name__)
 
-    def sub_list(rest: List[str]) -> str:
-        info = list_flows(sender)
+    def run_command(
+        self,
+        args: str,
+        sender: str,
+        state_machine: BotStateMachine,
+        msg_timestamp: Optional[int] = None
+    ) -> str:
+        usage = (
+            "Usage: @bot flow <list|switch|pause|create> [args]\n"
+            "Examples:\n"
+            "  @bot flow list\n"
+            "  @bot flow switch myFlow\n"
+            "  @bot flow pause\n"
+            "  @bot flow create newFlow"
+        )
+        subcommands = {
+            "list":   lambda rest: self._sub_list(rest, sender),
+            "switch": lambda rest: self._sub_switch(rest, sender),
+            "pause":  lambda rest: self._sub_pause(rest, sender),
+            "create": lambda rest: self._sub_create(rest, sender),
+        }
+        try:
+            return handle_subcommands(
+                args,
+                subcommands=subcommands,
+                usage_msg=usage,
+                unknown_subcmd_msg="Unknown subcommand. See usage: " + usage
+            )
+        except PluginArgError as e:
+            self.logger.error(f"Argument parsing error in flow command: {e}", exc_info=True)
+            return str(e)
+        except Exception as e:
+            self.logger.error(f"Unexpected error in flow command: {e}", exc_info=True)
+            return INTERNAL_ERROR
+
+    def _sub_list(self, rest: List[str], sender: str) -> str:
+        """List all flows for the user."""
+        info = self._list_flows(sender)
         lines = [f"Active Flow: {info['active_flow'] or 'None'}"]
         for fname, details in info["flows"].items():
             lines.append(f"- {fname} (step={details['step']}, data_count={details['data_count']})")
         return "\n".join(lines)
 
-    def sub_switch(rest: List[str]) -> str:
+    def _sub_switch(self, rest: List[str], sender: str) -> str:
+        """Switch to a specified flow."""
         if not rest:
-            return "Usage: @bot flow switch <flow_name>"
+            return FLOW_SWITCH_USAGE
         flow_name = rest[0]
-        resume_flow(sender, flow_name)
-        return f"Switched to flow '{flow_name}'."
+        flow_state_api.resume_flow(sender, flow_name)
+        return FLOW_SWITCH_SUCCESS.format(flow_name=flow_name)
 
-    def sub_pause(rest: List[str]) -> str:
+    def _sub_pause(self, rest: List[str], sender: str) -> str:
+        """Pause the active flow or a specific flow name."""
         if rest:
             flow_name = rest[0]
         else:
-            info = list_flows(sender)
+            info = self._list_flows(sender)
             flow_name = info["active_flow"]
             if not flow_name:
-                return "No active flow to pause."
-        pause_flow(sender, flow_name)
-        return f"Paused flow '{flow_name}'."
+                return FLOW_PAUSE_NO_ACTIVE
+        flow_state_api.pause_flow(sender, flow_name)
+        return FLOW_PAUSE_SUCCESS.format(flow_name=flow_name)
 
-    def sub_create(rest: List[str]) -> str:
+    def _sub_create(self, rest: List[str], sender: str) -> str:
+        """Create and activate a new flow."""
         if not rest:
-            return "Usage: @bot flow create <flow_name>"
+            return FLOW_CREATE_USAGE
         flow_name = rest[0]
-        create_flow(sender, flow_name)
-        return f"Flow '{flow_name}' created and set active."
+        flow_state_api.start_flow(sender, flow_name)
+        return FLOW_CREATE_SUCCESS.format(flow_name=flow_name)
 
-    subcommands = {
-        "list": sub_list,
-        "switch": sub_switch,
-        "pause": sub_pause,
-        "create": sub_create
-    }
-
-    try:
-        return handle_subcommands(
-            args,
-            subcommands,
-            usage_msg=usage,
-            unknown_subcmd_msg="Unknown subcommand"
-        )
-    except PluginArgError as e:
-        return str(e)
-    except Exception as e:
-        return f"An internal error occurred in flow_command: {e}"
+    def _list_flows(self, phone: str) -> dict:
+        """
+        Retrieve a dictionary with "active_flow" and "flows" for the user.
+        """
+        return flow_state_api.list_flows(phone)
 
 # End of plugins/commands/flow.py

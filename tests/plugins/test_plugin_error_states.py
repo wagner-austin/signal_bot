@@ -1,7 +1,7 @@
-#!/usr/bin/env python
 """
-tests/plugins/test_plugin_error_states.py --- Plugin error state tests.
-Covers a plugin that raises an unhandled exception,
+File: tests/plugins/test_plugin_error_states.py
+-----------------------------------------------
+Plugin error state tests. Covers a plugin that raises an unhandled exception,
 and plugins that return non-string results (lists, integers, etc.).
 """
 
@@ -9,7 +9,7 @@ import pytest
 import logging
 from managers.message.message_dispatcher import dispatch_message
 from parsers.message_parser import ParsedMessage
-from plugins.manager import plugin_registry, alias_mapping
+from plugins.manager import plugin_registry, alias_mapping, clear_plugins
 from core.state import BotStateMachine
 from managers.volunteer_manager import VOLUNTEER_MANAGER
 
@@ -28,8 +28,10 @@ def dummy_state_machine():
 def test_plugin_returning_non_string(dummy_logger, dummy_state_machine):
     """
     Dynamically register a plugin that returns a list instead of a string.
-    Confirm it logs a warning about non-string results and returns empty string.
+    Confirm it logs a warning about non-string results and returns an empty string.
     """
+    clear_plugins()
+
     def return_list(args, sender, state_machine, msg_timestamp=None):
         return ["This", "is", "a", "list"]
 
@@ -53,8 +55,7 @@ def test_plugin_returning_non_string(dummy_logger, dummy_state_machine):
     try:
         response = dispatch_message(parsed, parsed.sender, dummy_state_machine,
                                     volunteer_manager=VOLUNTEER_MANAGER, msg_timestamp=123, logger=logging.getLogger())
-        # We expect an empty string
-        assert response == ""
+        assert response == "", "Expected empty string due to non-string return."
         logs = dummy_logger.text
         assert "returned a non-string result" in logs.lower()
     finally:
@@ -66,6 +67,8 @@ def test_plugin_raising_exception(dummy_logger, dummy_state_machine):
     Dynamically register a plugin that raises an exception. Confirm dispatch_message
     returns the 'internal error' message and logs an exception.
     """
+    clear_plugins()
+
     def explode_plugin(args, sender, state_machine, msg_timestamp=None):
         raise RuntimeError("Boom!")
 
@@ -101,6 +104,8 @@ def test_plugin_returning_int(dummy_logger, dummy_state_machine):
     Dynamically register a plugin that returns an integer instead of a string.
     Confirm it logs a warning about non-string results and returns an empty string.
     """
+    clear_plugins()
+
     def return_int(args, sender, state_machine, msg_timestamp=None):
         return 42
 
@@ -124,7 +129,7 @@ def test_plugin_returning_int(dummy_logger, dummy_state_machine):
     try:
         response = dispatch_message(parsed, parsed.sender, dummy_state_machine,
                                     volunteer_manager=VOLUNTEER_MANAGER, msg_timestamp=123, logger=logging.getLogger())
-        assert response == ""
+        assert response == "", "Expected empty string due to non-string return."
         logs = dummy_logger.text
         assert "returned a non-string result" in logs.lower()
     finally:

@@ -3,7 +3,7 @@
 tests/core/test_constants.py – Test for core/constants.py: Verify constant definitions.
 """
 import re
-import core.constants as constants
+import plugins.constants as constants
 
 def test_skip_values_is_set():
     assert isinstance(constants.SKIP_VALUES, set)

@@ -9,7 +9,7 @@ import logging
 import re
 from typing import List, Tuple, Optional, Callable, Any
 from core.config import SIGNAL_CLI_COMMAND, BOT_NUMBER
-from core.constants import ALLOWED_CLI_FLAGS, DANGEROUS_PATTERN  # For any legacy usage
+from plugins.constants import ALLOWED_CLI_FLAGS, DANGEROUS_PATTERN  # For any legacy usage
 from core.validators import validate_cli_args, CLIValidationError  # Imported validation utilities
 
 logger = logging.getLogger(__name__)

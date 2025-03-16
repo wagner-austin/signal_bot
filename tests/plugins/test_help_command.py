@@ -1,16 +1,18 @@
-#!/usr/bin/env python
 """
-test_help_command.py - Tests for the 'help' command plugin.
+File: tests/plugins/test_help_command.py
+----------------------------------------
+Tests for the 'help' command plugin.
 Verifies that the plugin returns a non-empty string and references at least one whitelisted command.
 """
 
 import pytest
-from plugins.commands.help import help_command
 from core.state import BotStateMachine
+from plugins.manager import get_plugin
 
 def test_help_command():
     state_machine = BotStateMachine()
-    response = help_command("", "+dummy", state_machine, msg_timestamp=123)
+    help_plugin = get_plugin("help")
+    response = help_plugin("", "+dummy", state_machine, msg_timestamp=123)
 
     assert isinstance(response, str), "help_command did not return a string."
     assert response.strip(), "help_command returned an empty or whitespace-only response."

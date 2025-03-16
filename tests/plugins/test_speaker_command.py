@@ -1,13 +1,13 @@
-#!/usr/bin/env python
 """
-tests/plugins/test_speaker_command.py - Tests for speaker command plugin.
-Verifies handling of missing fields and proper addition/removal of speakers.
+File: tests/plugins/test_speaker_command.py
+------------------------------------------
+Tests for speaker command plugins. Verifies handling of missing fields and proper addition/removal of speakers.
 """
 
 import pytest
-from plugins.commands.speaker import add_speaker_command, remove_speaker_command
 from core.state import BotStateMachine
 from managers.event_manager import create_event
+from plugins.manager import get_plugin
 
 @pytest.fixture
 def state_machine():
@@ -19,16 +19,14 @@ def sample_event():
     return ev_id
 
 def test_add_speaker_missing_fields(state_machine, sample_event):
-    response = add_speaker_command(
-        f"default EventID: {sample_event}, Name: SpeakerOne",
-        "+dummy",
-        state_machine
-    )
-    from core.plugin_usage import USAGE_ADD_SPEAKER
+    add_speaker_plugin = get_plugin("add speaker")
+    response = add_speaker_plugin(f"default EventID: {sample_event}, Name: SpeakerOne", "+dummy", state_machine)
+    from plugins.plugin_usage import USAGE_ADD_SPEAKER
     assert USAGE_ADD_SPEAKER.lower() in response.lower()
 
 def test_add_speaker_success(state_machine, sample_event):
-    response = add_speaker_command(
+    add_speaker_plugin = get_plugin("add speaker")
+    response = add_speaker_plugin(
         f"default EventID: {sample_event}, Name: GoodSpeaker, Topic: GreatTopic",
         "+dummy",
         state_machine
@@ -36,16 +34,17 @@ def test_add_speaker_success(state_machine, sample_event):
     assert "assigned to event id" in response.lower()
 
 def test_remove_speaker_non_existent(state_machine, sample_event):
-    response = remove_speaker_command(
+    remove_speaker_plugin = get_plugin("remove speaker")
+    response = remove_speaker_plugin(
         f"default EventID: {sample_event}, Name: NoSuchSpeaker",
         "+dummy",
         state_machine
     )
-    # For non-existent speaker removal, the response might still indicate a removal attempt.
     assert "removed from event id" in response.lower()
 
 def test_add_speaker_no_eventid(state_machine):
-    response = add_speaker_command(
+    add_speaker_plugin = get_plugin("add speaker")
+    response = add_speaker_plugin(
         "default Name: Mystery, Topic: Something",
         "+dummy",
         state_machine

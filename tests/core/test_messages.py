@@ -4,7 +4,7 @@ tests/core/test_messages.py - Tests for core/messages constants.
 Verifies that key message constants are defined and non-empty, including new unified interactive prompts.
 """
 
-import core.messages as messages
+import plugins.messages as messages
 
 def test_registration_prompt():
     assert messages.REGISTRATION_WELCOME and isinstance(messages.REGISTRATION_WELCOME, str)
@@ -20,9 +20,6 @@ def test_edit_prompt():
 def test_deletion_prompts():
     assert messages.DELETION_PROMPT
     assert messages.DELETION_CANCELED
-
-def test_feedback_usage():
-    assert "Usage:" in messages.FEEDBACK_USAGE
 
 def test_new_volunteer_registered():
     formatted = messages.NEW_VOLUNTEER_REGISTERED.format(name="Test")

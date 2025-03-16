@@ -1,6 +1,7 @@
-#!/usr/bin/env python
 """
-tests/plugins/test_plugin_alias_normalization.py - Tests for plugin alias normalization.
+File: tests/plugins/test_plugin_alias_normalization.py
+------------------------------------------------------
+Tests for plugin alias normalization.
 Verifies that duplicate aliases (even with different formatting) raise an error and that aliases are normalized.
 Also tests that substring/prefix aliases like "info" vs. "information" do not conflict under exact matching rules.
 """

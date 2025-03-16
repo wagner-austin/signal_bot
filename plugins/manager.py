@@ -1,23 +1,25 @@
+#!/usr/bin/env python
 """
 plugins/manager.py - Unified plugin manager with alias support.
-Handles registration, loading, and retrieval of plugins using centralized and standardized alias definitions.
-Now includes enhanced error handling for import-time exceptions, optional concurrent module loading,
-and automatic plugin categorization.
+Handles registration, loading, and retrieval of plugins, as well as runtime enable/disable functionality.
+This module supports both function-based and class-based plugins.
 """
 
 import sys
+import inspect
 import importlib
 import pkgutil
 import logging
-from typing import Callable, Any, Optional, Dict, List, Union
+from typing import Callable, Any, Optional, Dict, List, Union, Set
 
-# Setup logger for the module
 logger = logging.getLogger(__name__)
 
-# Registry: key = canonical command, value = dict with function, aliases, help_visible flag, and category.
+# Registry: key = canonical command, value = dict with function, aliases, help_visible, and category.
 plugin_registry: Dict[str, Dict[str, Any]] = {}
 # Alias mapping: key = alias (normalized), value = canonical command.
 alias_mapping: Dict[str, str] = {}
+# Track disabled plugins by canonical command name.
+disabled_plugins: Set[str] = set()
 
 def normalize_alias(alias: str) -> str:
     """
@@ -28,67 +30,100 @@ def normalize_alias(alias: str) -> str:
 def plugin(commands: Union[str, List[str]],
            canonical: Optional[str] = None,
            help_visible: bool = True,
-           category: Optional[str] = None) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+           category: Optional[str] = None) -> Callable[[Any], Any]:
     """
-    Decorator to register a function as a command plugin with one or more aliases.
-    Optionally specify a canonical name and a category (e.g., "Volunteer Commands", "Admin Commands").
-    The category is used for help grouping.
+    Decorator to register a function or class as a plugin command with aliases.
+
+    Parameters:
+      commands (Union[str, List[str]]): Command aliases.
+      canonical (Optional[str]): Primary command name (default is first alias).
+      help_visible (bool): If True, command is shown in help listings.
+      category (Optional[str]): Command category.
+
+    Usage Example:
+      @plugin(['delete', 'remove'], canonical='delete')
+      class DeletePlugin(BasePlugin):
+          ...
     """
     if isinstance(commands, str):
         commands = [commands]
-    
+
     normalized_commands = [normalize_alias(cmd) for cmd in commands]
-    
-    if canonical is None:
-        canonical = normalized_commands[0]
-    else:
-        canonical = normalize_alias(canonical)
-    
-    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
-        # Register canonical command with its aliases, help visibility, and category.
-        plugin_registry[canonical] = {
-            "function": func,
-            "aliases": normalized_commands,
-            "help_visible": help_visible,
-            "category": category if category is not None else "Miscellaneous Commands"
-        }
-        # Map each alias to the canonical command.
+
+    canonical_name = normalize_alias(canonical) if canonical else normalized_commands[0]
+
+    def decorator(obj: Any) -> Any:
+        if inspect.isclass(obj):
+            instance = obj()  # Instantiate once
+
+            def plugin_func(args, sender, state_machine, msg_timestamp=None):
+                return instance.run_command(args, sender, state_machine, msg_timestamp)
+
+            plugin_registry[canonical_name] = {
+                "function": plugin_func,
+                "aliases": normalized_commands,
+                "help_visible": help_visible,
+                "category": category or "Miscellaneous Commands",
+            }
+        else:
+            if not hasattr(obj, "help_text"):
+                obj.help_text = ""
+            plugin_registry[canonical_name] = {
+                "function": obj,
+                "aliases": normalized_commands,
+                "help_visible": help_visible,
+                "category": category or "Miscellaneous Commands",
+            }
+
+        # Map all aliases to the canonical command.
         for alias in normalized_commands:
-            if alias in alias_mapping and alias_mapping[alias] != canonical:
-                raise ValueError(f"Duplicate alias detected: '{alias}' is already assigned to '{alias_mapping[alias]}'.")
-            alias_mapping[alias] = canonical
-        return func
+            if alias in alias_mapping and alias_mapping[alias] != canonical_name:
+                raise ValueError(f"Duplicate alias '{alias}' already exists for '{alias_mapping[alias]}'.")
+            alias_mapping[alias] = canonical_name
+
+        return obj
+
     return decorator
 
 def get_plugin(command: str) -> Optional[Callable[..., Any]]:
     """
-    Retrieve the plugin function for a given command by looking up the alias mapping.
+    Retrieve the plugin function for the given command alias.
+    Returns None if not found or if the plugin is disabled.
     """
     canonical = alias_mapping.get(normalize_alias(command))
-    if canonical:
-        entry = plugin_registry.get(canonical)
-        if entry:
-            return entry["function"]
-    return None
+    if not canonical or canonical in disabled_plugins:
+        return None
+    return plugin_registry.get(canonical, {}).get("function")
 
 def get_all_plugins() -> Dict[str, Dict[str, Any]]:
     """
-    Return all registered plugins as a dictionary keyed by canonical command names.
+    Retrieve all registered plugins.
     """
     return plugin_registry
 
+def disable_plugin(canonical_name: str) -> None:
+    """
+    Disable a plugin by its canonical name.
+    """
+    disabled_plugins.add(normalize_alias(canonical_name))
+
+def enable_plugin(canonical_name: str) -> None:
+    """
+    Enable a previously disabled plugin.
+    """
+    disabled_plugins.discard(normalize_alias(canonical_name))
+
 def clear_plugins() -> None:
     """
-    Clear all registered plugins and alias mappings.
+    Clear all registered plugins and aliases.
     """
     plugin_registry.clear()
     alias_mapping.clear()
+    disabled_plugins.clear()
 
 def import_module_safe(module_name: str) -> None:
     """
-    Attempt to import or reload a module safely.
-    If the module is already in sys.modules, it is reloaded.
-    Exceptions during import are caught and logged, allowing the process to continue.
+    Safely import or reload a module.
     """
     try:
         if module_name in sys.modules:
@@ -102,39 +137,36 @@ def import_module_safe(module_name: str) -> None:
 
 def load_plugins(concurrent: bool = False) -> None:
     """
-    Automatically import (or reload) all plugin modules in the 'plugins.commands'
-    package to register all plugins.
-    
-    If an import fails, the error is logged and the process continues with other modules.
-    Optionally, modules can be imported concurrently by setting concurrent=True.
-    
-    Parameters:
-        concurrent (bool): If True, import modules concurrently using a thread pool.
+    Load all plugin modules from 'plugins.commands'.
     """
-    import plugins.commands  # Ensure the package is imported.
+    import plugins.commands
     module_infos = list(pkgutil.walk_packages(plugins.commands.__path__, plugins.commands.__name__ + "."))
     module_names = {module_info.name for module_info in module_infos}
-    
+
+    def import_module_safe(name):
+        try:
+            importlib.import_module(name)
+            logger.info(f"Imported module '{name}'.")
+        except Exception as e:
+            logger.error(f"Failed to import module '{name}': {e}", exc_info=True)
+
     if concurrent:
         from concurrent.futures import ThreadPoolExecutor, as_completed
         with ThreadPoolExecutor() as executor:
-            futures = {executor.submit(import_module_safe, module_name): module_name for module_name in module_names}
+            futures = {executor.submit(import_module_safe, name): name for name in module_names}
             for future in as_completed(futures):
-                module_name = futures[future]
+                mname = futures[future]
                 try:
                     future.result()
                 except Exception as e:
-                    logger.error(f"Unexpected error importing module '{module_name}': {e}", exc_info=True)
+                    logger.error(f"Unexpected error importing module '{mname}': {e}", exc_info=True)
     else:
-        for module_name in module_names:
-            import_module_safe(module_name)
+        for mname in module_names:
+            import_module_safe(mname)
 
 def reload_plugins(concurrent: bool = False) -> None:
     """
-    Reload all plugin modules dynamically by clearing the plugin registry and re-importing modules.
-    
-    Parameters:
-        concurrent (bool): If True, modules are reloaded concurrently.
+    Clear existing plugins and reload all plugins.
     """
     clear_plugins()
     load_plugins(concurrent=concurrent)
