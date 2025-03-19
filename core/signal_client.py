@@ -108,7 +108,8 @@ async def process_incoming(state_machine, logger: Optional[logging.Logger] = Non
         logger = logging.getLogger(__name__)
     from managers.volunteer_manager import VOLUNTEER_MANAGER
     from db.volunteers import get_volunteer_record
-    from managers.user_states_manager import has_seen_welcome, mark_welcome_seen
+    # Updated import for welcome-state tracking
+    from core.api.user_state_api import has_user_seen_welcome, mark_user_has_seen_welcome
     from plugins.messages import GETTING_STARTED
 
     messages = await receive_messages(logger=logger)
@@ -131,9 +132,9 @@ async def process_incoming(state_machine, logger: Optional[logging.Logger] = Non
         processed_count += 1
 
         # If sender is unregistered and has not seen the welcome message, send GETTING_STARTED separately.
-        if get_volunteer_record(parsed.sender) is None and not has_seen_welcome(parsed.sender):
+        if get_volunteer_record(parsed.sender) is None and not has_user_seen_welcome(parsed.sender):
             await send_message(parsed.sender, GETTING_STARTED)
-            mark_welcome_seen(parsed.sender)
+            mark_user_has_seen_welcome(parsed.sender)
 
         quote_details = _get_quote_details(parsed)
         response = message_manager.process_message(parsed, parsed.sender, VOLUNTEER_MANAGER, msg_timestamp=parsed.timestamp)
