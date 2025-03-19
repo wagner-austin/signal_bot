@@ -7,14 +7,15 @@ No usage (not a plugin).
 
 # Registration Messages
 REGISTRATION_WELCOME = (
-    "Please provide your first and last name or type 'skip' to remain anonymous."
+    "What name would you like to use?\n"
+    "or type 'skip' to continue without sharing a name."
 )
 REGISTRATION_COMPLETED_ANONYMOUS = (
-    "Registration completed. You are now 'Anonymous'."
+    "Registered anonymously."
 )
 ALREADY_REGISTERED_WITH_INSTRUCTIONS = (
     'You are already registered as "{name}". '
-    "Use @bot edit to change your name or @bot delete to remove your profile."
+    "Use '@bot edit' to change your name or '@bot delete' to remove your profile."
 )
 
 # New Volunteer or Update
@@ -22,7 +23,7 @@ NEW_VOLUNTEER_REGISTERED = 'New volunteer "{name}" has been registered.'
 VOLUNTEER_UPDATED = 'Volunteer "{name}" updated.'
 
 # Edit Messages
-EDIT_PROMPT = "Starting edit flow. Provide your new name or 'skip' to cancel."
+EDIT_PROMPT = "Would you like to edit your name?. Provide your new name or 'skip' to cancel."
 EDIT_CANCELED = "Editing cancelled."
 EDIT_CANCELED_WITH_NAME = 'Editing cancelled. You remain "{name}".'
 EDIT_NOT_REGISTERED = (
@@ -31,7 +32,7 @@ EDIT_NOT_REGISTERED = (
 )
 
 # Deletion Messages
-DELETION_PROMPT = "Starting deletion flow. Type 'yes' to confirm or anything else to cancel."
+DELETION_PROMPT = "Would you like to delete your account? Type 'yes' to confirm or anything else to cancel."
 DELETION_CANCELED = "Deletion cancelled."
 NOTHING_TO_DELETE = "You are not currently registered; nothing to delete."
 DELETION_CONFIRM = "Type 'delete' to confirm removing your registration."
@@ -44,7 +45,7 @@ FLOW_BUSY_MESSAGE = (
 )
 
 # Check-in Message
-VOLUNTEER_CHECKED_IN = "Volunteer has been checked in and is now available."
+VOLUNTEER_CHECKED_IN = "You have been checked in and are now available."
 
 # Plugin/System Messages
 BOT_SHUTDOWN = "Bot is shutting down."

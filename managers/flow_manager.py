@@ -143,8 +143,8 @@ class FlowManager:
             self.pause_flow(phone, REGISTRATION_FLOW)
             return messages.REGISTRATION_COMPLETED_ANONYMOUS
 
-        # If user gave something but too short (less than 2 words), ask again
-        if len(stripped_input.split()) < 2:
+        # If user gave something but too short (less than 1 words), ask again
+        if len(stripped_input.split()) < 1:
             return messages.REGISTRATION_WELCOME
 
         # Final: register with provided name
