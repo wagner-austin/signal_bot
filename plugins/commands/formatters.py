@@ -1,6 +1,7 @@
 """
-plugins/commands/formatters.py - Formatters for volunteer data.
-Provides helper functions to format volunteer and deleted volunteer records.
+plugins/commands/formatters.py
+------------------------------
+Format volunteer and deleted volunteer records without displaying phone numbers.
 """
 
 def _ensure_dict(item):
@@ -14,14 +15,12 @@ def _ensure_dict(item):
 
 def format_volunteer(vol: dict) -> str:
     """
-    Format a single volunteer record dictionary.
+    Format a single volunteer record dictionary, excluding phone number.
     """
     vol = _ensure_dict(vol)
-    phone = vol.get("phone")
     name = vol.get("name")
     available = vol.get("available")
     return (
-        f"Phone: {phone}\n"
         f"Name: {name}\n"
         f"Available: {available}\n"
         + "-" * 40
@@ -29,11 +28,10 @@ def format_volunteer(vol: dict) -> str:
 
 def format_deleted_volunteer(data: dict) -> str:
     """
-    Format a deleted volunteer record.
+    Format a deleted volunteer record, excluding phone number.
     """
     data = _ensure_dict(data)
     return (
-        f"Phone: {data.get('phone')}\n"
         f"Name: {data.get('name')}\n"
         f"Available: {data.get('available')}\n"
         f"Deleted At: {data.get('deleted_at')}\n"

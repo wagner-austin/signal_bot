@@ -15,7 +15,8 @@ from plugins.messages import BOT_SHUTDOWN, INTERNAL_ERROR
 
 logger = logging.getLogger(__name__)
 
-@plugin('shutdown', canonical='shutdown')
+@plugin(['shutdown', 'shut down'], canonical='shutdown')
+
 class ShutdownPlugin(BasePlugin):
     """
     Shut down the bot.
