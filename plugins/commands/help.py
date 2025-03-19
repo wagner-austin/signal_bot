@@ -29,7 +29,7 @@ class HelpPlugin(BasePlugin):
     def __init__(self):
         super().__init__(
             "help",
-            help_text="List available commands.\n\nUsage:\n  @bot help"
+            help_text="List available commands."
         )
         self.logger = logging.getLogger(__name__)
 

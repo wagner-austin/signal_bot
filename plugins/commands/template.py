@@ -33,7 +33,7 @@ class TemplatePlugin(BasePlugin):
     def __init__(self):
         super().__init__(
             "template",
-            help_text="A sample plugin demonstrating concurrency, DB usage, and multi-step flows.\nUsage:\n  @bot template <start|pause|resume>"
+            help_text="A sample plugin demonstrating concurrency, DB usage, and multi-step flows."
         )
         self.logger = logging.getLogger(__name__)
         self.subcommands = {

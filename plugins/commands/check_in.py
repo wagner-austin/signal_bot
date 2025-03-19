@@ -30,7 +30,7 @@ class CheckInPlugin(BasePlugin):
     def __init__(self):
         super().__init__(
             "check in",
-            help_text="Mark volunteer as available.\n\nUsage:\n  @bot check in"
+            help_text="Mark yourself available."
         )
         self.logger = logging.getLogger(__name__)
 

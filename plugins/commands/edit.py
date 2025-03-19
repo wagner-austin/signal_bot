@@ -14,7 +14,7 @@ from core.permissions import REGISTERED
 from core.state import BotStateMachine
 from plugins.abstract import BasePlugin
 from core.api import flow_state_api
-from plugins.messages import EDIT_PROMPT, INTERNAL_ERROR
+from plugins.messages import INTERNAL_ERROR
 
 logger = logging.getLogger(__name__)
 
@@ -29,8 +29,7 @@ class EditPlugin(BasePlugin):
     def __init__(self):
         super().__init__(
             "edit",
-            help_text="Start or continue the edit flow.\n\nUsage:\n  @bot edit <new name or skip>"
-        )
+            help_text="Change your registration name.")
         self.logger = logging.getLogger(__name__)
 
     def run_command(
@@ -44,8 +43,6 @@ class EditPlugin(BasePlugin):
         active_flow = flow_state_api.get_active_flow(sender)
         if not active_flow:
             flow_state_api.start_flow(sender, "volunteer_edit")
-            if not user_input:
-                return EDIT_PROMPT
         try:
             return flow_state_api.handle_flow_input(sender, user_input)
         except Exception as e:

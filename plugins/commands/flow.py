@@ -43,13 +43,7 @@ class FlowPlugin(BasePlugin):
         super().__init__(
             "flow",
             help_text=(
-                "Flow management plugin.\n\n"
-                "Usage:\n"
-                "  @bot flow list\n"
-                "  @bot flow switch <flow_name>\n"
-                "  @bot flow pause\n"
-                "  @bot flow create <flow_name>"
-            )
+                "See the different Flows active on account.")
         )
         self.logger = logging.getLogger(__name__)
 

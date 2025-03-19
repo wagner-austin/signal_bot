@@ -28,7 +28,7 @@ class InfoPlugin(BasePlugin):
     def __init__(self):
         super().__init__(
             "info",
-            help_text="Display bot information.\n\nUsage:\n  @bot info"
+            help_text="Display information about our cause."
         )
         self.logger = logging.getLogger(__name__)
 

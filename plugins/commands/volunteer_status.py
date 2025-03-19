@@ -30,7 +30,7 @@ class VolunteerStatusPlugin(BasePlugin):
     def __init__(self):
         super().__init__(
             "volunteer status",
-            help_text="Show volunteer status (name & availability) for all volunteers without showing phone numbers.\n\nUsage:\n  @bot volunteer status"
+            help_text="Show name & availability for all volunteers."
         )
         self.logger = logging.getLogger(__name__)
 

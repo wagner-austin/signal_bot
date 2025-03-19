@@ -30,7 +30,7 @@ class CheckOutPlugin(BasePlugin):
     def __init__(self):
         super().__init__(
             "check out",
-            help_text="Mark volunteer as unavailable (checked out).\n\nUsage:\n  @bot check out"
+            help_text="Mark yourself unavailable."
         )
         self.logger = logging.getLogger(__name__)
 

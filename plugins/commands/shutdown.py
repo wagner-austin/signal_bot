@@ -28,7 +28,7 @@ class ShutdownPlugin(BasePlugin):
     def __init__(self):
         super().__init__(
             "shutdown",
-            help_text="Shut down the bot.\n\nUsage:\n  @bot shutdown"
+            help_text="Shut down the program."
         )
         self.logger = logging.getLogger(__name__)
         self.subcommands = {"default": self._default_subcmd}

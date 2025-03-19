@@ -30,12 +30,7 @@ class PluginManagerCommand(BasePlugin):
         super().__init__(
             "plugin",
             help_text=(
-                "Manage plugins at runtime.\n\n"
-                "Usage:\n"
-                "  @bot plugin list\n"
-                "  @bot plugin enable <plugin_name>\n"
-                "  @bot plugin disable <plugin_name>"
-            )
+                "Manage plugins, list, enable, disable.")
         )
         self.logger = logging.getLogger(__name__)
         self.subcommands = {

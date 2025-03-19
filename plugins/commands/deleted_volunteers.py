@@ -30,7 +30,7 @@ class DeletedVolunteersPlugin(BasePlugin):
     def __init__(self):
         super().__init__(
             "deleted volunteers",
-            help_text="List deleted volunteer records.\n\nUsage:\n  @bot deleted volunteers"
+            help_text="List deleted volunteer records."
         )
         self.logger = logging.getLogger(__name__)
 
