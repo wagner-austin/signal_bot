@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """
 plugins/commands/deleted_volunteers.py
 --------------------------------------

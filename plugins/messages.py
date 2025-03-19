@@ -1,4 +1,3 @@
-# File: plugins/messages.py
 """
 plugins/messages.py
 -------------------
@@ -92,5 +91,8 @@ INTERNAL_ERROR = "An internal error occurred. Please try again later."
 GETTING_STARTED = (
     "Welcome to the 50501 OC bot! You can type '@bot help' to see available commands."
 )
+
+# **New** constant for deleted volunteers
+NO_DELETED_VOLUNTEERS_FOUND = "No deleted volunteers found."
 
 # End of plugins/messages.py
