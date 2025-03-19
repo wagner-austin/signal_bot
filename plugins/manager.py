@@ -3,6 +3,11 @@
 plugins/manager.py - Unified plugin manager with alias support.
 Handles registration, loading, and retrieval of plugins, along with their metadata.
 Maintains runtime enable/disable functionality and supports both function-based and class-based plugins.
+
+Now enforces role-based permission checks for each plugin command by comparing
+the volunteer's actual role with the plugin's required_role.
+
+Focuses on modular, unified, consistent code that facilitates future updates.
 """
 
 import sys
@@ -10,16 +15,21 @@ import inspect
 import importlib
 import pkgutil
 import logging
+import difflib
 from typing import Callable, Any, Optional, Dict, List, Union, Set
 
 logger = logging.getLogger(__name__)
 
-# Registry: key = canonical command, value = dict with function, aliases, help_visible, category, and help_text.
+# Import role constants and permission check
+from core.permissions import OWNER, ADMIN, REGISTERED, EVERYONE, has_permission
+
+# Registry: key = canonical command, value = dict with function, aliases, help_visible, category, help_text, required_role.
 plugin_registry: Dict[str, Dict[str, Any]] = {}
 # Alias mapping: key = alias (normalized), value = canonical command.
 alias_mapping: Dict[str, str] = {}
 # Track disabled plugins by canonical command name.
 disabled_plugins: Set[str] = set()
+
 
 def normalize_alias(alias: str) -> str:
     """
@@ -27,10 +37,14 @@ def normalize_alias(alias: str) -> str:
     """
     return alias.strip().lower()
 
-def plugin(commands: Union[str, List[str]],
-           canonical: Optional[str] = None,
-           help_visible: bool = True,
-           category: Optional[str] = None) -> Callable[[Any], Any]:
+
+def plugin(
+    commands: Union[str, List[str]],
+    canonical: Optional[str] = None,
+    help_visible: bool = True,
+    category: Optional[str] = None,
+    required_role: str = OWNER
+) -> Callable[[Any], Any]:
     """
     Decorator to register a function or class as a plugin command with aliases.
 
@@ -39,11 +53,7 @@ def plugin(commands: Union[str, List[str]],
       canonical (Optional[str]): Primary command name (default is first alias).
       help_visible (bool): If True, command is shown in help listings.
       category (Optional[str]): Command category.
-
-    Usage Example:
-      @plugin(['delete', 'remove'], canonical='delete')
-      class DeletePlugin(BasePlugin):
-          ...
+      required_role (str): Minimum role required to execute this plugin. Defaults to OWNER.
     """
     if isinstance(commands, str):
         commands = [commands]
@@ -52,9 +62,9 @@ def plugin(commands: Union[str, List[str]],
     canonical_name = normalize_alias(canonical) if canonical else normalized_commands[0]
 
     def decorator(obj: Any) -> Any:
+        import inspect
         if inspect.isclass(obj):
             instance = obj()  # Instantiate once
-            # Determine help text: prefer instance.help_text; fallback to class docstring.
             help_text = getattr(instance, "help_text", "") or (obj.__doc__ or "").strip()
             def plugin_func(args, sender, state_machine, msg_timestamp=None):
                 return instance.run_command(args, sender, state_machine, msg_timestamp)
@@ -64,11 +74,11 @@ def plugin(commands: Union[str, List[str]],
                 "help_visible": help_visible,
                 "category": category or "Miscellaneous Commands",
                 "help_text": help_text,
+                "required_role": required_role,
             }
         else:
             if not hasattr(obj, "help_text"):
                 obj.help_text = ""
-            # Determine help text: prefer obj.help_text; fallback to function docstring.
             help_text = getattr(obj, "help_text", "") or (obj.__doc__ or "").strip()
             plugin_registry[canonical_name] = {
                 "function": obj,
@@ -76,6 +86,7 @@ def plugin(commands: Union[str, List[str]],
                 "help_visible": help_visible,
                 "category": category or "Miscellaneous Commands",
                 "help_text": help_text,
+                "required_role": required_role,
             }
 
         # Map all aliases to the canonical command.
@@ -88,6 +99,7 @@ def plugin(commands: Union[str, List[str]],
 
     return decorator
 
+
 def get_plugin(command: str) -> Optional[Callable[..., Any]]:
     """
     Retrieve the plugin function for the given command alias.
@@ -98,11 +110,13 @@ def get_plugin(command: str) -> Optional[Callable[..., Any]]:
         return None
     return plugin_registry.get(canonical, {}).get("function")
 
+
 def get_all_plugins() -> Dict[str, Dict[str, Any]]:
     """
     Retrieve all registered plugins.
     """
     return plugin_registry
+
 
 def disable_plugin(canonical_name: str) -> None:
     """
@@ -110,11 +124,13 @@ def disable_plugin(canonical_name: str) -> None:
     """
     disabled_plugins.add(normalize_alias(canonical_name))
 
+
 def enable_plugin(canonical_name: str) -> None:
     """
     Enable a previously disabled plugin.
     """
     disabled_plugins.discard(normalize_alias(canonical_name))
+
 
 def clear_plugins() -> None:
     """
@@ -123,6 +139,7 @@ def clear_plugins() -> None:
     plugin_registry.clear()
     alias_mapping.clear()
     disabled_plugins.clear()
+
 
 def import_module_safe(module_name: str) -> None:
     """
@@ -138,6 +155,7 @@ def import_module_safe(module_name: str) -> None:
     except Exception as e:
         logger.error(f"Failed to import module '{module_name}': {e}", exc_info=True)
 
+
 def load_plugins(concurrent: bool = False) -> None:
     """
     Load all plugin modules from 'plugins.commands'.
@@ -146,7 +164,7 @@ def load_plugins(concurrent: bool = False) -> None:
     module_infos = list(pkgutil.walk_packages(plugins.commands.__path__, plugins.commands.__name__ + "."))
     module_names = {module_info.name for module_info in module_infos}
 
-    def import_module_safe(name):
+    def import_module_inner(name):
         try:
             importlib.import_module(name)
             logger.info(f"Imported module '{name}'.")
@@ -156,7 +174,7 @@ def load_plugins(concurrent: bool = False) -> None:
     if concurrent:
         from concurrent.futures import ThreadPoolExecutor, as_completed
         with ThreadPoolExecutor() as executor:
-            futures = {executor.submit(import_module_safe, name): name for name in module_names}
+            futures = {executor.submit(import_module_inner, name): name for name in module_names}
             for future in as_completed(futures):
                 mname = futures[future]
                 try:
@@ -165,7 +183,8 @@ def load_plugins(concurrent: bool = False) -> None:
                     logger.error(f"Unexpected error importing module '{mname}': {e}", exc_info=True)
     else:
         for mname in module_names:
-            import_module_safe(mname)
+            import_module_inner(mname)
+
 
 def reload_plugins(concurrent: bool = False) -> None:
     """
@@ -173,5 +192,87 @@ def reload_plugins(concurrent: bool = False) -> None:
     """
     clear_plugins()
     load_plugins(concurrent=concurrent)
+
+
+def dispatch_message(parsed, sender, state_machine, volunteer_manager, msg_timestamp=None, logger=None) -> str:
+    """
+    dispatch_message - Processes an incoming message by dispatching commands to plugins.
+    Also enforces role-based permissions by comparing the user's volunteer role
+    to the plugin's required_role.
+    """
+    if logger is None:
+        logger = logging.getLogger(__name__)
+
+    command: Optional[str] = parsed.command
+    args: Optional[str] = parsed.args
+
+    if not command:
+        return ""
+
+    # Attempt to find the plugin info by direct alias lookup
+    canonical_cmd = alias_mapping.get(normalize_alias(command))
+    plugin_info = None
+    if canonical_cmd is not None:
+        plugin_info = plugin_registry.get(canonical_cmd)
+
+    # If not found, attempt fuzzy matching
+    if not plugin_info:
+        available_commands = list(plugin_registry.keys())
+        matches = difflib.get_close_matches(normalize_alias(command), available_commands, n=1, cutoff=0.75)
+        if matches:
+            matched_cmd = matches[0]
+            plugin_info = plugin_registry[matched_cmd]
+            logger.info(f"Fuzzy matching: '{command}' -> '{matched_cmd}'")
+            # If the matched plugin is disabled, treat as None
+            if matched_cmd in disabled_plugins:
+                return f"Plugin '{matched_cmd}' is currently disabled."
+        else:
+            return ""
+
+    # If somehow still None, bail out
+    if not plugin_info:
+        return ""
+
+    # Check if plugin is disabled
+    canon_name = None
+    for k, v in plugin_registry.items():
+        if v is plugin_info:
+            canon_name = k
+            break
+    if canon_name and canon_name in disabled_plugins:
+        return f"Plugin '{canon_name}' is currently disabled."
+
+    # Enforce role-based permission
+    required_role = plugin_info.get("required_role", OWNER)
+
+    # Fetch user's volunteer record
+    user_record = volunteer_manager.get_volunteer_record(sender)
+    if not user_record:
+        user_role = EVERYONE
+    else:
+        user_role = user_record.get("role", EVERYONE)
+
+    if not has_permission(user_role, required_role):
+        return "You do not have permission to use this command."
+
+    # Finally dispatch the plugin function
+    plugin_func = plugin_info.get("function")
+    if not plugin_func:
+        return ""
+
+    try:
+        response = plugin_func(args or "", sender, state_machine, msg_timestamp=msg_timestamp)
+        if response is None:
+            return f"Plugin '{canon_name or command}' is currently disabled."
+        if not isinstance(response, str):
+            logger.warning(f"Plugin '{canon_name or command}' returned non-string or None. Returning empty string.")
+            response = ""
+        return response
+    except Exception as e:
+        logger.exception(
+            f"Error executing plugin for command '{command}' with args '{args}' "
+            f"from sender '{sender}': {e}"
+        )
+        return "An internal error occurred while processing your command."
 
 # End of plugins/manager.py

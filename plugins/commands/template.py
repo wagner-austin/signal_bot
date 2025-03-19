@@ -11,6 +11,7 @@ Usage:
 import logging
 from typing import Optional, List
 from plugins.manager import plugin
+from core.permissions import ADMIN
 from plugins.abstract import BasePlugin
 from core.state import BotStateMachine
 
@@ -21,7 +22,7 @@ from plugins.messages import INTERNAL_ERROR, TEMPLATE_FLOW_STARTED, TEMPLATE_FLO
 
 logger = logging.getLogger(__name__)
 
-@plugin(commands=["template"], canonical="template")
+@plugin(commands=["template"], canonical="template", required_role=ADMIN)
 class TemplatePlugin(BasePlugin):
     """
     Template plugin for new command development.

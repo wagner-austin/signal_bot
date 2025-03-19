@@ -1,19 +1,22 @@
 #!/usr/bin/env python
 """
-managers/message_manager.py - Aggregated message manager for unified flow and plugin dispatch.
-Processes incoming messages by checking for an active flow first, and if none exists, dispatches to the appropriate plugin.
+File: managers/message_manager.py
+---------------------------------
+Aggregated message manager for unified flow and plugin dispatch.
+Processes incoming messages by checking for an active flow first,
+and if none exists, dispatches to the appropriate plugin.
 Returns a single string response.
 """
 
 from typing import Any, Optional, TYPE_CHECKING
+
 if TYPE_CHECKING:
     from parsers.message_parser import ParsedMessage
 
-from core.state import BotStateMachine
-from managers.message.message_dispatcher import dispatch_message
-from core.api.flow_state_api import get_active_flow
-from plugins.manager import get_plugin
 import logging
+from core.state import BotStateMachine
+from core.api.flow_state_api import get_active_flow
+from plugins.manager import get_plugin, dispatch_message  # <-- Updated import here
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +47,7 @@ class MessageManager:
             from managers.flow_manager import FlowManager
             fm = FlowManager()
             return fm.handle_flow_input(sender, parsed.body or "")
-        
+
         # 2) If not in a flow, check for a plugin command and dispatch it
         if parsed.command:
             plugin_func = get_plugin(parsed.command)
@@ -56,7 +59,7 @@ class MessageManager:
                     volunteer_manager,
                     msg_timestamp=msg_timestamp
                 )
-        
+
         # 3) Return empty string if neither a flow nor a plugin command applies
         return ""
 

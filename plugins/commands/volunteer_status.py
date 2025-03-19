@@ -10,6 +10,7 @@ Usage:
 import logging
 from typing import Optional
 from plugins.manager import plugin
+from core.permissions import REGISTERED
 from core.state import BotStateMachine
 from plugins.abstract import BasePlugin
 from core.api import flow_state_api
@@ -18,7 +19,7 @@ from plugins.messages import FLOW_BUSY_MESSAGE, NO_VOLUNTEERS_FOUND, VOLUNTEER_S
 
 logger = logging.getLogger(__name__)
 
-@plugin("volunteer status", canonical="volunteer status")
+@plugin("volunteer status", canonical="volunteer status", required_role=REGISTERED)
 class VolunteerStatusPlugin(BasePlugin):
     """
     Show volunteer status for all volunteers without displaying phone numbers.

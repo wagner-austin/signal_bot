@@ -11,6 +11,7 @@ Usage:
 import logging
 from typing import Optional, List
 from plugins.manager import plugin
+from core.permissions import ADMIN
 from core.state import BotStateMachine
 from plugins.commands.subcommand_dispatcher import handle_subcommands, PluginArgError
 from plugins.abstract import BasePlugin
@@ -27,7 +28,7 @@ from plugins.messages import (
 
 logger = logging.getLogger(__name__)
 
-@plugin(commands=["flow"], canonical="flow")
+@plugin(commands=["flow"], canonical="flow", required_role=ADMIN)
 class FlowPlugin(BasePlugin):
     """
     Flow management plugin.

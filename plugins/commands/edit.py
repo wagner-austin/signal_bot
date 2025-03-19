@@ -10,6 +10,7 @@ Usage:
 import logging
 from typing import Optional
 from plugins.manager import plugin
+from core.permissions import REGISTERED
 from core.state import BotStateMachine
 from plugins.abstract import BasePlugin
 from core.api import flow_state_api
@@ -17,7 +18,7 @@ from plugins.messages import EDIT_PROMPT, INTERNAL_ERROR
 
 logger = logging.getLogger(__name__)
 
-@plugin(["edit"], canonical="edit", help_visible=True)
+@plugin(["edit"], canonical="edit", help_visible=True, required_role=REGISTERED)
 class EditPlugin(BasePlugin):
     """
     Start or continue the edit flow.

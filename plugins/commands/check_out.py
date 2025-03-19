@@ -10,6 +10,7 @@ Usage:
 import logging
 from typing import Optional
 from plugins.manager import plugin
+from core.permissions import REGISTERED
 from core.state import BotStateMachine
 from plugins.abstract import BasePlugin
 from core.api import flow_state_api
@@ -19,7 +20,7 @@ from plugins.messages import FLOW_BUSY_MESSAGE, INTERNAL_ERROR
 
 logger = logging.getLogger(__name__)
 
-@plugin(["check out"], canonical="check out")
+@plugin(["check out"], canonical="check out", required_role=REGISTERED)
 class CheckOutPlugin(BasePlugin):
     """
     Mark volunteer as unavailable (checked out).

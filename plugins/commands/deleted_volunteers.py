@@ -9,6 +9,7 @@ Usage:
 import logging
 from typing import Optional
 from plugins.manager import plugin
+from core.permissions import OWNER  
 from core.state import BotStateMachine
 from plugins.abstract import BasePlugin
 from core.api import flow_state_api
@@ -18,7 +19,7 @@ from plugins.messages import FLOW_BUSY_MESSAGE, NO_DELETED_VOLUNTEERS_FOUND, INT
 
 logger = logging.getLogger(__name__)
 
-@plugin("deleted volunteers", canonical="deleted volunteers")
+@plugin("deleted volunteers", canonical="deleted volunteers", required_role=OWNER)
 class DeletedVolunteersPlugin(BasePlugin):
     """
     List deleted volunteer records.

@@ -10,13 +10,14 @@ Usage:
 import logging
 from typing import Optional
 from plugins.manager import plugin
+from core.permissions import EVERYONE
 from core.state import BotStateMachine
 from plugins.abstract import BasePlugin
 from plugins.messages import INFO_USAGE, INFO_TEXT, INTERNAL_ERROR
 
 logger = logging.getLogger(__name__)
 
-@plugin(["info"], canonical="info")
+@plugin(["info"], canonical="info", required_role=EVERYONE)
 class InfoPlugin(BasePlugin):
     """
     Display bot information.

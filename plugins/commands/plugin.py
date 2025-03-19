@@ -10,13 +10,14 @@ Usage:
 import logging
 from typing import Optional, List
 from plugins.manager import plugin, get_all_plugins, enable_plugin, disable_plugin, disabled_plugins
+from core.permissions import ADMIN
 from core.state import BotStateMachine
 from plugins.commands.subcommand_dispatcher import handle_subcommands, PluginArgError
 from plugins.abstract import BasePlugin
 
 logger = logging.getLogger(__name__)
 
-@plugin(commands=['plugin'], canonical='plugin')
+@plugin(commands=['plugin'], canonical='plugin', required_role=ADMIN)
 class PluginManagerCommand(BasePlugin):
     """
     Manage plugins at runtime with subcommands: list, enable, disable.

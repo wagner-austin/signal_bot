@@ -4,11 +4,15 @@ db/volunteers.py
 ----------------
 Volunteer-related database operations using a repository pattern.
 Removes domain logic (unify_skills_preserving_earliest) to avoid circular imports.
+
+Now uses only a single 'role' column; references to 'current_role' or 'preferred_role'
+are removed. Retains 'skills' and availability logic as before.
+
+Focuses on modular, unified, consistent code that facilitates future updates.
 """
 
 from typing import Dict, Any, Optional, List
 from db.repository import VolunteerRepository, DeletedVolunteerRepository
-# Removed circular import to managers.volunteer_skills_manager
 from core.serialization_utils import (
     serialize_list,
     deserialize_list
@@ -32,8 +36,7 @@ def get_all_volunteers(conn=None) -> Dict[str, Dict[str, Any]]:
             "name": row["name"],
             "skills": deserialize_list(row["skills"]),
             "available": bool(row["available"]),
-            "current_role": row["current_role"],
-            "preferred_role": row["preferred_role"]
+            "role": row["role"]
         }
     return output
 
@@ -52,18 +55,19 @@ def get_volunteer_record(phone: str, conn=None) -> Optional[Dict[str, Any]]:
             "name": row["name"],
             "skills": deserialize_list(row["skills"]),
             "available": bool(row["available"]),
-            "current_role": row["current_role"],
-            "preferred_role": row["preferred_role"]
+            "role": row["role"]
         }
     return None
 
 
-def add_volunteer_record(phone: str, display_name: str, skills: list,
-                         available: bool, current_role: Optional[str],
-                         preferred_role: Optional[str] = None, conn=None) -> None:
+def add_volunteer_record(phone: str,
+                         display_name: str,
+                         skills: list,
+                         available: bool,
+                         role: Optional[str] = 'registered',
+                         conn=None) -> None:
     """
-    Create/replace a volunteer record in the Volunteers table.
-    The manager layer is responsible for unifying skills before calling this function.
+    Create/replace a volunteer record in the Volunteers table with a single role field.
     """
     repo = VolunteerRepository(
         connection_provider=lambda: conn or get_connection(),
@@ -74,18 +78,19 @@ def add_volunteer_record(phone: str, display_name: str, skills: list,
         "name": display_name,
         "skills": serialize_list(skills),
         "available": int(available),
-        "current_role": current_role,
-        "preferred_role": preferred_role
+        "role": role
     }
     repo.create(data, replace=True)
 
 
-def update_volunteer_record(phone: str, display_name: str, skills: list,
-                            available: bool, current_role: Optional[str],
-                            preferred_role: Optional[str] = None, conn=None) -> None:
+def update_volunteer_record(phone: str,
+                            display_name: str,
+                            skills: list,
+                            available: bool,
+                            role: str,
+                            conn=None) -> None:
     """
-    update_volunteer_record - Update an existing volunteer record, including an optional preferred_role.
-    The manager layer is responsible for unifying skills before calling this function.
+    update_volunteer_record - Update an existing volunteer record, including the single 'role'.
     """
     repo = VolunteerRepository(
         connection_provider=lambda: conn or get_connection(),
@@ -95,8 +100,7 @@ def update_volunteer_record(phone: str, display_name: str, skills: list,
         "name": display_name,
         "skills": serialize_list(skills),
         "available": int(available),
-        "current_role": current_role,
-        "preferred_role": preferred_role
+        "role": role
     }
     repo.update(phone, data)
 
@@ -112,11 +116,14 @@ def delete_volunteer_record(phone: str, conn=None) -> None:
     repo.delete(phone)
 
 
-def add_deleted_volunteer_record(phone: str, name: str, skills: list, available: bool,
-                                 current_role: Optional[str], preferred_role: Optional[str] = None, conn=None) -> None:
+def add_deleted_volunteer_record(phone: str,
+                                 name: str,
+                                 skills: list,
+                                 available: bool,
+                                 role: str,
+                                 conn=None) -> None:
     """
-    Insert a record into DeletedVolunteers.
-    The manager layer is responsible for unifying skills before calling this function.
+    Insert a record into DeletedVolunteers using a single 'role' column.
     """
     repo = DeletedVolunteerRepository(
         connection_provider=lambda: conn or get_connection(),
@@ -127,8 +134,7 @@ def add_deleted_volunteer_record(phone: str, name: str, skills: list, available:
         "name": name,
         "skills": serialize_list(skills),
         "available": int(available),
-        "current_role": current_role,
-        "preferred_role": preferred_role
+        "role": role
     }
     repo.create(data, replace=True)
 

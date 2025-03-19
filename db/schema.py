@@ -2,6 +2,7 @@
 """
 db/schema.py --- Database schema initialization for volunteer tables only.
 Creates Volunteers, DeletedVolunteers, UserStates, then runs migrations.
+Focuses on modular, unified, consistent code that facilitates future updates.
 """
 
 from .connection import db_connection
@@ -22,8 +23,7 @@ def init_db() -> None:
             name TEXT,
             skills TEXT,
             available INTEGER,
-            current_role TEXT,
-            preferred_role TEXT
+            role TEXT NOT NULL DEFAULT 'registered'
         )
         """)
 
@@ -34,8 +34,7 @@ def init_db() -> None:
             name TEXT,
             skills TEXT,
             available INTEGER,
-            current_role TEXT,
-            preferred_role TEXT,
+            role TEXT NOT NULL DEFAULT 'registered',
             deleted_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
         """)

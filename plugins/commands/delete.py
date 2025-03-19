@@ -10,6 +10,7 @@ Usage:
 import logging
 from typing import Optional
 from plugins.manager import plugin
+from core.permissions import REGISTERED
 from core.state import BotStateMachine
 from plugins.abstract import BasePlugin
 from core.api import flow_state_api
@@ -17,7 +18,7 @@ from plugins.messages import DELETION_PROMPT, INTERNAL_ERROR
 
 logger = logging.getLogger(__name__)
 
-@plugin(["delete", "del", "stop", "unsubscribe", "remove", "opt out"], canonical="delete", help_visible=True)
+@plugin(["delete", "del", "stop", "unsubscribe", "remove", "opt out"], canonical="delete", help_visible=True, required_role=REGISTERED)
 class DeletePlugin(BasePlugin):
     """
     Start or continue the volunteer deletion flow.

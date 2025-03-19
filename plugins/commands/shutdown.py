@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 """
-plugins/commands/shutdown.py - Shutdown command plugin. Shuts down the bot.
+plugins/commands/shutdown.py
+----------------------------
+Summary: Shutdown command plugin. Shuts down the bot.
 Usage:
   @bot shutdown
 """
@@ -8,6 +10,7 @@ Usage:
 import logging
 from typing import Optional, List
 from plugins.manager import plugin
+from core.permissions import OWNER
 from core.state import BotStateMachine
 from plugins.commands.subcommand_dispatcher import handle_subcommands, PluginArgError
 from plugins.abstract import BasePlugin
@@ -15,8 +18,7 @@ from plugins.messages import BOT_SHUTDOWN, INTERNAL_ERROR
 
 logger = logging.getLogger(__name__)
 
-@plugin(['shutdown', 'shut down'], canonical='shutdown')
-
+@plugin(['shutdown', 'shut down'], canonical='shutdown', required_role=OWNER)
 class ShutdownPlugin(BasePlugin):
     """
     Shut down the bot.

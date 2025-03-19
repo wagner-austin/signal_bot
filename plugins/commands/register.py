@@ -10,6 +10,7 @@ Usage:
 import logging
 from typing import Optional
 from plugins.manager import plugin
+from core.permissions import EVERYONE
 from core.state import BotStateMachine
 from plugins.abstract import BasePlugin
 from core.api import flow_state_api
@@ -22,7 +23,7 @@ from plugins.messages import (
 
 logger = logging.getLogger(__name__)
 
-@plugin(["register"], canonical="register")
+@plugin(["register"], canonical="register", required_role=EVERYONE)
 class RegisterPlugin(BasePlugin):
     """
     Start or continue the registration flow.

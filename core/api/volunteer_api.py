@@ -4,6 +4,14 @@ core/api/volunteer_api.py
 -------------------------
 Provides stable functions to manage volunteers.
 Re-exports selected methods from the internal VolunteerManager for plugin usage.
+Now clarifies that new volunteers receive a default 'registered' role, or
+retain their existing role upon updates.
+
+Usage Example:
+    from core.api.volunteer_api import register_volunteer
+
+    msg = register_volunteer("+15551234567", "Alice", True)
+    print(msg)
 """
 
 import logging
@@ -27,8 +35,10 @@ def register_volunteer(phone: str,
     """
     register_volunteer(phone, name, available=True) -> str
     ------------------------------------------------------
-    Create or update a volunteer with the given phone and name.
-    Returns a user-facing confirmation message. Raises VolunteerError if invalid phone.
+    Create or update a volunteer with the given phone and name. New volunteers
+    are assigned the default role 'registered'. If the phone already exists,
+    the existing role is preserved. Returns a user-facing confirmation message.
+    Raises VolunteerError if invalid phone.
 
     Usage Example:
         from core.api.volunteer_api import register_volunteer
@@ -70,7 +80,7 @@ def volunteer_status() -> str:
     volunteer_status() -> str
     --------------------------
     Returns a text summary of all volunteers' availability.
-    This is primarily for debugging or listing in a plugin command.
+    Useful for debugging or listing in a plugin command.
     """
     return mgr_volunteer_status()
 
@@ -95,7 +105,7 @@ def list_all_volunteers_list() -> List[Dict[str, Any]]:
     """
     list_all_volunteers_list() -> list of dict
     ------------------------------------------
-    Return a list of all volunteer records (phone, name, available).
+    Return a list of all volunteer records (including phone, name, availability, role).
     """
     return VOLUNTEER_MANAGER.list_all_volunteers_list()
 
