@@ -119,48 +119,83 @@ class FlowManager:
     # Internal Flow Handlers
     # --------------------------------------------------------
     def _handle_registration_flow(self, phone: str, user_input: str) -> str:
+        """
+        Handle input for the multi-step volunteer registration flow.
+        If the user is already registered, return an 'already registered' message.
+        If input is empty, return the 'registration welcome' prompt.
+        If input is 'skip', register as Anonymous.
+        If the name is too short (<2 words), re-prompt by returning the welcome again.
+        Otherwise, register with the provided name.
+        """
         record = get_volunteer_record(phone)
         if record:
             self.pause_flow(phone, REGISTRATION_FLOW)
             return messages.ALREADY_REGISTERED_WITH_INSTRUCTIONS.format(name=record["name"])
 
-        stripped_input = user_input.strip().lower()
-        if not stripped_input or stripped_input == "skip":
+        stripped_input = user_input.strip()
+        if not stripped_input:
+            # Prompt user for name
+            return messages.REGISTRATION_WELCOME
+
+        lower_input = stripped_input.lower()
+        if lower_input == "skip":
             VOLUNTEER_MANAGER.register_volunteer(phone, "Anonymous", available=True)
             self.pause_flow(phone, REGISTRATION_FLOW)
             return messages.REGISTRATION_COMPLETED_ANONYMOUS
-        else:
-            # Attempt to set the provided name
-            if len(user_input.strip().split()) < 2:
-                return messages.REGISTRATION_WELCOME
-            response = VOLUNTEER_MANAGER.register_volunteer(
-                phone, user_input.strip(), available=True
-            )
-            self.pause_flow(phone, REGISTRATION_FLOW)
-            return response
+
+        # If user gave something but too short (less than 2 words), ask again
+        if len(stripped_input.split()) < 2:
+            return messages.REGISTRATION_WELCOME
+
+        # Final: register with provided name
+        response = VOLUNTEER_MANAGER.register_volunteer(phone, stripped_input, available=True)
+        self.pause_flow(phone, REGISTRATION_FLOW)
+        return response
 
     def _handle_edit_flow(self, phone: str, user_input: str) -> str:
+        """
+        Handle input for the multi-step edit flow.
+        If user is not registered, pivot to registration flow.
+        If user_input is empty, show the edit prompt.
+        If user_input is cancel/skip, pause the flow with a message.
+        Otherwise, update the name and pause the flow.
+        """
         record = get_volunteer_record(phone)
         if not record:
             self.pause_flow(phone, EDIT_FLOW)
             self.start_flow(phone, REGISTRATION_FLOW)
             return messages.EDIT_NOT_REGISTERED
 
-        user_input_lower = user_input.strip().lower()
-        if not user_input_lower or user_input_lower in ["cancel", "skip"]:
+        stripped = user_input.strip()
+        user_input_lower = stripped.lower()
+
+        if not user_input_lower:
+            # Prompt user for new name
+            return messages.EDIT_PROMPT
+
+        if user_input_lower in ["cancel", "skip"]:
             self.pause_flow(phone, EDIT_FLOW)
             return messages.EDIT_CANCELED_WITH_NAME.format(name=record["name"])
 
         # Normal name update
         response = VOLUNTEER_MANAGER.register_volunteer(
             phone,
-            user_input.strip(),
+            stripped,
             available=record["available"]
         )
         self.pause_flow(phone, EDIT_FLOW)
         return response
 
     def _handle_deletion_flow(self, phone: str, user_input: str) -> str:
+        """
+        Handle input for the multi-step deletion flow.
+        If user not found, pause flow & inform user there's nothing to delete.
+        On the 'start' step, if user input is empty, prompt for confirmation.
+        If user says 'yes' or 'y' or 'sure', go to 'confirm' step.
+        If user says anything else, cancel deletion.
+        On the 'confirm' step, if user says 'delete', perform deletion.
+        Otherwise, cancel deletion.
+        """
         record = get_volunteer_record(phone)
         if not record:
             self.pause_flow(phone, DELETION_FLOW)
@@ -170,7 +205,9 @@ class FlowManager:
         current_step = self._get_flow_step(phone, DELETION_FLOW) or "start"
 
         if current_step == "start":
-            # first prompt
+            # If user input is empty, prompt them
+            if not step_input:
+                return messages.DELETION_PROMPT
             if step_input in {"yes", "y", "sure"}:
                 self._set_flow_step(phone, DELETION_FLOW, "confirm")
                 return messages.DELETION_CONFIRM_PROFILE
@@ -179,9 +216,8 @@ class FlowManager:
                 return messages.DELETION_CANCELED
 
         elif current_step == "confirm":
-            # second prompt
             if step_input == "delete":
-                confirmation = VOLUNTEER_MANAGER.delete_volunteer(phone)
+                VOLUNTEER_MANAGER.delete_volunteer(phone)
                 self.pause_flow(phone, DELETION_FLOW)
                 return messages.VOLUNTEER_DELETED
             else:
