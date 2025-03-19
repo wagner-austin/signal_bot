@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 """
-core/signal_client.py --- Encapsulates functions to interact with signal-cli.
+core/signal_client.py - Encapsulates functions to interact with signal-cli.
 Uses MessageManager for processing incoming messages and sending responses.
-Supports dependency injection for the logger.
+Handles non-text messages by skipping their dispatch.
 """
 
 import asyncio
@@ -117,14 +117,24 @@ async def process_incoming(state_machine, logger: Optional[logging.Logger] = Non
     for message in messages:
         logger.info(f"Processing message:\n{message}\n")
         parsed = parse_message(message)
-        if not parsed.sender or not parsed.body:
-            logger.warning(f"Skipping message due to missing sender or body. Parsed: {parsed}")
+        
+        # Skip non-text messages (e.g., typing or receipt messages)
+        if parsed.message_type != "text":
+            logger.info(f"Skipping non-text message of type '{parsed.message_type}'. Parsed: {parsed}")
             continue
+
+        # Downgrade log level for messages missing sender or body
+        if not parsed.sender or not parsed.body:
+            logger.debug(f"Skipping message due to missing sender or body. Parsed: {parsed}")
+            continue
+
         processed_count += 1
+
         # If sender is unregistered and has not seen the welcome message, send GETTING_STARTED separately.
         if get_volunteer_record(parsed.sender) is None and not has_seen_welcome(parsed.sender):
             await send_message(parsed.sender, GETTING_STARTED)
             mark_welcome_seen(parsed.sender)
+
         quote_details = _get_quote_details(parsed)
         response = message_manager.process_message(parsed, parsed.sender, VOLUNTEER_MANAGER, msg_timestamp=parsed.timestamp)
         if asyncio.iscoroutine(response):

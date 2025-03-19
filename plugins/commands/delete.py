@@ -1,9 +1,8 @@
-# File: plugins/commands/delete.py
+#!/usr/bin/env python
 """
-plugins/commands/delete.py
----------
-Summary: 'delete' plugin command. Initiates or continues the volunteer deletion flow.
-usage: @bot delete
+plugins/commands/delete.py - 'delete' plugin command.
+Initiates or continues the volunteer deletion flow.
+Usage: @bot delete
 """
 
 import logging
@@ -34,17 +33,14 @@ class DeletePlugin(BasePlugin):
 
     def run_command(self, args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
         usage = "Usage: @bot delete"
-        tokens = args.strip().split(None, 1)
-        subcmd = tokens[0].lower() if tokens else "default"
-        if subcmd != "default":
-            return "Unknown subcommand. See usage: " + usage
         subcommands = {"default": lambda rest: self._sub_default(rest, sender)}
         try:
             return handle_subcommands(
                 args,
                 subcommands=subcommands,
                 usage_msg=usage,
-                unknown_subcmd_msg="Unknown subcommand. See usage: " + usage
+                unknown_subcmd_msg="Unknown subcommand. See usage: " + usage,
+                default_subcommand="default"
             )
         except PluginArgError as e:
             self.logger.error(f"Argument parsing error in delete command: {e}", exc_info=True)
@@ -54,11 +50,17 @@ class DeletePlugin(BasePlugin):
             return INTERNAL_ERROR
 
     def _sub_default(self, rest: List[str], sender: str) -> str:
-        user_input = " ".join(rest)
+        """
+        Handle the default subcommand for deletion.
+        Starts the deletion flow if not already active.
+        Returns the deletion prompt if no user input is provided,
+        otherwise processes the user input in the deletion flow.
+        """
+        user_input = " ".join(rest).strip()
         active_flow = flow_state_api.get_active_flow(sender)
         if not active_flow:
             flow_state_api.start_flow(sender, "volunteer_deletion")
-            if not user_input.strip():
+            if not user_input:
                 return DELETION_PROMPT
         return flow_state_api.handle_flow_input(sender, user_input)
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-managers/volunteer_manager.py - Core volunteer management for registration, deletion, check_in, status, etc.
+managers/volunteer_manager.py - Core volunteer management for registration, deletion, check_in, check_out, status, etc.
 All skill and role code has been removed, preserving only name, phone, and availability.
 """
 
@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 class VolunteerManager:
     """
-    VolunteerManager - Handles volunteer registration, deletion, check_in, and status.
+    VolunteerManager - Handles volunteer registration, deletion, check_in, check_out, and status.
     Skill and role references have been removed.
     """
 
@@ -96,6 +96,19 @@ class VolunteerManager:
                     self._update_volunteer_record(conn, phone, existing["name"], True)
                 logger.info(f"Volunteer {phone} checked in (now available).")
                 return VOLUNTEER_CHECKED_IN.format(name=normalize_name(existing['name'], phone))
+            raise VolunteerError(VOLUNTEER_NOT_FOUND)
+            
+    def check_out(self, phone: str) -> str:
+        """
+        Mark an existing volunteer as unavailable (false).
+        """
+        with per_phone_lock_api(phone):
+            existing = self.get_volunteer_record(phone)
+            if existing:
+                with atomic_transaction_api() as conn:
+                    self._update_volunteer_record(conn, phone, existing["name"], False)
+                logger.info(f"Volunteer {phone} checked out (now unavailable).")
+                return f"Volunteer {normalize_name(existing['name'], phone)} has been checked out."
             raise VolunteerError(VOLUNTEER_NOT_FOUND)
 
     def volunteer_status(self) -> str:
@@ -242,6 +255,9 @@ def delete_volunteer(phone):
 
 def check_in(phone):
     return VOLUNTEER_MANAGER.check_in(phone)
+
+def check_out(phone):
+    return VOLUNTEER_MANAGER.check_out(phone)
 
 def volunteer_status():
     return VOLUNTEER_MANAGER.volunteer_status()

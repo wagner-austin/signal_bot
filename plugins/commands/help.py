@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 """
-plugins/commands/help.py - Help command plugin. Lists available commands.
+plugins/commands/help.py - Help command plugin.
+Lists available commands using centralized help metadata.
 Usage:
   @bot help
 """
@@ -58,15 +59,13 @@ class HelpPlugin(BasePlugin):
             plugins_info = get_all_plugins()
             lines = []
             for canonical, info in sorted(plugins_info.items()):
-                # Safely retrieve the help text using getattr to avoid errors if missing.
-                func = info["function"]
-                doc_line = getattr(func, "__doc__", None) or getattr(func, "help_text", None)
-                doc_line = doc_line.strip().splitlines()[0] if doc_line else "No description"
+                # Retrieve help text from centralized registry field "help_text"
+                help_text = info.get("help_text", "No description")
                 if canonical in disabled_plugins:
-                    lines.append(f"@bot {canonical} (disabled) - {doc_line}")
+                    lines.append(f"@bot {canonical} (disabled) - {help_text}")
                 else:
                     if info.get("help_visible", True):
-                        lines.append(f"@bot {canonical} - {doc_line}")
+                        lines.append(f"@bot {canonical} - {help_text}")
             return "\n\n".join(lines)
         except Exception as e:
             logger.error(f"Unexpected error in help command: {e}", exc_info=True)

@@ -1,5 +1,7 @@
+#!/usr/bin/env python
 """
-parsers/envelope_parser.py - Provides envelope parsing utilities using precompiled regex patterns for improved performance and clarity.
+parsers/envelope_parser.py - Provides envelope parsing utilities.
+Extracts sender, body, timestamp, group info, reply identifiers, and message type.
 """
 
 import re
@@ -85,5 +87,21 @@ def parse_message_timestamp(message: str) -> Optional[str]:
     """
     match = MESSAGE_TIMESTAMP_REGEX.search(message)
     return sanitize_text(match.group(1)) if match else None
+
+def parse_message_type(message: str) -> str:
+    """
+    Determine the message type from the incoming message text.
+    
+    Returns:
+        "typing" if the message indicates a typing event.
+        "receipt" if the message indicates a receipt event.
+        "text" for standard text messages.
+    """
+    lower_message = message.lower()
+    if "typing message" in lower_message:
+        return "typing"
+    elif "receipt message" in lower_message:
+        return "receipt"
+    return "text"
 
 # End of parsers/envelope_parser.py

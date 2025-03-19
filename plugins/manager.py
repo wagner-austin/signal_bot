@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 """
 plugins/manager.py - Unified plugin manager with alias support.
-Handles registration, loading, and retrieval of plugins, as well as runtime enable/disable functionality.
-This module supports both function-based and class-based plugins.
+Handles registration, loading, and retrieval of plugins, along with their metadata.
+Maintains runtime enable/disable functionality and supports both function-based and class-based plugins.
 """
 
 import sys
@@ -14,7 +14,7 @@ from typing import Callable, Any, Optional, Dict, List, Union, Set
 
 logger = logging.getLogger(__name__)
 
-# Registry: key = canonical command, value = dict with function, aliases, help_visible, and category.
+# Registry: key = canonical command, value = dict with function, aliases, help_visible, category, and help_text.
 plugin_registry: Dict[str, Dict[str, Any]] = {}
 # Alias mapping: key = alias (normalized), value = canonical command.
 alias_mapping: Dict[str, str] = {}
@@ -49,30 +49,33 @@ def plugin(commands: Union[str, List[str]],
         commands = [commands]
 
     normalized_commands = [normalize_alias(cmd) for cmd in commands]
-
     canonical_name = normalize_alias(canonical) if canonical else normalized_commands[0]
 
     def decorator(obj: Any) -> Any:
         if inspect.isclass(obj):
             instance = obj()  # Instantiate once
-
+            # Determine help text: prefer instance.help_text; fallback to class docstring.
+            help_text = getattr(instance, "help_text", "") or (obj.__doc__ or "").strip()
             def plugin_func(args, sender, state_machine, msg_timestamp=None):
                 return instance.run_command(args, sender, state_machine, msg_timestamp)
-
             plugin_registry[canonical_name] = {
                 "function": plugin_func,
                 "aliases": normalized_commands,
                 "help_visible": help_visible,
                 "category": category or "Miscellaneous Commands",
+                "help_text": help_text,
             }
         else:
             if not hasattr(obj, "help_text"):
                 obj.help_text = ""
+            # Determine help text: prefer obj.help_text; fallback to function docstring.
+            help_text = getattr(obj, "help_text", "") or (obj.__doc__ or "").strip()
             plugin_registry[canonical_name] = {
                 "function": obj,
                 "aliases": normalized_commands,
                 "help_visible": help_visible,
                 "category": category or "Miscellaneous Commands",
+                "help_text": help_text,
             }
 
         # Map all aliases to the canonical command.

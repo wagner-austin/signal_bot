@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 """
-plugins/commands/check_in.py - Check-in command plugin.
-Marks a volunteer as available.
+plugins/commands/check_out.py - Check-out command plugin.
+Marks a volunteer as unavailable (checked out).
 Usage:
-  @bot check in
+  @bot check out
 """
 
 import logging
@@ -19,22 +19,22 @@ from plugins.messages import FLOW_BUSY_MESSAGE, INTERNAL_ERROR
 
 logger = logging.getLogger(__name__)
 
-@plugin('check in', canonical='check in')
-class CheckInPlugin(BasePlugin):
+@plugin('check out', canonical='check out')
+class CheckOutPlugin(BasePlugin):
     """
-    Mark volunteer as available.
+    Mark volunteer as unavailable (checked out).
     Usage:
-      @bot check in
+      @bot check out
     """
     def __init__(self):
         super().__init__(
-            "check in",
-            help_text="Mark volunteer as available.\n\nUsage:\n  @bot check in"
+            "check out",
+            help_text="Mark volunteer as unavailable (checked out).\n\nUsage:\n  @bot check out"
         )
         self.logger = logging.getLogger(__name__)
 
     def run_command(self, args: str, sender: str, state_machine: BotStateMachine, msg_timestamp: Optional[int] = None) -> str:
-        usage = "Usage: @bot check in"
+        usage = "Usage: @bot check out"
         subcommands = {"default": lambda rest: self._sub_default(rest, sender)}
         try:
             return handle_subcommands(
@@ -45,10 +45,10 @@ class CheckInPlugin(BasePlugin):
                 default_subcommand="default"
             )
         except PluginArgError as e:
-            self.logger.error(f"Argument parsing error in check in command: {e}", exc_info=True)
+            self.logger.error(f"Argument parsing error in check out command: {e}", exc_info=True)
             return str(e)
         except Exception as e:
-            self.logger.error(f"Unexpected error in check in command: {e}", exc_info=True)
+            self.logger.error(f"Unexpected error in check out command: {e}", exc_info=True)
             return INTERNAL_ERROR
 
     def _sub_default(self, rest: List[str], sender: str) -> str:
@@ -56,12 +56,12 @@ class CheckInPlugin(BasePlugin):
         if active_flow:
             return FLOW_BUSY_MESSAGE
         try:
-            return VOLUNTEER_MANAGER.check_in(sender)
+            return VOLUNTEER_MANAGER.check_out(sender)
         except VolunteerError as e:
-            logger.error(f"Check in command domain error: {e}", exc_info=True)
+            logger.error(f"Check out command domain error: {e}", exc_info=True)
             return str(e)
         except Exception as e:
-            logger.error(f"Unexpected error in check in command: {e}", exc_info=True)
+            logger.error(f"Unexpected error in check out command: {e}", exc_info=True)
             return INTERNAL_ERROR
 
-# End of plugins/commands/check_in.py
+# End of plugins/commands/check_out.py
