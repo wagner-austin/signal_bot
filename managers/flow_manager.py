@@ -139,7 +139,7 @@ class FlowManager:
 
         lower_input = stripped_input.lower()
         if lower_input == "skip":
-            VOLUNTEER_MANAGER.register_volunteer(phone, "Anonymous", available=True)
+            VOLUNTEER_MANAGER.register_volunteer(phone, "Anonymous", available=False)
             self.pause_flow(phone, REGISTRATION_FLOW)
             return messages.REGISTRATION_COMPLETED_ANONYMOUS
 
@@ -148,7 +148,7 @@ class FlowManager:
             return messages.REGISTRATION_WELCOME
 
         # Final: register with provided name
-        response = VOLUNTEER_MANAGER.register_volunteer(phone, stripped_input, available=True)
+        response = VOLUNTEER_MANAGER.register_volunteer(phone, stripped_input, available=False)
         self.pause_flow(phone, REGISTRATION_FLOW)
         return response
 

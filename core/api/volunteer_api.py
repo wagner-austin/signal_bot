@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 
 def register_volunteer(phone: str,
                        name: str,
-                       available: bool = True) -> str:
+                       available: bool = False) -> str:
     """
     register_volunteer(phone, name, available=True) -> str
     ------------------------------------------------------

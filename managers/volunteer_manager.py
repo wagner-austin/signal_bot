@@ -43,7 +43,7 @@ class VolunteerManager:
     def register_volunteer(self,
                            phone: str,
                            name: str,
-                           available: bool = True) -> str:
+                           available: bool = False) -> str:
         """
         Register or update a volunteer record, storing phone, name, availability, and role.
         """
