@@ -13,3 +13,6 @@ bot_data.db
 
 # Exclude backup files
 backups/
+
+# Exclude ChromeProfiles
+ChromeProfiles/
