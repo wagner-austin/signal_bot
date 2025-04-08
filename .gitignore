@@ -14,5 +14,8 @@ bot_data.db
 # Exclude backup files
 backups/
 
-# Exclude ChromeProfiles
+# Ignore the profile information for privacy
 ChromeProfiles/
+
+# Ignore the downloaded files for privacy
+explorer_downloads/
