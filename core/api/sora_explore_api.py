@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 """
-core/api/sora_explore_api.py
-----------------------------
-Sora Explore API providing stable methods to manage Sora Explore sessions 
-with detailed page info extraction and media download logic.
+core/api/sora_explore_api.py - Sora Explore API for managing sessions,
+including detailed page info extraction and media (image and video) download.
 """
 
 import os
@@ -41,6 +39,7 @@ class State(Enum):
     CAPTURING = auto()
     DOWNLOADING = auto()
     WAITING = auto()
+    IDLE = auto()
     CLOSING = auto()
     COMPLETED = auto()
 
@@ -75,8 +74,8 @@ class LoggingPlugin:
 class SimpleOpener:
     """
     Opens Chrome using undetected_chromedriver, navigates to the Sora Explore page,
-    captures detailed page information (media URL, artist, prompt, summary), downloads the media,
-    and manages state transitions.
+    and manages state transitions. The download/capture operation is triggered separately
+    via capture_detailed_info().
     """
     def __init__(self, driver_path=None, plugin_manager=None):
         self.driver = None
@@ -126,16 +125,24 @@ class SimpleOpener:
         current_url = self.driver.current_url
         if "sora.com/explore" in current_url:
             logger.info(f"(Sora) Navigation successful. Current URL: {current_url}")
-            self.capture_detailed_info()
         else:
             logger.warning(f"(Sora) Navigation may have failed. Current URL: {current_url}")
 
+        # Move to IDLE state after successfully opening the page
+        self._state_transition(State.IDLE)
+
     def capture_detailed_info(self):
+        """
+        Captures and downloads info from the first thumbnail link on the page,
+        including video downloading logic if applicable, then returns to the previous page.
+        This method transitions the session through CAPTURING -> DOWNLOADING -> IDLE states.
+        """
         self._state_transition(State.CAPTURING)
         try:
             thumbnail = self.wait.until(lambda d: d.find_element(By.CSS_SELECTOR, "a[href^='/g/']"))
         except Exception as e:
             logger.warning(f"(Sora) Detailed page link not found: {e}")
+            self._state_transition(State.IDLE)
             return
 
         detailed_path = thumbnail.get_attribute("href")
@@ -157,6 +164,7 @@ class SimpleOpener:
         self.driver.get(detailed_url)
 
         try:
+            # Try to locate an image element; if not found, then try a video element.
             try:
                 media_element = self.wait.until(lambda d: d.find_element(By.CSS_SELECTOR, "img[alt='Generated image']"))
                 media_type = "image"
@@ -164,9 +172,10 @@ class SimpleOpener:
                 media_element = self.wait.until(lambda d: d.find_element(By.CSS_SELECTOR, "video[src]"))
                 media_type = "video"
 
+            # Transition to downloading state once a media element is successfully found
+            self._state_transition(State.DOWNLOADING)
             media_url = media_element.get_attribute("src")
             logger.info(f"(Sora) Detailed page {media_type} URL: {media_url}")
-            self._state_transition(State.DOWNLOADING)
 
             parsed_url = urlparse(media_url)
             decoded_path = unquote(parsed_url.path)
@@ -213,8 +222,11 @@ class SimpleOpener:
             "downloaded_media": final_filename
         }
         logger.info(f"(Sora) Captured detailed info: {detailed_info}")
+
         logger.info("(Sora) Returning to the previous page.")
         self.driver.back()
+        time.sleep(1)  # Let the page revert
+        self._state_transition(State.IDLE)
 
     def _save_media(self, media_url, filename):
         os.makedirs(DOWNLOAD_DIR, exist_ok=True)
@@ -233,6 +245,7 @@ class SimpleOpener:
         self._state_transition(State.WAITING)
         logger.info(f"(Sora) Browser remaining open for {duration} second(s).")
         time.sleep(duration)
+        self._state_transition(State.IDLE)
 
     def close(self):
         self._state_transition(State.CLOSING)
@@ -258,7 +271,20 @@ def start_sora_explore_session() -> str:
     _sora_opener.open_url()
     if KEEP_BROWSER_OPEN:
         _sora_opener.wait_for_duration(BROWSER_STAY_DURATION)
-    return "(Sora) Browser launched, navigation and processing attempted."
+    return "(Sora) Browser launched and idle, ready for downloads."
+
+def download_sora_explore_session() -> str:
+    """
+    Triggers the download/capture process if a session is active.
+    """
+    global _sora_opener
+    if _sora_opener is None:
+        return "(Sora) No active session. Use 'start' to open a browser first."
+    current_state = _sora_opener.state
+    if current_state == State.CLOSING or current_state == State.COMPLETED:
+        return "(Sora) Session is not available for downloads. Please start again."
+    _sora_opener.capture_detailed_info()
+    return "(Sora) Download command executed; returned to previous page."
 
 def stop_sora_explore_session() -> str:
     global _sora_opener
@@ -267,7 +293,7 @@ def stop_sora_explore_session() -> str:
     _sora_opener.close()
     _sora_opener = None
     return "(Sora) Browser closed."
-
+    
 def get_sora_explore_session_status() -> str:
     if _sora_opener is None:
         return "(Sora) No active session. Use 'start' to launch one."
