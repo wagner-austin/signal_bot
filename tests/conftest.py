@@ -35,8 +35,7 @@ def test_database():
 @pytest.fixture(autouse=True)
 def clear_database_tables():
     """
-    tests/conftest.py - Fixture to clear key tables (Volunteers, DeletedVolunteers, Resources,
-    Events, EventSpeakers, Tasks, and Donations) before and after tests.
+    tests/conftest.py - Fixture to clear key tables (Volunteers, DeletedVolunteers) before and after tests.
     Ensures a clean database state to prevent data leakage between tests.
     """
     from db.connection import get_connection
@@ -45,11 +44,6 @@ def clear_database_tables():
         cursor = conn.cursor()
         cursor.execute("DELETE FROM Volunteers")
         cursor.execute("DELETE FROM DeletedVolunteers")
-        cursor.execute("DELETE FROM Resources")
-        cursor.execute("DELETE FROM Events")
-        cursor.execute("DELETE FROM EventSpeakers")
-        cursor.execute("DELETE FROM Tasks")
-        cursor.execute("DELETE FROM Donations")
         conn.commit()
         conn.close()
     clear_tables()
