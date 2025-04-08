@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 """
-core/api/sora_explore_api.py - Sora Explore API for managing sessions,
-including detailed page info extraction and media (image and video) download.
+core/api/sora_explore_api.py --- Sora Explore API for managing sessions with improved video handling.
 """
-
 import os
 import time
 import logging
@@ -131,11 +129,50 @@ class SimpleOpener:
         # Move to IDLE state after successfully opening the page
         self._state_transition(State.IDLE)
 
-    def capture_detailed_info(self):
+    def _get_media_element(self):
+        """
+        Helper method to locate and return the media element along with its type.
+        
+        Returns:
+            tuple: (media_element, media_type) where media_type is 'image' or 'video'
+            
+        Raises:
+            Exception: If no media element is found.
+        """
+        try:
+            media_element = self.wait.until(
+                lambda d: d.find_element(By.CSS_SELECTOR, "img[alt='Generated image']")
+            )
+            return media_element, "image"
+        except Exception:
+            pass  # Continue to try locating a video element
+
+        try:
+            # Attempt to locate a video element
+            media_element = self.wait.until(lambda d: d.find_element(By.CSS_SELECTOR, "video"))
+            # Try getting the src attribute; if not available, look for a child <source>
+            media_url = media_element.get_attribute("src")
+            if not media_url:
+                try:
+                    source = media_element.find_element(By.TAG_NAME, "source")
+                    media_url = source.get_attribute("src")
+                except Exception:
+                    pass
+            return media_element, "video"
+        except Exception as e:
+            raise Exception(f"(Sora) Media element not found: {e}")
+
+    def capture_detailed_info(self) -> dict:
         """
         Captures and downloads info from the first thumbnail link on the page,
-        including video downloading logic if applicable, then returns to the previous page.
-        This method transitions the session through CAPTURING -> DOWNLOADING -> IDLE states.
+        including proper video handling, then returns to the previous page.
+        Transitions the session through CAPTURING -> DOWNLOADING -> IDLE states.
+        
+        Returns:
+            A dictionary containing:
+              - file_path: The full path to the saved media file.
+              - media_type: Either 'image' or 'video'.
+              - detailed_info: Additional captured details.
         """
         self._state_transition(State.CAPTURING)
         try:
@@ -143,15 +180,12 @@ class SimpleOpener:
         except Exception as e:
             logger.warning(f"(Sora) Detailed page link not found: {e}")
             self._state_transition(State.IDLE)
-            return
-
+            return {}
+        
         detailed_path = thumbnail.get_attribute("href")
-        if detailed_path.startswith("/"):
-            detailed_url = "https://sora.com" + detailed_path
-        else:
-            detailed_url = detailed_path
+        detailed_url = "https://sora.com" + detailed_path if detailed_path.startswith("/") else detailed_path
 
-        # Capture artist
+        # Capture artist info if available
         artist = ""
         try:
             container = thumbnail.find_element(By.XPATH, "..")
@@ -164,17 +198,20 @@ class SimpleOpener:
         self.driver.get(detailed_url)
 
         try:
-            # Try to locate an image element; if not found, then try a video element.
-            try:
-                media_element = self.wait.until(lambda d: d.find_element(By.CSS_SELECTOR, "img[alt='Generated image']"))
-                media_type = "image"
-            except Exception:
-                media_element = self.wait.until(lambda d: d.find_element(By.CSS_SELECTOR, "video[src]"))
-                media_type = "video"
+            # Use the helper method to get the media element and its type.
+            media_element, media_type = self._get_media_element()
 
-            # Transition to downloading state once a media element is successfully found
-            self._state_transition(State.DOWNLOADING)
+            # Retrieve media URL with a fallback for video elements
             media_url = media_element.get_attribute("src")
+            if media_type == "video" and not media_url:
+                try:
+                    source = media_element.find_element(By.TAG_NAME, "source")
+                    media_url = source.get_attribute("src")
+                except Exception as e:
+                    raise Exception(f"(Sora) Video source not available: {e}")
+
+            # Transition to downloading state
+            self._state_transition(State.DOWNLOADING)
             logger.info(f"(Sora) Detailed page {media_type} URL: {media_url}")
 
             parsed_url = urlparse(media_url)
@@ -183,15 +220,24 @@ class SimpleOpener:
             if decoded_path.startswith(prefix):
                 decoded_path = decoded_path[len(prefix):]
             name_without_ext, ext = os.path.splitext(decoded_path)
-            if not ext:
-                ext = ".webp" if media_type == "image" else ".mp4"
+
+            # Force correct file extension: override any existing extension if media is video.
+            if media_type == "video":
+                ext = ".mp4"
+            elif not ext:
+                ext = ".webp"
             final_filename = name_without_ext.replace("/", "_") + ext
 
-            self._save_media(media_url, final_filename)
+            try:
+                file_path = self._save_media(media_url, final_filename)
+            except Exception as e:
+                logger.warning(f"(Sora) Error while downloading media: {e}")
+                file_path = ""
         except Exception as e:
             logger.warning(f"(Sora) Error while processing detailed page media: {e}")
             media_url = ""
             final_filename = DOWNLOAD_FILENAME
+            file_path = ""
 
         # Capture prompt
         prompt = ""
@@ -228,7 +274,13 @@ class SimpleOpener:
         time.sleep(1)  # Let the page revert
         self._state_transition(State.IDLE)
 
-    def _save_media(self, media_url, filename):
+        return {
+            "file_path": file_path,
+            "media_type": media_type,
+            "detailed_info": detailed_info
+        }
+
+    def _save_media(self, media_url, filename) -> str:
         os.makedirs(DOWNLOAD_DIR, exist_ok=True)
         file_path = os.path.join(DOWNLOAD_DIR, filename)
         try:
@@ -240,6 +292,7 @@ class SimpleOpener:
             logger.info(f"(Sora) Media saved to: {file_path}")
         except Exception as e:
             logger.error(f"(Sora) Failed to download media: {e}")
+        return file_path
 
     def wait_for_duration(self, duration):
         self._state_transition(State.WAITING)
@@ -273,18 +326,39 @@ def start_sora_explore_session() -> str:
         _sora_opener.wait_for_duration(BROWSER_STAY_DURATION)
     return "(Sora) Browser launched and idle, ready for downloads."
 
-def download_sora_explore_session() -> str:
+async def download_sora_explore_session(sender: str) -> str:
     """
-    Triggers the download/capture process if a session is active.
+    Asynchronously triggers the download/capture process if a session is active and sends the downloaded file to the requester.
+    
+    Args:
+        sender (str): The recipient's number to whom the downloaded file should be sent.
+    
+    Returns:
+        A success or failure message string.
     """
     global _sora_opener
     if _sora_opener is None:
         return "(Sora) No active session. Use 'start' to open a browser first."
     current_state = _sora_opener.state
-    if current_state == State.CLOSING or current_state == State.COMPLETED:
+    if current_state in [State.CLOSING, State.COMPLETED]:
         return "(Sora) Session is not available for downloads. Please start again."
-    _sora_opener.capture_detailed_info()
-    return "(Sora) Download command executed; returned to previous page."
+    
+    result = _sora_opener.capture_detailed_info()  # returns {"file_path": ..., "media_type": ..., "detailed_info": {...}}
+    if not result.get("file_path"):
+        return "(Sora) Download command executed, but no file was saved."
+    
+    try:
+        from core.signal_client import send_message
+        await send_message(
+            to_number=sender,
+            message="(Sora) Here is your downloaded file:",
+            attachments=[result["file_path"]]
+        )
+    except Exception as e:
+        logger.error(f"(Sora) Failed to send downloaded file to {sender}: {e}", exc_info=True)
+        return "(Sora) Could not send downloaded file. Check logs."
+
+    return "(Sora) Download command executed; file has been sent to you."
 
 def stop_sora_explore_session() -> str:
     global _sora_opener

@@ -1,18 +1,17 @@
 #!/usr/bin/env python3
 """
-plugins/commands/sora_explore_scraper.py
-----------------------------------------
-Sora Explore plugin command that calls the stable Sora Explore API to start/stop/download/status 
-a Sora Explore session.
-
+plugins/commands/sora_explore_scraper.py - Sora Explore plugin command for managing Sora Explore sessions.
+Handles start, stop, download, and status commands.
 Usage:
-  @bot sora explore start
-  @bot sora explore stop
-  @bot sora explore download
-  @bot sora explore status
+  @bot sora explore start   -> Launch browser and open Sora Explore page.
+  @bot sora explore stop    -> Close the browser.
+  @bot sora explore download -> Download/capture from the first thumbnail.
+  @bot sora explore status  -> Check current state.
 """
 
 import logging
+import inspect
+import asyncio  # For handling async calls
 from typing import Optional
 from plugins.manager import plugin
 from core.permissions import OWNER
@@ -36,11 +35,12 @@ class SoraExploreScraperPlugin(BasePlugin):
     """
     Sora Explore plugin command that calls the stable Sora Explore API 
     to manage a Sora Explore session (start, stop, download, status).
+
     Usage:
-      @bot sora explore start
-      @bot sora explore stop
-      @bot sora explore download
-      @bot sora explore status
+      @bot sora explore start   -> Launch browser and open Sora Explore page.
+      @bot sora explore stop    -> Close the browser.
+      @bot sora explore download -> Download/capture from the first thumbnail.
+      @bot sora explore status  -> Check current state.
     """
     def __init__(self):
         super().__init__(
@@ -55,11 +55,11 @@ class SoraExploreScraperPlugin(BasePlugin):
         self.subcommands = {
             "start": self._sub_start,
             "stop": self._sub_stop,
-            "download": self._sub_download,
+            "download": self._sub_download,  # Async subcommand
             "status": self._sub_status,
         }
 
-    def run_command(
+    async def run_command(
         self,
         args: str,
         sender: str,
@@ -74,12 +74,21 @@ class SoraExploreScraperPlugin(BasePlugin):
             "  @bot sora explore status  -> Check current state.\n"
         )
         try:
-            return handle_subcommands(
+            result = handle_subcommands(
                 args,
                 subcommands=self.subcommands,
                 usage_msg=usage,
                 unknown_subcmd_msg="Unknown subcommand. See usage:\n" + usage
             )
+            # If the result is a coroutine, await it.
+            if asyncio.iscoroutine(result):
+                result = await result
+
+            # Ensure the result is a string.
+            if not isinstance(result, str):
+                logger.warning("Plugin 'sora explore' returned non-string or None. Converting to empty string.")
+                result = ""
+            return result
         except PluginArgError as pae:
             self.logger.error(f"(Sora) Arg parsing error: {pae}", exc_info=True)
             return str(pae)
@@ -93,10 +102,30 @@ class SoraExploreScraperPlugin(BasePlugin):
     def _sub_stop(self, rest_args):
         return stop_sora_explore_session()
 
-    def _sub_download(self, rest_args):
-        return download_sora_explore_session()
+    async def _sub_download(self, rest_args):
+        """
+        Executes the download command. It passes the sender to the API
+        so the downloaded file can be sent back to the requester.
+        """
+        try:
+            return await download_sora_explore_session(self._sender)
+        except Exception as e:
+            self.logger.error(f"(Sora) Error during download subcommand: {e}", exc_info=True)
+            return "(Sora) An error occurred while processing your download command."
 
     def _sub_status(self, rest_args):
         return get_sora_explore_session_status()
+
+    @property
+    def _sender(self) -> str:
+        """
+        Retrieves the sender from the local scope of the run_command method.
+        Returns:
+            The sender identifier if found; otherwise 'Unknown'.
+        """
+        for frame_info in inspect.stack():
+            if frame_info.function == "run_command":
+                return frame_info.frame.f_locals.get("sender", "Unknown")
+        return "Unknown"
 
 # End of plugins/commands/sora_explore_scraper.py

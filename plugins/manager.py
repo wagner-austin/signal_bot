@@ -1,11 +1,10 @@
 #!/usr/bin/env python
 """
-plugins/manager.py - Unified plugin manager with alias support.
-Handles registration, loading, and retrieval of plugins, along with their metadata.
-Maintains runtime enable/disable functionality and supports both function-based and class-based plugins.
-
-Now enforces role-based permission checks for each plugin command by comparing
-the volunteer's actual role with the plugin's required_role.
+plugins/manager.py
+------------------
+Unified plugin manager with alias support. Handles registration, loading, and retrieval
+of plugins, along with their metadata. Maintains runtime enable/disable functionality and
+supports both function-based and class-based plugins. Enforces role-based permission checks.
 
 Focuses on modular, unified, consistent code that facilitates future updates.
 """
@@ -194,11 +193,13 @@ def reload_plugins(concurrent: bool = False) -> None:
     load_plugins(concurrent=concurrent)
 
 
-def dispatch_message(parsed, sender, state_machine, volunteer_manager, msg_timestamp=None, logger=None) -> str:
+def dispatch_message(parsed, sender, state_machine, volunteer_manager, msg_timestamp=None, logger=None) -> Any:
     """
     dispatch_message - Processes an incoming message by dispatching commands to plugins.
     Also enforces role-based permissions by comparing the user's volunteer role
     to the plugin's required_role.
+
+    Returns either a string or a coroutine that the caller should await.
     """
     if logger is None:
         logger = logging.getLogger(__name__)
@@ -255,19 +256,26 @@ def dispatch_message(parsed, sender, state_machine, volunteer_manager, msg_times
     if not has_permission(user_role, required_role):
         return "You do not have permission to use this command."
 
-    # Finally dispatch the plugin function
     plugin_func = plugin_info.get("function")
     if not plugin_func:
         return ""
 
     try:
         response = plugin_func(args or "", sender, state_machine, msg_timestamp=msg_timestamp)
-        if response is None:
-            return f"Plugin '{canon_name or command}' is currently disabled."
-        if not isinstance(response, str):
-            logger.warning(f"Plugin '{canon_name or command}' returned non-string or None. Returning empty string.")
+
+        # Check if the plugin returned a coroutine
+        if inspect.isawaitable(response):
+            # Return the coroutine so caller can await it
+            return response
+
+        if response is None or not isinstance(response, str):
+            logger.warning(
+                f"Plugin '{command}' returned non-string or None. Returning empty string."
+            )
             response = ""
+
         return response
+
     except Exception as e:
         logger.exception(
             f"Error executing plugin for command '{command}' with args '{args}' "

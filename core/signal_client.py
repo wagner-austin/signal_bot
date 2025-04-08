@@ -1,8 +1,5 @@
-#!/usr/bin/env python
 """
-core/signal_client.py - Encapsulates functions to interact with signal-cli.
-Uses MessageManager for processing incoming messages and sending responses.
-Handles non-text messages by skipping their dispatch.
+core/signal_client.py - Encapsulates functions to interact with signal-cli for sending/receiving messages.
 """
 
 import asyncio
@@ -15,6 +12,7 @@ from managers.message_manager import MessageManager
 
 logger = logging.getLogger(__name__)
 
+
 async def send_message(
     to_number: str,
     message: str,
@@ -22,41 +20,69 @@ async def send_message(
     reply_quote_author: Optional[str] = None,
     reply_quote_timestamp: Optional[str] = None,
     reply_quote_message: Optional[str] = None,
-    logger: Optional[logging.Logger] = None
+    logger: Optional[logging.Logger] = None,
+    attachments: Optional[List[str]] = None  # NEW: Optional file attachments
 ) -> None:
     """
     send_message - Asynchronously send a message using signal-cli.
-    Accepts an optional logger dependency.
+    
+    Supports optional quoting details and file attachments.
+    
+    Args:
+        to_number (str): The phone number in E.164 format to which the message should be sent.
+        message (str): The message body text to send.
+        group_id (Optional[str]): Group ID if sending to a group; otherwise None.
+        reply_quote_author (Optional[str]): Author phone for quoting a message (group only).
+        reply_quote_timestamp (Optional[str]): Timestamp for the quoted message (group only).
+        reply_quote_message (Optional[str]): Body text of the quoted message (group only).
+        logger (Optional[logging.Logger]): Logger for this function; defaults to module logger.
+        attachments (Optional[List[str]]): List of file paths to attach.
     """
     if logger is None:
         logger = logging.getLogger(__name__)
+    
     if group_id:
         args = ['send', '-g', group_id]
     else:
         args = ['send', to_number]
-    
+
+    # Attach quote details for group messages
     if group_id and reply_quote_author and reply_quote_timestamp and reply_quote_message:
         args.extend([
             '--quote-author', reply_quote_author,
             '--quote-timestamp', reply_quote_timestamp,
             '--quote-message', reply_quote_message
         ])
-    
+
+    # Handle file attachments if provided
+    if attachments:
+        for attach_path in attachments:
+            args.extend(['--attachment', attach_path])
+
     args.append('--message-from-stdin')
-    
+
+    # Log the sending action along with attachments
     if group_id:
-        logger.info(f"Sent to group {group_id}: {message} (replying to message by {reply_quote_author})")
+        logger.info(f"Sent to group {group_id}: {message}, attachments={attachments}")
     else:
-        logger.info(f"Sent to {to_number}: {message} (individual chat)")
-    await async_run_signal_cli(args, stdin_input=message)
+        logger.info(f"Sent to {to_number}: {message}, attachments={attachments}")
     
+    # Execute the signal-cli command with provided message via stdin
+    await async_run_signal_cli(args, stdin_input=message)
+
     from core.metrics import increment_message_count
     increment_message_count()
+
 
 async def receive_messages(logger: Optional[logging.Logger] = None) -> List[str]:
     """
     receive_messages - Asynchronously retrieve incoming messages using signal-cli.
-    Accepts an optional logger dependency.
+    
+    Args:
+        logger (Optional[logging.Logger]): Logger for this function; defaults to module logger.
+    
+    Returns:
+        A list of raw message text blocks, each representing a single Envelope.
     """
     if logger is None:
         logger = logging.getLogger(__name__)
@@ -70,10 +96,13 @@ async def receive_messages(logger: Optional[logging.Logger] = None) -> List[str]
         return messages
     return []
 
+
 def _get_quote_details(parsed: ParsedMessage) -> Tuple[Optional[str], str, str]:
     """
     _get_quote_details - Extract quoting details from a parsed message.
-    Returns a tuple of (quote_timestamp, quote_author, quote_message).
+    
+    Returns:
+        (quote_timestamp, quote_author, quote_message)
     """
     msg_timestamp = parsed.timestamp
     quote_timestamp = str(parsed.message_timestamp or msg_timestamp) if msg_timestamp else None
@@ -81,10 +110,15 @@ def _get_quote_details(parsed: ParsedMessage) -> Tuple[Optional[str], str, str]:
     quote_message = parsed.body
     return quote_timestamp, quote_author, quote_message
 
-async def _dispatch_message(response: str, parsed: ParsedMessage, quote_details: Tuple[Optional[str], str, str], logger: Optional[logging.Logger] = None) -> None:
+
+async def _dispatch_message(
+    response: str, 
+    parsed: ParsedMessage, 
+    quote_details: Tuple[Optional[str], str, str], 
+    logger: Optional[logging.Logger] = None
+) -> None:
     """
     _dispatch_message - Dispatch the response message using send_message with quoting details.
-    Accepts an optional logger dependency.
     """
     if logger is None:
         logger = logging.getLogger(__name__)
@@ -98,17 +132,23 @@ async def _dispatch_message(response: str, parsed: ParsedMessage, quote_details:
         logger=logger
     )
 
+
 async def process_incoming(state_machine, logger: Optional[logging.Logger] = None) -> int:
     """
     process_incoming - Process incoming messages, dispatch commands, and send responses.
-    Accepts an optional logger dependency.
-    Returns the number of processed messages.
+    
+    Args:
+        state_machine: The BotStateMachine controlling the bot's state.
+        logger (Optional[logging.Logger]): Logger for this function; defaults to module logger.
+    
+    Returns:
+        The number of processed text messages.
     """
     if logger is None:
         logger = logging.getLogger(__name__)
+
     from managers.volunteer_manager import VOLUNTEER_MANAGER
     from db.volunteers import get_volunteer_record
-    # Updated import for welcome-state tracking
     from core.api.user_state_api import has_user_seen_welcome, mark_user_has_seen_welcome
     from plugins.messages import GETTING_STARTED
 
@@ -119,19 +159,18 @@ async def process_incoming(state_machine, logger: Optional[logging.Logger] = Non
         logger.info(f"Processing message:\n{message}\n")
         parsed = parse_message(message)
         
-        # Skip non-text messages (e.g., typing or receipt messages)
+        # Skip non-text messages (e.g. typing or receipt messages)
         if parsed.message_type != "text":
             logger.info(f"Skipping non-text message of type '{parsed.message_type}'. Parsed: {parsed}")
             continue
 
-        # Downgrade log level for messages missing sender or body
         if not parsed.sender or not parsed.body:
             logger.debug(f"Skipping message due to missing sender or body. Parsed: {parsed}")
             continue
 
         processed_count += 1
 
-        # If sender is unregistered and has not seen the welcome message, send GETTING_STARTED separately.
+        # If sender is unregistered and hasn't seen the welcome, send GETTING_STARTED
         if get_volunteer_record(parsed.sender) is None and not has_user_seen_welcome(parsed.sender):
             await send_message(parsed.sender, GETTING_STARTED)
             mark_user_has_seen_welcome(parsed.sender)
