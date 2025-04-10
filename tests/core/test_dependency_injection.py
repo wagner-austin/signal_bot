@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 """
-tests/core/test_dependency_injection.py --- Tests for dependency injection.
-This module verifies that critical modules accept dependencies (such as connection providers and loggers)
-and use them instead of global instances.
+tests/core/test_dependency_injection.py - Tests for dependency injection.
+Verifies that critical modules accept dependencies and use them instead of global instances.
+(Adjusted to add a 'get_volunteer_record' method to DummyVolunteerManager.)
 """
 
 import sqlite3
@@ -27,12 +27,14 @@ _persistent_conn.commit()
 
 class DummyConnectionWrapper:
     """
-    DummyConnectionWrapper --- Wraps a sqlite3.Connection to override the close() method.
+    DummyConnectionWrapper - Wraps a sqlite3.Connection to override the close() method.
     """
     def __init__(self, conn):
         self._conn = conn
+
     def __getattr__(self, attr):
         return getattr(self._conn, attr)
+
     def close(self):
         # Override close to do nothing.
         pass
@@ -72,6 +74,7 @@ class ListHandler(logging.Handler):
     def __init__(self):
         super().__init__()
         self.records = []
+
     def emit(self, record):
         self.records.append(record.getMessage())
 
@@ -91,8 +94,13 @@ def dummy_logger():
 class DummyVolunteerManager:
     def delete_volunteer(self, sender: str) -> str:
         return "deleted"
+
     def sign_up(self, sender: str, name: str, skills: list) -> str:
         return "dummy response"
+
+    # Added to avoid AttributeError in dispatch_message:
+    def get_volunteer_record(self, phone: str):
+        return None
 
 # -------------------
 # Test Logger Injection in send_message
@@ -172,7 +180,8 @@ def test_message_manager_process_message(monkeypatch):
     plugin_registry["dummy"] = {
          "function": lambda args, sender, state_machine, msg_timestamp=None: "dummy response",
          "aliases": ["dummy"],
-         "help_visible": True
+         "help_visible": True,
+         "required_role": "everyone"  # <= ADDED to avoid permission check failure
     }
     state_machine = BotStateMachine()
     message_manager = MessageManager(state_machine)
