@@ -19,3 +19,8 @@ ChromeProfiles/
 
 # Ignore the downloaded files for privacy
 explorer_downloads/
+
+# Exclude env files
+venv/
+.env/
+myenv/
