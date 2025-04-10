@@ -7,6 +7,7 @@ temp.txt
 
 # Ignore database
 bot_data.db
+bot_data_e.db
 
 # Exclude environment variable files
 .env
