@@ -4,7 +4,6 @@ tests/core/test_serialization_utils.py - Unit tests for serialization utilities.
 Tests the serialize_list and deserialize_list functions from core/serialization_utils.py.
 """
 
-import pytest
 from core.serialization_utils import serialize_list, deserialize_list
 
 def test_serialize_list_empty():

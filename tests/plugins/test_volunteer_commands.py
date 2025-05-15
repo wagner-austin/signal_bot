@@ -5,12 +5,10 @@ Tests volunteer command plugins. Ensures normal usage for register, edit, delete
 and verifies that when a volunteer record is missing, the response directs the user properly.
 """
 
-import pytest
 from core.state import BotStateMachine
 from db.volunteers import get_volunteer_record
 from plugins.messages import REGISTRATION_WELCOME
 from plugins.manager import get_plugin
-from managers.volunteer_manager import delete_volunteer
 
 def test_volunteer_register_new():
     """

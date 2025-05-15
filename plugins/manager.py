@@ -20,7 +20,8 @@ from typing import Callable, Any, Optional, Dict, List, Union, Set
 logger = logging.getLogger(__name__)
 
 # Import role constants and permission check
-from core.permissions import OWNER, ADMIN, REGISTERED, EVERYONE, has_permission
+from core.permissions import OWNER, has_permission
+from core.identity import resolve_role
 
 # Registry: key = canonical command, value = dict with function, aliases, help_visible, category, help_text, required_role.
 plugin_registry: Dict[str, Dict[str, Any]] = {}
@@ -61,12 +62,14 @@ def plugin(
     canonical_name = normalize_alias(canonical) if canonical else normalized_commands[0]
 
     def decorator(obj: Any) -> Any:
-        import inspect
         if inspect.isclass(obj):
             instance = obj()  # Instantiate once
             help_text = getattr(instance, "help_text", "") or (obj.__doc__ or "").strip()
-            def plugin_func(args, sender, state_machine, msg_timestamp=None):
-                return instance.run_command(args, sender, state_machine, msg_timestamp)
+            async def plugin_func(args, ctx, state_machine, **kwargs):
+                if inspect.iscoroutinefunction(instance.run_command):
+                    return await instance.run_command(args, ctx, state_machine, **kwargs)
+                else:
+                    return instance.run_command(args, ctx, state_machine, **kwargs)
             plugin_registry[canonical_name] = {
                 "function": plugin_func,
                 "aliases": normalized_commands,
@@ -79,8 +82,14 @@ def plugin(
             if not hasattr(obj, "help_text"):
                 obj.help_text = ""
             help_text = getattr(obj, "help_text", "") or (obj.__doc__ or "").strip()
+            if inspect.iscoroutinefunction(obj):
+                async def plugin_func(args, ctx, state_machine, **kwargs):
+                    return await obj(args, ctx, state_machine, **kwargs)
+            else:
+                async def plugin_func(args, ctx, state_machine, **kwargs):
+                    return obj(args, ctx, state_machine, **kwargs)
             plugin_registry[canonical_name] = {
-                "function": obj,
+                "function": plugin_func,
                 "aliases": normalized_commands,
                 "help_visible": help_visible,
                 "category": category or "Miscellaneous Commands",
@@ -193,22 +202,25 @@ def reload_plugins(concurrent: bool = False) -> None:
     load_plugins(concurrent=concurrent)
 
 
-def dispatch_message(parsed, sender, state_machine, volunteer_manager, msg_timestamp=None, logger=None) -> Any:
+async def dispatch_message(parsed, ctx, state_machine, logger=None) -> Any:
     """
     dispatch_message - Processes an incoming message by dispatching commands to plugins.
-    Also enforces role-based permissions by comparing the user's volunteer role
+    Also enforces role-based permissions by comparing the user's role
     to the plugin's required_role.
 
     Returns either a string or a coroutine that the caller should await.
     """
+    command: Optional[str] = parsed.command
+    if command is None:
+        return ""
+
     if logger is None:
         logger = logging.getLogger(__name__)
 
-    command: Optional[str] = parsed.command
     args: Optional[str] = parsed.args
 
-    if not command:
-        return ""
+    # ctx is expected to be a discord.Message or compatible object
+    user_role = resolve_role(getattr(ctx, 'author', ctx))
 
     # Attempt to find the plugin info by direct alias lookup
     canonical_cmd = alias_mapping.get(normalize_alias(command))
@@ -246,13 +258,7 @@ def dispatch_message(parsed, sender, state_machine, volunteer_manager, msg_times
     # Enforce role-based permission
     required_role = plugin_info.get("required_role", OWNER)
 
-    # Fetch user's volunteer record
-    user_record = volunteer_manager.get_volunteer_record(sender)
-    if not user_record:
-        user_role = EVERYONE
-    else:
-        user_role = user_record.get("role", EVERYONE)
-
+    # User role is already determined by resolve_role(sender) in the calling context
     if not has_permission(user_role, required_role):
         return "You do not have permission to use this command."
 
@@ -261,25 +267,17 @@ def dispatch_message(parsed, sender, state_machine, volunteer_manager, msg_times
         return ""
 
     try:
-        response = plugin_func(args or "", sender, state_machine, msg_timestamp=msg_timestamp)
-
-        # Check if the plugin returned a coroutine
-        if inspect.isawaitable(response):
-            # Return the coroutine so caller can await it
-            return response
-
+        response = await plugin_func(args or "", ctx, state_machine)
         if response is None or not isinstance(response, str):
             logger.warning(
                 f"Plugin '{command}' returned non-string or None. Returning empty string."
             )
             response = ""
-
         return response
-
     except Exception as e:
         logger.exception(
             f"Error executing plugin for command '{command}' with args '{args}' "
-            f"from sender '{sender}': {e}"
+            f"from sender '{getattr(ctx, 'author', ctx)}': {e}"
         )
         return "An internal error occurred while processing your command."
 

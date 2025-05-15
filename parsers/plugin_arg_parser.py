@@ -5,7 +5,7 @@ Provides typed Pydantic models and a unified validate_model function for argumen
 Raises PluginArgError on invalid arguments.
 """
 
-from typing import Optional, List, Type, TypeVar
+from typing import List, Type, TypeVar
 from pydantic import BaseModel, ValidationError
 
 # -----------------------------

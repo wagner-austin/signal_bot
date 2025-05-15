@@ -6,10 +6,8 @@ Ensures that execute_sql and BaseRepository methods work as expected,
 including fetchone/fetchall usage and basic CRUD operations.
 """
 
-import sqlite3
-import pytest
 from db.connection import db_connection
-from db.repository import execute_sql, BaseRepository
+from db.repository import execute_sql
 
 
 def test_execute_sql_fetchone():

@@ -7,6 +7,20 @@ import time
 
 process_start_time = time.time()
 messages_sent = 0
+discord_messages_processed = 0
+
+def increment_discord_message_count() -> None:
+    """
+    Increment the count of Discord messages processed.
+    """
+    global discord_messages_processed
+    discord_messages_processed += 1
+
+def get_discord_messages_processed() -> int:
+    """
+    Return the number of Discord messages processed.
+    """
+    return discord_messages_processed
 
 def increment_message_count() -> None:
     """

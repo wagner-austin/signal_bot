@@ -11,7 +11,6 @@ Changes:
 
 import os
 import shutil
-import sqlite3
 import pytest
 import logging
 from unittest.mock import patch
@@ -20,7 +19,6 @@ from db.backup import (
     restore_backup, BACKUP_DIR
 )
 from db.connection import get_connection
-from core.config import DB_NAME
 
 def test_create_backup(caplog):
     # Ensure no backups initially
@@ -174,7 +172,7 @@ def test_restore_corrupted_backup():
         # Create a zero-byte backup file
         corrupted_filename = "corrupted_backup.db"
         corrupted_path = os.path.join(BACKUP_DIR, corrupted_filename)
-        with open(corrupted_path, "wb") as f:
+        with open(corrupted_path, "wb"):
             pass  # zero bytes
 
         with patch("db.backup.logger.warning") as mock_warning:

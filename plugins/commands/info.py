@@ -7,15 +7,10 @@ Usage:
   @bot info
 """
 
-import logging
-from typing import Optional
 from plugins.manager import plugin
 from core.permissions import EVERYONE
-from core.state import BotStateMachine
 from plugins.abstract import BasePlugin
 from plugins.messages import INFO_USAGE, INFO_TEXT, INTERNAL_ERROR
-
-logger = logging.getLogger(__name__)
 
 @plugin(["info"], canonical="info", required_role=EVERYONE)
 class InfoPlugin(BasePlugin):
@@ -30,14 +25,13 @@ class InfoPlugin(BasePlugin):
             "info",
             help_text="Display information about our cause."
         )
-        self.logger = logging.getLogger(__name__)
 
-    def run_command(
+    async def run_command(
         self,
         args: str,
-        sender: str,
-        state_machine: BotStateMachine,
-        msg_timestamp: Optional[int] = None
+        ctx,
+        state_machine,
+        **kwargs
     ) -> str:
         usage = INFO_USAGE
         user_input = args.strip()

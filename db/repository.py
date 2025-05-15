@@ -3,12 +3,11 @@
 db/repository.py
 ----------------
 Unified repository code with helpers for database operations.
-Now only includes volunteer-related repositories and user states.
+Now only includes user states.
 """
 
 import sqlite3
 import logging
-from typing import Optional, Dict, Any, List
 from db.connection import get_connection
 
 logger = logging.getLogger(__name__)
@@ -128,29 +127,15 @@ class BaseRepository:
         conn.commit()
         self._maybe_close(conn)
 
-# --- Volunteer and DeletedVolunteer Repositories ---
-
-class VolunteerRepository(BaseRepository):
-    def __init__(self, connection_provider=get_connection, external_connection=False):
-        super().__init__("Volunteers", primary_key="phone",
-                         connection_provider=connection_provider,
-                         external_connection=external_connection)
-
-class DeletedVolunteerRepository(BaseRepository):
-    def __init__(self, connection_provider=get_connection, external_connection=False):
-        super().__init__("DeletedVolunteers", primary_key="phone",
-                         connection_provider=connection_provider,
-                         external_connection=external_connection)
-
 # --- UserStates Repository (for multi-step flows) ---
 
 class UserStatesRepository(BaseRepository):
     """
-    UserStatesRepository - Manages read/write of the UserStates table, keyed by phone.
+    UserStatesRepository - Manages read/write of the UserStates table, keyed by user_id.
     The 'flow_state' column stores the JSON state.
     """
     def __init__(self, connection_provider=get_connection, external_connection=False):
-        super().__init__("UserStates", primary_key="phone",
+        super().__init__("UserStates", primary_key="user_id",
                          connection_provider=connection_provider,
                          external_connection=external_connection)
 

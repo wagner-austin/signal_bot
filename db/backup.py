@@ -14,7 +14,7 @@ import shutil
 from datetime import datetime
 import asyncio
 import logging
-from core.config import DB_NAME, BACKUP_INTERVAL, BACKUP_RETENTION_COUNT
+from core.config import DB_NAME, BACKUP_INTERVAL
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +40,7 @@ def _generate_backup_filename() -> str:
 
 def create_backup() -> str:
     """
-    Create a backup of the current database and enforce the retention policy based on BACKUP_RETENTION_COUNT.
+    Create a backup of the current database.
 
     Returns:
         str: The file path of the created backup, or an empty string if creation failed.
@@ -57,36 +57,11 @@ def create_backup() -> str:
 
     try:
         shutil.copyfile(DB_NAME, backup_path)
-        cleanup_backups(max_backups=BACKUP_RETENTION_COUNT)
         logger.info(f"Backup created at: {backup_path}")
         return backup_path
     except Exception as e:
         logger.warning(f"Failed to create backup file at '{backup_path}'. Error: {e}")
         return ""
-
-def cleanup_backups(max_backups: int = BACKUP_RETENTION_COUNT) -> None:
-    """
-    Enforce the retention policy by keeping only the latest max_backups files in the backup directory.
-
-    Args:
-        max_backups (int): Maximum number of backup files to retain.
-    """
-    if not os.path.exists(BACKUP_DIR):
-        return
-
-    # If max_backups is zero or negative, remove all backups.
-    if max_backups <= 0:
-        logger.warning(f"Received non-positive max_backups={max_backups}. Removing all backups.")
-        max_backups = 0
-
-    backups = [f for f in os.listdir(BACKUP_DIR) if f.endswith(".db")]
-    backups.sort()  # Sorted by filename (timestamp order)
-    while len(backups) > max_backups:
-        oldest = backups.pop(0)
-        try:
-            os.remove(os.path.join(BACKUP_DIR, oldest))
-        except Exception:
-            pass
 
 def list_backups() -> list:
     """
@@ -104,7 +79,6 @@ def list_backups() -> list:
 def restore_backup(backup_filename: str) -> bool:
     """
     Restore the database from a specified backup file.
-    Uses a minimal signature check to confirm it's valid SQLite and ensures the backup file is not truncated.
 
     Args:
         backup_filename (str): The name of the backup file (found in the backups folder).
@@ -116,21 +90,6 @@ def restore_backup(backup_filename: str) -> bool:
     if not os.path.exists(backup_path):
         return False
 
-    # Check for valid SQLite signature in first 16 bytes: "SQLite format 3\000"
-    try:
-        with open(backup_path, "rb") as f:
-            header = f.read(16)
-        if not header.startswith(b"SQLite format 3\000"):
-            logger.warning(f"Cannot restore from backup '{backup_filename}': invalid or corrupted SQLite file.")
-            return False
-        # Check if the file is truncated (i.e., only header and no additional content)
-        if os.path.getsize(backup_path) <= 16:
-            logger.warning(f"Cannot restore from backup '{backup_filename}': invalid or corrupted SQLite file.")
-            return False
-    except Exception as e:
-        logger.warning(f"Cannot restore from backup '{backup_filename}': error reading file. Error: {e}")
-        return False
-
     try:
         shutil.copyfile(backup_path, DB_NAME)
     except Exception as e:
@@ -139,20 +98,35 @@ def restore_backup(backup_filename: str) -> bool:
 
     return True
 
-async def start_periodic_backups(interval_seconds: int = BACKUP_INTERVAL, max_backups: int = BACKUP_RETENTION_COUNT) -> None:
+def _prune_backups(max_backups: int | None = None):
+    """
+    Delete oldest backups if number of backups exceeds max_backups.
+    """
+    if not max_backups or max_backups < 1:
+        return
+    backups = list_backups()
+    if len(backups) > max_backups:
+        # Remove oldest backups
+        for old in backups[:-max_backups]:
+            try:
+                os.remove(os.path.join(BACKUP_DIR, old))
+                logger.info(f"Deleted old backup: {old}")
+            except Exception as e:
+                logger.warning(f"Failed to delete old backup '{old}': {e}")
+
+async def start_periodic_backups(interval_seconds: int = BACKUP_INTERVAL, max_backups: int | None = None) -> None:
     """
     Schedule periodic backups at the specified interval.
 
     Args:
-        interval_seconds (int): Time interval between backups in seconds (configurable via BACKUP_INTERVAL).
-        max_backups (int): Maximum number of backups to retain (configurable via BACKUP_RETENTION_COUNT).
-
-    Changes:
-        - Added error handling to ensure a single backup failure does not kill the periodic backup task.
+        interval_seconds (int): Time interval between backups in seconds (configurable via DISK_BACKUP_INTERVAL).
+        max_backups (int | None): Maximum number of backups to retain. If None, unlimited.
     """
     while True:
         try:
-            create_backup()
+            backup_path = create_backup()
+            if backup_path:
+                _prune_backups(max_backups)
         except Exception as e:
             logger.warning(f"Periodic backup failed: {e}")
         await asyncio.sleep(interval_seconds)

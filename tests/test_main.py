@@ -4,11 +4,6 @@ tests/test_main.py – Test for main.py: Verifies both --test flag and normal ru
 """
 
 import sys
-from io import StringIO
-import contextlib
-import runpy
-import pytest
-from unittest.mock import patch, AsyncMock
 import subprocess
 import os
 

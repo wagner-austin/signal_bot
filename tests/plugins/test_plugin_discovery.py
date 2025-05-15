@@ -6,7 +6,6 @@ Verifies that plugins are correctly discovered, loaded, and reloaded.
 Also includes a test simulating newly added or removed plugin modules at runtime (reload behavior with modified files).
 """
 
-import pytest
 import pkgutil
 import importlib
 import types

@@ -6,9 +6,9 @@ Summary: Shutdown command plugin. Shuts down the bot.
 Usage:
   @bot shutdown
 """
-
+ 
 import logging
-from typing import Optional, List
+from typing import List, Optional
 from plugins.manager import plugin
 from core.permissions import OWNER
 from core.state import BotStateMachine
@@ -16,7 +16,6 @@ from plugins.commands.subcommand_dispatcher import handle_subcommands, PluginArg
 from plugins.abstract import BasePlugin
 from plugins.messages import BOT_SHUTDOWN, INTERNAL_ERROR
 
-logger = logging.getLogger(__name__)
 
 @plugin(['shutdown', 'shut down'], canonical='shutdown', required_role=OWNER)
 class ShutdownPlugin(BasePlugin):
@@ -30,16 +29,16 @@ class ShutdownPlugin(BasePlugin):
             "shutdown",
             help_text="Shut down the program."
         )
-        self.logger = logging.getLogger(__name__)
         self.subcommands = {"default": self._default_subcmd}
+        self.logger = logging.getLogger(__name__)
         self.state_machine: Optional[BotStateMachine] = None
 
-    def run_command(
+    async def run_command(
         self,
         args: str,
-        sender: str,
-        state_machine: BotStateMachine,
-        msg_timestamp: Optional[int] = None
+        ctx,
+        state_machine,
+        **kwargs
     ) -> str:
         self.state_machine = state_machine
         usage = "Usage: @bot shutdown"

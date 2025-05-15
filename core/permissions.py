@@ -11,14 +11,14 @@ Focuses on modular, unified, consistent code that facilitates future changes.
 # Role Constants
 OWNER = "owner"
 ADMIN = "admin"
-REGISTERED = "registered"
+MEMBER = "member"
 EVERYONE = "everyone"
 
 # Internal hierarchy to compare roles easily:
 _ROLE_HIERARCHY = {
     OWNER: 3,
     ADMIN: 2,
-    REGISTERED: 1,
+    MEMBER: 1,
     EVERYONE: 0,
 }
 
@@ -29,8 +29,8 @@ def has_permission(user_role: str, required_role: str) -> bool:
     Returns True if user_role meets or exceeds the required_role in the hierarchy.
 
     Example:
-        if has_permission("admin", "registered"):
-            # admin has permission to do tasks restricted to registered users
+        if has_permission("admin", "member"):
+            # admin has permission to do tasks restricted to members
             ...
     """
     user_rank = _ROLE_HIERARCHY.get(user_role, _ROLE_HIERARCHY[EVERYONE])

@@ -11,8 +11,7 @@ import shutil
 import time
 import pytest
 from tests.async_helpers import override_async_sleep
-from db.backup import start_periodic_backups, list_backups, cleanup_backups, BACKUP_DIR, create_backup
-import logging
+from db.backup import start_periodic_backups, list_backups, cleanup_backups, BACKUP_DIR
 
 @pytest.mark.asyncio
 async def test_periodic_backup_once(monkeypatch):

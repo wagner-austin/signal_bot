@@ -5,12 +5,10 @@ Verifies that send_message constructs CLI flags correctly and that process_incom
 handles corrupted messages, partial quoting, and invalid group IDs appropriately.
 """
 import pytest
-import asyncio
 from core.signal_client import send_message, process_incoming
 import core.signal_client as sc
 from core.state import BotStateMachine
 # Removed import of PENDING_ACTIONS.
-from managers.volunteer_manager import VOLUNTEER_MANAGER
 
 @pytest.fixture
 def dummy_async_run_signal_cli(monkeypatch):

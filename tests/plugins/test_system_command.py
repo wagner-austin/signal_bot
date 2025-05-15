@@ -5,7 +5,6 @@ Deeper coverage tests for system plugin commands.
 Verifies 'shutdown' transitions the BotStateMachine and 'assign <skill>' picks the correct volunteer or none.
 """
 
-import pytest
 from core.state import BotStateMachine, BotState
 from managers.volunteer_manager import VOLUNTEER_MANAGER
 from db.volunteers import get_volunteer_record

@@ -9,12 +9,12 @@ Usage:
 """
 
 import logging
-from typing import Optional, List
+from typing import List
 from plugins.manager import plugin
 from core.permissions import ADMIN
-from core.state import BotStateMachine
 from plugins.commands.subcommand_dispatcher import handle_subcommands, PluginArgError
 from plugins.abstract import BasePlugin
+from core.utils.user_helpers import extract_user_id
 from core.api import flow_state_api
 from plugins.messages import (
     FLOW_SWITCH_USAGE,
@@ -45,14 +45,13 @@ class FlowPlugin(BasePlugin):
             help_text=(
                 "See the different Flows active on account.")
         )
-        self.logger = logging.getLogger(__name__)
-
-    def run_command(
+    
+    async def run_command(
         self,
         args: str,
-        sender: str,
-        state_machine: BotStateMachine,
-        msg_timestamp: Optional[int] = None
+        ctx,
+        state_machine,
+        **kwargs
     ) -> str:
         usage = (
             "Usage: @bot flow <list|switch|pause|create> [args]\n"
@@ -63,10 +62,10 @@ class FlowPlugin(BasePlugin):
             "  @bot flow create newFlow"
         )
         subcommands = {
-            "list":   lambda rest: self._sub_list(rest, sender),
-            "switch": lambda rest: self._sub_switch(rest, sender),
-            "pause":  lambda rest: self._sub_pause(rest, sender),
-            "create": lambda rest: self._sub_create(rest, sender),
+            "list":   lambda rest: self._sub_list(rest, extract_user_id(ctx)),
+            "switch": lambda rest: self._sub_switch(rest, extract_user_id(ctx)),
+            "pause":  lambda rest: self._sub_pause(rest, extract_user_id(ctx)),
+            "create": lambda rest: self._sub_create(rest, extract_user_id(ctx)),
         }
         try:
             return handle_subcommands(

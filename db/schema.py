@@ -1,55 +1,41 @@
 #!/usr/bin/env python
 """
-db/schema.py --- Database schema initialization for volunteer tables only.
-Creates Volunteers, DeletedVolunteers, UserStates, then runs migrations.
-Focuses on modular, unified, consistent code that facilitates future updates.
+db/schema.py --- Database schema initialization for the bot.
+Ensures the SQLite database file exists.
 """
 
 from .connection import db_connection
-from .migrations import run_migrations
 
 def init_db() -> None:
     """
-    init_db - Initialize the database by creating necessary base tables if they do not exist,
-    then run any pending migrations to update the schema.
+    init_db - Ensure the SQLite database file exists and has UserStates and SchemaVersion tables.
     """
     with db_connection() as conn:
         cursor = conn.cursor()
-
-        # Volunteers table
-        cursor.execute("""
-        CREATE TABLE IF NOT EXISTS Volunteers (
-            phone TEXT PRIMARY KEY,
-            name TEXT,
-            skills TEXT,
-            available INTEGER,
-            role TEXT NOT NULL DEFAULT 'registered'
-        )
-        """)
-
-        # DeletedVolunteers table
-        cursor.execute("""
-        CREATE TABLE IF NOT EXISTS DeletedVolunteers (
-            phone TEXT PRIMARY KEY,
-            name TEXT,
-            skills TEXT,
-            available INTEGER,
-            role TEXT NOT NULL DEFAULT 'registered',
-            deleted_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-        """)
-
         # UserStates table
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS UserStates (
-            phone TEXT PRIMARY KEY,
+            user_id TEXT PRIMARY KEY,
             flow_state TEXT DEFAULT '{}'
         )
         """)
-
+        # Migration logic to rename 'phone' to 'user_id' if needed
+        cursor.execute("""
+        PRAGMA table_info(UserStates)
+        """)
+        rows = cursor.fetchall()
+        if any(row[1] == 'phone' for row in rows):
+            cursor.execute("""
+            ALTER TABLE UserStates RENAME COLUMN phone TO user_id
+            """)
+        # SchemaVersion table
+        cursor.execute("DROP TABLE IF EXISTS SchemaVersion")
+        cursor.execute("""
+        CREATE TABLE SchemaVersion (
+            version INTEGER PRIMARY KEY
+        )
+        """)
+        cursor.execute("INSERT INTO SchemaVersion (version) VALUES (1)")
         conn.commit()
-
-    # Run migrations to keep volunteer schema up to date
-    run_migrations()
 
 # End of db/schema.py

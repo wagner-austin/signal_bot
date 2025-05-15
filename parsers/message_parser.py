@@ -51,7 +51,7 @@ def parse_message(message: str) -> ParsedMessage:
     Returns:
         ParsedMessage: A dataclass instance with parsed message attributes.
     """
-    sender = parse_sender(message)
+    sender = parse_sender(message)  # Treated as generic string ID
     body = parse_body(message)
     timestamp = parse_timestamp(message)
     group_id = parse_group_info(message)

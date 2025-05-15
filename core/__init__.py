@@ -5,6 +5,10 @@ Core package for the Signal bot. Provides essential configurations, client commu
 and global state management.
 """
 
-__all__ = ["config", "signal_client", "state"]
+__all__ = [
+    "config",
+    "state",
+    "utils",
+]
 
 # End of core/__init__.py

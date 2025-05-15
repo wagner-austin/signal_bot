@@ -8,14 +8,12 @@ Usage:
 """
 
 import logging
-from typing import Optional, List
+from typing import List
 from plugins.manager import plugin, get_all_plugins, enable_plugin, disable_plugin, disabled_plugins
 from core.permissions import ADMIN
 from core.state import BotStateMachine
 from plugins.commands.subcommand_dispatcher import handle_subcommands, PluginArgError
 from plugins.abstract import BasePlugin
-
-logger = logging.getLogger(__name__)
 
 @plugin(commands=['plugin'], canonical='plugin', required_role=ADMIN)
 class PluginManagerCommand(BasePlugin):
@@ -32,19 +30,18 @@ class PluginManagerCommand(BasePlugin):
             help_text=(
                 "Manage plugins, list, enable, disable.")
         )
-        self.logger = logging.getLogger(__name__)
         self.subcommands = {
             "list": self._sub_list,
             "enable": self._sub_enable,
             "disable": self._sub_disable
         }
 
-    def run_command(
+    async def run_command(
         self,
         args: str,
-        sender: str,
-        state_machine: BotStateMachine,
-        msg_timestamp: Optional[int] = None
+        ctx,
+        state_machine,
+        **kwargs
     ) -> str:
         usage = (
             "Usage: @bot plugin <list|enable|disable> [args]\n"

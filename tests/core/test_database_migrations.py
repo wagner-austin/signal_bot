@@ -7,8 +7,6 @@ Also tests that if the DB schema version is higher than the code's MIGRATIONS,
 we skip migrations without crashing or downgrading.
 """
 
-import os
-import sqlite3
 import pytest
 import logging
 from db.migrations import (

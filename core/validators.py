@@ -10,38 +10,22 @@ CHANGES:
 """
 
 import re
-from plugins.constants import ALLOWED_CLI_FLAGS, DANGEROUS_PATTERN
+from plugins.constants import DANGEROUS_PATTERN
 from core.exceptions import VolunteerError
 
 # Precompile the dangerous pattern regex
 DANGEROUS_REGEX = re.compile(DANGEROUS_PATTERN)
 
 class CLIValidationError(Exception):
-    """
-    CLIValidationError - Exception raised for CLI argument validation errors.
-    """
-    pass
+    """Custom exception for CLI validation errors."""
 
-def validate_cli_args(args):
-    """
-    validate_cli_args - Validates CLI arguments against allowed flags and dangerous characters.
-    """
-    for arg in args:
-        if arg.startswith("-") and arg not in ALLOWED_CLI_FLAGS:
-            raise CLIValidationError(f"Disallowed flag detected: {arg}")
-        if DANGEROUS_REGEX.search(arg):
-            raise CLIValidationError(f"Potentially dangerous character detected in argument: {arg}")
 
-# Phone validation
-_PHONE_REGEX = re.compile(r'^\+?\d{7,15}$')
-
-def validate_phone_number(phone: str) -> None:
+def validate_phone(number: str) -> None:
     """
-    validate_phone_number - Ensures phone meets the +digits pattern with length 7-15.
-    Raises VolunteerError if invalid.
+    Validate a phone number using E.164 format. Raise VolunteerError if invalid.
     """
-    if not phone or not _PHONE_REGEX.match(phone):
-        # Test expects "invalid phone number format" substring
+    import re
+    if not re.match(r'^\+[1-9]\d{1,14}$', number):
         raise VolunteerError("Invalid phone number format")
 
-# End of validators.py
+# End of core/validators.py

@@ -11,7 +11,7 @@ import pytest
 import logging
 import concurrent.futures
 from core.exceptions import VolunteerError
-from db.volunteers import get_volunteer_record, delete_volunteer_record
+from db.volunteers import get_volunteer_record
 from managers.volunteer_manager import (
     VOLUNTEER_MANAGER,
     register_volunteer,

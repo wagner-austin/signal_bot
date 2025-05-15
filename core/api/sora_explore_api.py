@@ -326,15 +326,16 @@ def start_sora_explore_session() -> str:
         _sora_opener.wait_for_duration(BROWSER_STAY_DURATION)
     return "(Sora) Browser launched and idle, ready for downloads."
 
-async def download_sora_explore_session(sender: str) -> str:
+async def download_sora_explore_session(ctx) -> dict | str:
     """
-    Asynchronously triggers the download/capture process if a session is active and sends the downloaded file to the requester.
-    
+    Asynchronously triggers the download/capture process if a session is active and returns the file path for Discord delivery.
+
     Args:
-        sender (str): The recipient's number to whom the downloaded file should be sent.
-    
+        ctx: The Discord context (e.g., discord.Message or interaction). This is passed through unchanged; the API does not use it today, but may use it in the future for direct messaging or richer context.
+
     Returns:
-        A success or failure message string.
+        dict: { 'file_path': ... } on success
+        str: Short error message on failure
     """
     global _sora_opener
     if _sora_opener is None:
@@ -342,23 +343,10 @@ async def download_sora_explore_session(sender: str) -> str:
     current_state = _sora_opener.state
     if current_state in [State.CLOSING, State.COMPLETED]:
         return "(Sora) Session is not available for downloads. Please start again."
-    
-    result = _sora_opener.capture_detailed_info()  # returns {"file_path": ..., "media_type": ..., "detailed_info": {...}}
+    result = _sora_opener.capture_detailed_info()
     if not result.get("file_path"):
         return "(Sora) Download command executed, but no file was saved."
-    
-    try:
-        from core.signal_client import send_message
-        await send_message(
-            to_number=sender,
-            message="(Sora) Here is your downloaded file:",
-            attachments=[result["file_path"]]
-        )
-    except Exception as e:
-        logger.error(f"(Sora) Failed to send downloaded file to {sender}: {e}", exc_info=True)
-        return "(Sora) Could not send downloaded file. Check logs."
-
-    return "(Sora) Download command executed; file has been sent to you."
+    return {"file_path": result["file_path"]}
 
 def stop_sora_explore_session() -> str:
     global _sora_opener

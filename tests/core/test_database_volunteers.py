@@ -5,14 +5,10 @@ Verifies functions to manage volunteer records including creation, update, and d
 (Adjusted to remove references to roles/skills in the volunteer manager interface.)
 """
 
-import pytest
 from db.volunteers import (
     add_volunteer_record,
     get_volunteer_record,
-    update_volunteer_record,
     delete_volunteer_record,
-    add_deleted_volunteer_record,
-    remove_deleted_volunteer_record,
 )
 from managers.volunteer_manager import register_volunteer
 

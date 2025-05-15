@@ -10,4 +10,8 @@ requests
 rotki-pysqlcipher3
 undetected_chromedriver
 
+
+# Optional: Discord support (install with pip install -r requirements.txt -e .[discord])
+discord.py[voice] ; extra == "discord"
+
 # End of requirements.txt

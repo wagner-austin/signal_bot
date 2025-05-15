@@ -33,12 +33,21 @@ class BasePlugin(ABC):
     def run_command(
         self,
         args: str,
-        sender: str,
+        ctx,
         state_machine: BotStateMachine,
         msg_timestamp: Optional[int] = None
     ) -> str:
         """
-        Execute the plugin command. Must be implemented by all subclasses.
+        Main entrypoint for plugin execution.
+
+        Args:
+            args (str): Arguments passed to the plugin command.
+            ctx: The raw Discord context (normally a discord.Message).
+            state_machine: The bot's state machine instance.
+            msg_timestamp: Optional message timestamp.
+
+        Returns:
+            str: The plugin's response message.
         """
         pass
 

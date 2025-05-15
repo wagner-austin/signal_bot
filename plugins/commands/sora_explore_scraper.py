@@ -10,12 +10,9 @@ Usage:
 """
 
 import logging
-import inspect
-import asyncio  # For handling async calls
-from typing import Optional
+import asyncio
 from plugins.manager import plugin
 from core.permissions import OWNER
-from core.state import BotStateMachine
 from plugins.abstract import BasePlugin
 from plugins.commands.subcommand_dispatcher import handle_subcommands, PluginArgError
 from plugins.messages import INTERNAL_ERROR
@@ -51,21 +48,21 @@ class SoraExploreScraperPlugin(BasePlugin):
                 "and 'stop' to close the browser."
             )
         )
-        self.logger = logging.getLogger(__name__)
         self.subcommands = {
-            "start": self._sub_start,
-            "stop": self._sub_stop,
-            "download": self._sub_download,  # Async subcommand
-            "status": self._sub_status,
+            "start":     self._sub_start,
+            "stop":      self._sub_stop,
+            "download":  lambda rest: self._sub_download(rest, self.ctx),
+            "status":    self._sub_status,
         }
 
     async def run_command(
         self,
         args: str,
-        sender: str,
-        state_machine: BotStateMachine,
-        msg_timestamp: Optional[int] = None
+        ctx,
+        state_machine,
+        **kwargs
     ) -> str:
+        self.ctx = ctx
         usage = (
             "Usage:\n"
             "  @bot sora explore start   -> Launch browser and open Sora Explore page.\n"
@@ -90,10 +87,10 @@ class SoraExploreScraperPlugin(BasePlugin):
                 result = ""
             return result
         except PluginArgError as pae:
-            self.logger.error(f"(Sora) Arg parsing error: {pae}", exc_info=True)
+            print(f"(Sora) Arg parsing error: {pae}")
             return str(pae)
         except Exception as e:
-            self.logger.error(f"(Sora) Unexpected error in run_command: {e}", exc_info=True)
+            print(f"(Sora) Unexpected error in run_command: {e}")
             return INTERNAL_ERROR
 
     def _sub_start(self, rest_args):
@@ -102,30 +99,16 @@ class SoraExploreScraperPlugin(BasePlugin):
     def _sub_stop(self, rest_args):
         return stop_sora_explore_session()
 
-    async def _sub_download(self, rest_args):
+    def _sub_download(self, rest_args, ctx):
         """
-        Executes the download command. It passes the sender to the API
-        so the downloaded file can be sent back to the requester.
+        Returns the coroutine for the download command, so handle_subcommands can await it.
         """
-        try:
-            return await download_sora_explore_session(self._sender)
-        except Exception as e:
-            self.logger.error(f"(Sora) Error during download subcommand: {e}", exc_info=True)
-            return "(Sora) An error occurred while processing your download command."
+        if ctx is None:
+            return "(Sora) Error: No Discord context provided for download."
+        return download_sora_explore_session(ctx)
 
     def _sub_status(self, rest_args):
         return get_sora_explore_session_status()
 
-    @property
-    def _sender(self) -> str:
-        """
-        Retrieves the sender from the local scope of the run_command method.
-        Returns:
-            The sender identifier if found; otherwise 'Unknown'.
-        """
-        for frame_info in inspect.stack():
-            if frame_info.function == "run_command":
-                return frame_info.frame.f_locals.get("sender", "Unknown")
-        return "Unknown"
 
 # End of plugins/commands/sora_explore_scraper.py

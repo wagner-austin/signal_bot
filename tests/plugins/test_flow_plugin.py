@@ -8,7 +8,6 @@ Tests for the 'flow' plugin commands: list, switch, pause, create.
 import pytest
 from plugins.manager import get_plugin
 from core.api.flow_state_api import get_active_flow  # Updated import
-from core.state import BotStateMachine
 
 @pytest.fixture
 def dummy_sender():

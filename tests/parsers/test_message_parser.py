@@ -2,7 +2,6 @@
 tests/parsers/test_message_parser.py - Tests for message parsing functionalities.
 """
 
-import pytest
 from parsers.message_parser import parse_message
 
 def test_message_parsing():

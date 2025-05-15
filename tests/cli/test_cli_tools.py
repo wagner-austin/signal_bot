@@ -8,7 +8,6 @@ valid commands (check in, check out, volunteer status, and help) are recognized.
 """
 
 from tests.cli.cli_test_helpers import run_cli_command
-import pytest
 
 def test_cli_no_subcommand():
     """

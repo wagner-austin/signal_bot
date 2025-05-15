@@ -17,7 +17,7 @@ from core.api.flow_state_api import (
     start_flow,
     get_active_flow
 )
-from db.volunteers import add_volunteer_record, delete_volunteer_record
+from db.volunteers import delete_volunteer_record
 
 
 def clear_flow_state(phone: str):

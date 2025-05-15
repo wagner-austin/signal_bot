@@ -6,11 +6,10 @@ Verifies that critical modules accept dependencies and use them instead of globa
 """
 
 import sqlite3
-import asyncio
 import logging
 import pytest
 from db.repository import BaseRepository
-from core.signal_client import send_message, process_incoming
+from core.signal_client import send_message
 from managers.message.message_dispatcher import dispatch_message
 from parsers.message_parser import ParsedMessage
 from core.state import BotStateMachine

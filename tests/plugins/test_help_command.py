@@ -5,7 +5,6 @@ Tests for the 'help' command plugin.
 Verifies that the plugin returns a non-empty string and references at least one whitelisted command.
 """
 
-import pytest
 from core.state import BotStateMachine
 from plugins.manager import get_plugin
 

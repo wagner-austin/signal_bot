@@ -6,9 +6,20 @@ Loads configuration settings from environment variables with default values.
 
 import os
 import logging
+import json
 from dotenv import load_dotenv
 
 logger = logging.getLogger(__name__)
+
+# Set up logging level and warn if DEBUG is set without LOG_SQL_QUERIES=1
+log_level = os.environ.get("LOG_LEVEL", "INFO").upper()
+log_sql = os.environ.get("LOG_SQL_QUERIES", "0") in ("1", "true", "yes")
+
+if log_level == "DEBUG" and not log_sql:
+    logger.warning(
+        "DEBUG log level enabled but LOG_SQL_QUERIES is not set to 1. This may result in noisy logs."
+    )
+logging.basicConfig(level=getattr(logging, log_level, logging.INFO))
 
 def parse_int_env(value_str: str, default: int, var_name: str) -> int:
     """
@@ -41,23 +52,20 @@ if not os.path.exists(dotenv_path):
 else:
     load_dotenv(dotenv_path)
 
-# Bot phone number in E.164 format, defaulting to a specified value.
-BOT_NUMBER: str = os.environ.get("BOT_NUMBER", "YOUR_SIGNAL_NUMBER")
 
-# Polling interval in seconds for checking incoming messages.
-POLLING_INTERVAL: int = int(os.environ.get("POLLING_INTERVAL", "1"))
-
-# Signal CLI command to use (e.g., 'signal-cli.bat' for Windows).
-SIGNAL_CLI_COMMAND: str = os.environ.get("SIGNAL_CLI_COMMAND", "signal-cli.bat")
-
-# Enable or disable direct reply quoting feature.
-DIRECT_REPLY_ENABLED: bool = os.environ.get("DIRECT_REPLY_ENABLED", "True").lower() in ("true", "1", "yes")
-
-# Toggle requirement of the @bot command prefix.
-ENABLE_BOT_PREFIX: bool = os.environ.get("ENABLE_BOT_PREFIX", "true").lower() in ("true", "1", "yes")
 
 # Database name for SQLite, defaulting to "bot_data.db" if not set.
 DB_NAME: str = os.environ.get("DB_NAME", "bot_data.db")
+
+# Map Discord role names to bot roles (loaded from environment)
+def _parse_role_name_map():
+    val = os.environ.get("ROLE_NAME_MAP", '{}')
+    try:
+        return json.loads(val)
+    except Exception as e:
+        logger.warning(f"Failed to parse ROLE_NAME_MAP from env: {e}. Using empty map.")
+        return {}
+ROLE_NAME_MAP = _parse_role_name_map()
 
 # Backup interval in seconds (default 3600 seconds = 1 hour),
 # safely parse int to handle corrupted or non-numeric values.
@@ -67,12 +75,13 @@ BACKUP_INTERVAL: int = parse_int_env(
     "BACKUP_INTERVAL"
 )
 
-# Number of backup snapshots to retain (default 5),
-# safely parse int to handle corrupted or non-numeric values.
-BACKUP_RETENTION_COUNT: int = parse_int_env(
-    os.environ.get("BACKUP_RETENTION_COUNT", "10"),
-    5,
-    "BACKUP_RETENTION_COUNT"
-)
+# Number of backup snapshots to retain (default 10), for disk backup retention
+DISK_BACKUP_RETENTION_COUNT: int = int(os.getenv("DISK_BACKUP_RETENTION_COUNT", 10))
+
+# For backward compatibility; canonical backup interval
+DISK_BACKUP_INTERVAL = BACKUP_INTERVAL
+
+# === API Keys ===
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 
 # End of config.py
